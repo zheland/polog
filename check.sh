@@ -53,16 +53,9 @@ main() {
     echo_and_run cargo +nightly miri test --all-targets --all-features
 
     # Check no-std support.
-    params_sets=(
-        'x86_64-unknown-none,polog'
-        'x86_64-unknown-none,polog-util'
-        'thumbv7em-none-eabihf,polog'
-        'thumbv7em-none-eabihf,polog-util'
-    );
-    for params in "${params_sets[@]}"; do
-        IFS=, read -r target package <<< "$params"
+    for target in "x86_64-unknown-none" "thumbv7em-none-eabihf"; do
         echo_and_run cargo hack check \
-            -p $package \
+            -p polog -p polog-util \
             --target $target \
             --feature-powerset \
             --exclude-features "\
