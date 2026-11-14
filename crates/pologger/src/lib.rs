@@ -59,16 +59,16 @@
 //!
 //! ```toml
 //! [dependencies]
-//! polog = "0.0.1-dev.0"       # Facade traits and macros.
-//! polog-util = "0.0.1-dev.0"  # Optional utilities and middleware.
-//! pologger = "0.0.1-dev.0"    # Reference logger backend implementation.
+//! polog = "0.1.0-alpha.1"       # Facade traits and macros.
+//! polog-util = "0.1.0-alpha.1"  # Optional utilities and middleware.
+//! pologger = "0.1.0-alpha.1"    # Reference logger backend implementation.
 //! ```
 //!
 //! Enable features for the foreign facades you need:
 //!
 //! ```toml
 //! [dependencies]
-//! pologger = { version = "0.0.1-dev.0", features = [ "log-0-4", "tracing-0-1" ] }
+//! pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "tracing-0-1" ] }
 //! ```
 //!
 //!
@@ -218,11 +218,11 @@
 //!   </tr>
 //!   <tr>
 //!     <td>
-//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.0.1-dev.0/crates/pologger/assets/terminal-captures/text-compact.svg" /></a>
+//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.1.0-alpha.1/crates/pologger/assets/terminal-captures/text-compact.svg" /></a>
 //!     </td><td>
-//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.0.1-dev.0/crates/pologger/assets/terminal-captures/text-span-path.svg" /></a>
+//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.1.0-alpha.1/crates/pologger/assets/terminal-captures/text-span-path.svg" /></a>
 //!     </td><td>
-//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.0.1-dev.0/crates/pologger/assets/terminal-captures/ndjson-compact.svg" /></a>
+//! <a href="https://github.com/zheland/polog/blob/master/examples/example/src/main.rs"><img src="https://raw.githubusercontent.com/zheland/polog/refs/tags/v0.1.0-alpha.1/crates/pologger/assets/terminal-captures/ndjson-compact.svg" /></a>
 //!     </td>
 //!   </tr>
 //! </table>

@@ -75,8 +75,8 @@ formatter.
 
 ```toml
 [dependencies]
-polog = "0.0.1-dev.0"
-pologger = { version = "0.0.1-dev.0", features = [ "log-0-4", "tracing-0-1" ] }
+polog = "0.1.0-alpha.1"
+pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "tracing-0-1" ] }
 ```
 
 ```rust
@@ -107,7 +107,7 @@ They never construct one and never depend on a backend.
 
 ```toml
 [dependencies]
-polog = "0.0.1-dev.0"
+polog = "0.1.0-alpha.1"
 ```
 
 ```rust

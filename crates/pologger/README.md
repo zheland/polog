@@ -59,16 +59,16 @@ In executables add:
 
 ```toml
 [dependencies]
-polog = "0.0.1-dev.0"       # Facade traits and macros.
-polog-util = "0.0.1-dev.0"  # Optional utilities and middleware.
-pologger = "0.0.1-dev.0"    # Reference logger backend implementation.
+polog = "0.1.0-alpha.1"       # Facade traits and macros.
+polog-util = "0.1.0-alpha.1"  # Optional utilities and middleware.
+pologger = "0.1.0-alpha.1"    # Reference logger backend implementation.
 ```
 
 Enable features for the foreign facades you need:
 
 ```toml
 [dependencies]
-pologger = { version = "0.0.1-dev.0", features = [ "log-0-4", "tracing-0-1" ] }
+pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "tracing-0-1" ] }
 ```
 
 

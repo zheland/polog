@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1-dev.0"
+version = "0.1.0-alpha.1"
 authors = [ "Andrey Zheleznov <zheland.net@gmail.com>" ]
 edition = "2024"
 rust-version = "1.100.0" # `Allocator` API and `never` type.
@@ -17,9 +17,9 @@ repository = "https://github.com/zheland/polog"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-polog = { version = "0.0.1-dev.0", path = "crates/polog", default-features = false }
-polog-util = { version = "0.0.1-dev.0", path = "crates/polog-util", default-features = false }
-pologger = { version = "0.0.1-dev.0", path = "crates/pologger", default-features = false }
+polog = { version = "0.1.0-alpha.1", path = "crates/polog", default-features = false }
+polog-util = { version = "0.1.0-alpha.1", path = "crates/polog-util", default-features = false }
+pologger = { version = "0.1.0-alpha.1", path = "crates/pologger", default-features = false }
 polog-test-helpers = { path = "crates/polog-test-helpers", default-features = false }
 
 [workspace.lints.rust]
