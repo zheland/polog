@@ -1,5 +1,15 @@
 # `polog`: A performance-oriented structured logging facade
 
+[![Build Status](https://github.com/zheland/polog/workflows/build/badge.svg)](https://github.com/zheland/polog/actions)
+[![Latest Version](https://img.shields.io/crates/v/polog.svg)](https://crates.io/crates/polog)
+[![Documentation](https://docs.rs/polog/badge.svg)](https://docs.rs/polog)
+[![Codecov](https://codecov.io/gh/zheland/polog/graph/badge.svg)](https://codecov.io/gh/zheland/polog)
+[![Dependencies status](https://deps.rs/repo/github/zheland/polog/status.svg)](https://deps.rs/repo/github/zheland/polog)
+[![Downloads](https://img.shields.io/crates/d/polog)](https://crates.io/crates/polog)
+[![License](https://img.shields.io/crates/l/polog)](https://github.com/zheland/polog/#license)
+[![MSRV 1.100+](https://img.shields.io/badge/rustc-1.100+-blue.svg)](https://blog.rust-lang.org/2026/11/12/Rust-1.100.0/)
+
+
 The `polog` workspace provides a structured logging facade, optional
 middleware, and a reference backend, designed for applications where
 logging overhead matters and where threading an explicit logger through the

@@ -1,5 +1,15 @@
 # `pologger`: A reference logging backend for `polog`
 
+[![Build Status](https://github.com/zheland/polog/workflows/build/badge.svg)](https://github.com/zheland/polog/actions)
+[![Latest Version](https://img.shields.io/crates/v/pologger.svg)](https://crates.io/crates/pologger)
+[![Documentation](https://docs.rs/pologger/badge.svg)](https://docs.rs/pologger)
+[![Codecov](https://codecov.io/gh/zheland/polog/graph/badge.svg)](https://codecov.io/gh/zheland/polog)
+[![Dependencies status](https://deps.rs/repo/github/zheland/pologger/status.svg)](https://deps.rs/repo/github/zheland/pologger)
+[![Downloads](https://img.shields.io/crates/d/pologger)](https://crates.io/crates/pologger)
+[![License](https://img.shields.io/crates/l/pologger)](https://github.com/zheland/pologger/#license)
+[![MSRV 1.100+](https://img.shields.io/badge/rustc-1.100+-blue.svg)](https://blog.rust-lang.org/2026/11/12/Rust-1.100.0/)
+
+
 The `pologger` crate provides a reference logging backend for the [`polog`]
 logging facade.
 

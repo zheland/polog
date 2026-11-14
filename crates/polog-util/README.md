@@ -1,4 +1,14 @@
-# `polog-util`:  Utilities and middleware for `polog`
+# `polog-util`: Utilities and middleware for `polog`
+
+[![Build Status](https://github.com/zheland/polog/workflows/build/badge.svg)](https://github.com/zheland/polog/actions)
+[![Latest Version](https://img.shields.io/crates/v/polog-util.svg)](https://crates.io/crates/polog-util)
+[![Documentation](https://docs.rs/polog-util/badge.svg)](https://docs.rs/polog-util)
+[![Codecov](https://codecov.io/gh/zheland/polog/graph/badge.svg)](https://codecov.io/gh/zheland/polog)
+[![Dependencies status](https://deps.rs/repo/github/zheland/polog-util/status.svg)](https://deps.rs/repo/github/zheland/polog-util)
+[![Downloads](https://img.shields.io/crates/d/polog-util)](https://crates.io/crates/polog-util)
+[![License](https://img.shields.io/crates/l/polog-util)](https://github.com/zheland/polog-util/#license)
+[![MSRV 1.100+](https://img.shields.io/badge/rustc-1.100+-blue.svg)](https://blog.rust-lang.org/2026/11/12/Rust-1.100.0/)
+
 
 The `polog-util` crate provides optional utilities, middleware, adapters,
 and formatting helpers for the [`polog`] logging facade.
