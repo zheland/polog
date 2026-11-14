@@ -1,0 +1,53 @@
+[package]
+name = "polog"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Performance-oriented structured logging facade"
+documentation = "https://docs.rs/polog"
+readme = "README.md"
+repository.workspace = true
+license.workspace = true
+keywords = [
+    "log",
+    "logging",
+    "tracing",
+    "profiling",
+    "no-std",
+]
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "no-std",
+    "no-std::no-alloc",
+]
+
+[features]
+default = [ "alloc", "std" ]
+alloc = []
+std = [ "alloc" ]
+test-util = []
+
+[dev-dependencies]
+polog-test-helpers = { workspace = true }
+tokio = { version = "1.54.1", default-features = false, features = [ "macros", "rt", "rt-multi-thread", "sync" ] }
+tracing = { version = "0.1.44", default-features = false }
+
+[[test]]
+name = "same_thread"
+required-features = [ "alloc" ]
+
+[[test]]
+name = "off_thread"
+required-features = [ "alloc" ]
+
+[badges.maintenance]
+status = "passively-maintained"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[lints]
+workspace = true

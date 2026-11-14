@@ -1,0 +1,70 @@
+[package]
+name = "polog-util"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Performance-oriented structured logging facade utilities"
+documentation = "https://docs.rs/polog-util"
+readme = "README.md"
+repository.workspace = true
+license.workspace = true
+keywords = [
+    "log",
+    "logging",
+    "tracing",
+    "profiling",
+    "no-std",
+]
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "no-std",
+    "no-std::no-alloc",
+]
+
+[features]
+default = [ "alloc", "std" ]
+alloc = [ "polog/alloc" ]
+std = [ "alloc", "polog/std" ]
+fanout = [ "alloc", "dep:dashmap" ]
+offloader = [ "std", "dep:crossbeam-channel", "dep:oneshot" ]
+offloader-support-tokio = [ "offloader", "dep:tokio" ]
+shared = [ "alloc", "dep:parking_lot" ]
+shared-filter = [ "alloc", "dep:parking_lot" ]
+log-0-4 = [ "dep:log-0-4", "log-0-4?/kv" ]
+slog-2 = [ "dep:slog-2" ]
+slog-2-semver-unstable = [ "slog-2" ] # Relies on slog internals that are not semver-stable.
+tracing-core-0-1 = [ "dep:tracing-core-0-1" ]
+tracing-0-1-semver-unstable = [ "std", "tracing-core-0-1", "dep:tracing-0-1", "tracing-0-1/std", "dep:smallvec", "dep:dashmap" ] # Relies on tracing internals that are not semver-stable.
+
+[dependencies]
+crossbeam-channel = { version = "0.5.17", default-features = false, features = [ "std" ], optional = true }
+dashmap = { version = "6.2.1", default-features = false, optional = true } # implicitly enables "std"
+log-0-4 = { package = "log", version = "0.4.35", default-features = false, optional = true }
+oneshot = { version = "0.2.1", default-features = false, features = [ "std" ], optional = true }
+# Bumping `parking_lot` requires a `pologger` breaking-change release,
+# because the version of `parking_lot` is a part of `pologger`'s public type identity.
+parking_lot = { version = "0.13.0", default-features = false, optional = true }
+polog = { workspace = true, default-features = false }
+slog-2 = { package = "slog", version = "2.8.2", default-features = false, optional = true }
+smallvec = { version = "1.16.5", default-features = false, optional = true }
+tokio = { version = "1.54.1", default-features = false, features = [ "rt", "rt-multi-thread" ], optional = true }
+tracing-0-1 = { package = "tracing", version = "0.1.44", default-features = false, optional = true }
+tracing-core-0-1 = { package = "tracing-core", version = "0.1.36", default-features = false, optional = true }
+
+[dev-dependencies]
+parking_lot = { version = "0.13.0", default-features = false }
+polog = { workspace = true, default-features = false, features = [ "test-util" ] }
+polog-test-helpers = { workspace = true }
+tokio = { version = "1.54.1", default-features = false, features = [ "macros", "rt", "rt-multi-thread" ] }
+
+[badges.maintenance]
+status = "passively-maintained"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

@@ -1,0 +1,981 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1128 1257" width="1128" height="1257">
+    <defs>
+        <style type="text/css">
+            .screen {
+                font-family: "DejaVu Sans Mono", ui-monospace, monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
+            text {
+                dominant-baseline: text-before-edge;
+                white-space: pre;
+                fill: #cccccc;
+            }
+            .background { fill: #2a2a2a; }
+            .bold { font-weight: bold; }
+        </style>
+    </defs>
+    <g class="screen">
+        <rect class="background" x="0" y="0" width="100%" height="100%"/>
+        <text x="8" y="8" textLength="360">$ cargo -q run -p example -- &quot;text-span-path&quot;</text>
+        <text x="8" y="25" textLength="224">2026-11-14T10:55:04.821891Z </text>
+        <text x="232" y="25" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="25" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="25" textLength="176"> Tokio Runtime Started</text>
+        <text x="8" y="42" textLength="184" style="fill: #636363">2026-11-14T10:55:04.821</text>
+        <text x="192" y="42" textLength="40">904Z </text>
+        <text x="232" y="42" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="42" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="42" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="42" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="384" y="42" textLength="32"> app</text>
+        <text x="8" y="59" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82190</text>
+        <text x="208" y="59" textLength="24">7Z </text>
+        <text x="232" y="59" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="59" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="59" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="59" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="384" y="59" textLength="176"> Information Message: </text>
+        <text x="560" y="59" textLength="24" style="fill: #aa6292">key</text>
+        <text x="584" y="59" textLength="24"> = </text>
+        <text x="608" y="59" textLength="40" style="fill: #7eaac7">value</text>
+        <text x="8" y="76" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821907Z</text>
+        <text x="232" y="76" textLength="32" class="bold" style="fill: #ddb46d">WARN</text>
+        <text x="280" y="76" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="76" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="76" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="384" y="76" textLength="144"> Warning Message: </text>
+        <text x="528" y="76" textLength="24" style="fill: #aa6292">123</text>
+        <text x="552" y="76" textLength="24"> = </text>
+        <text x="576" y="76" textLength="24" style="fill: #7eaac7">123</text>
+        <text x="600" y="76" textLength="16">, </text>
+        <text x="616" y="76" textLength="24" style="fill: #aa6292">234</text>
+        <text x="640" y="76" textLength="24"> = </text>
+        <text x="664" y="76" textLength="24" style="fill: #7eaac7">234</text>
+        <text x="688" y="76" textLength="16">, </text>
+        <text x="704" y="76" textLength="24" style="fill: #aa6292">345</text>
+        <text x="728" y="76" textLength="24"> = </text>
+        <text x="752" y="76" textLength="24" style="fill: #7eaac7">345</text>
+        <text x="8" y="93" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82190</text>
+        <text x="208" y="93" textLength="24">8Z </text>
+        <text x="232" y="93" textLength="40" class="bold" style="fill: #bc5653">ERROR</text>
+        <text x="280" y="93" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="93" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="93" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="384" y="93" textLength="128"> Error Message: </text>
+        <text x="512" y="93" textLength="152" style="fill: #aa6292">(&quot;a&quot;, &#39;b&#39;, 3, true)</text>
+        <text x="664" y="93" textLength="24"> = </text>
+        <text x="688" y="93" textLength="152" style="fill: #7eaac7">(&quot;a&quot;, &#39;b&#39;, 3, true)</text>
+        <text x="840" y="93" textLength="16">, </text>
+        <text x="856" y="93" textLength="40" style="fill: #aa6292">1 - 2</text>
+        <text x="896" y="93" textLength="24"> = </text>
+        <text x="920" y="93" textLength="16" style="fill: #7eaac7">-1</text>
+        <text x="8" y="110" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82190</text>
+        <text x="208" y="110" textLength="24">9Z </text>
+        <text x="232" y="110" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="110" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="110" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="110" textLength="40"> app </text>
+        <text x="360" y="110" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="110" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="110" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="110" textLength="72"> nested: </text>
+        <text x="536" y="110" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="600" y="110" textLength="24"> = </text>
+        <text x="624" y="110" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="8" y="127" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8219</text>
+        <text x="200" y="127" textLength="32">10Z </text>
+        <text x="232" y="127" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="127" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="127" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="127" textLength="40"> app </text>
+        <text x="360" y="127" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="127" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="127" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="127" textLength="232"> Message in Nested Function: </text>
+        <text x="696" y="127" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="760" y="127" textLength="24"> = </text>
+        <text x="784" y="127" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="8" y="144" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821910Z</text>
+        <text x="232" y="144" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="144" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="144" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="144" textLength="40"> app </text>
+        <text x="360" y="144" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="144" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="144" textLength="64"> nested </text>
+        <text x="464" y="144" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="144" textLength="16" style="fill: #909d63">#3</text>
+        <text x="512" y="144" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="568" y="144" textLength="72"> nested: </text>
+        <text x="640" y="144" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="704" y="144" textLength="24"> = </text>
+        <text x="728" y="144" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="161" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821910Z</text>
+        <text x="232" y="161" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="161" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="161" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="161" textLength="40"> app </text>
+        <text x="360" y="161" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="161" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="161" textLength="64"> nested </text>
+        <text x="464" y="161" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="161" textLength="16" style="fill: #909d63">#3</text>
+        <text x="512" y="161" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="568" y="161" textLength="232"> Message in Nested Function: </text>
+        <text x="800" y="161" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="864" y="161" textLength="24"> = </text>
+        <text x="888" y="161" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="178" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821910Z</text>
+        <text x="232" y="178" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="178" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="178" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="178" textLength="40"> app </text>
+        <text x="360" y="178" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="178" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="178" textLength="64"> nested </text>
+        <text x="464" y="178" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="178" textLength="16" style="fill: #909d63">#3</text>
+        <text x="504" y="178" textLength="64"> nested </text>
+        <text x="568" y="178" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="592" y="178" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="616" y="178" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="672" y="178" textLength="72"> nested: </text>
+        <text x="744" y="178" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="808" y="178" textLength="24"> = </text>
+        <text x="832" y="178" textLength="8" style="fill: #7eaac7">1</text>
+        <text x="8" y="195" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82191</text>
+        <text x="208" y="195" textLength="24">1Z </text>
+        <text x="232" y="195" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="195" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="195" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="195" textLength="40"> app </text>
+        <text x="360" y="195" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="195" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="195" textLength="64"> nested </text>
+        <text x="464" y="195" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="195" textLength="16" style="fill: #909d63">#3</text>
+        <text x="504" y="195" textLength="64"> nested </text>
+        <text x="568" y="195" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="592" y="195" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="616" y="195" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="672" y="195" textLength="232"> Message in Nested Function: </text>
+        <text x="904" y="195" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="968" y="195" textLength="24"> = </text>
+        <text x="992" y="195" textLength="8" style="fill: #7eaac7">1</text>
+        <text x="8" y="212" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821911Z</text>
+        <text x="232" y="212" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="212" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="212" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="212" textLength="40"> app </text>
+        <text x="360" y="212" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="212" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="212" textLength="64"> nested </text>
+        <text x="464" y="212" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="212" textLength="16" style="fill: #909d63">#3</text>
+        <text x="504" y="212" textLength="64"> nested </text>
+        <text x="568" y="212" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="592" y="212" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="608" y="212" textLength="64"> nested </text>
+        <text x="672" y="212" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="696" y="212" textLength="16" style="fill: #7eaac7">#5</text>
+        <text x="720" y="212" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="776" y="212" textLength="72"> nested: </text>
+        <text x="848" y="212" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="912" y="212" textLength="24"> = </text>
+        <text x="936" y="212" textLength="8" style="fill: #7eaac7">0</text>
+        <text x="8" y="229" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821911Z</text>
+        <text x="232" y="229" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="229" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="229" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="229" textLength="40"> app </text>
+        <text x="360" y="229" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="229" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="400" y="229" textLength="64"> nested </text>
+        <text x="464" y="229" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="229" textLength="16" style="fill: #909d63">#3</text>
+        <text x="504" y="229" textLength="64"> nested </text>
+        <text x="568" y="229" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="592" y="229" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="608" y="229" textLength="64"> nested </text>
+        <text x="672" y="229" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="696" y="229" textLength="16" style="fill: #7eaac7">#5</text>
+        <text x="720" y="229" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="776" y="229" textLength="232"> Message in Nested Function: </text>
+        <text x="1008" y="229" textLength="64" style="fill: #aa6292">remained</text>
+        <text x="1072" y="229" textLength="24"> = </text>
+        <text x="1096" y="229" textLength="8" style="fill: #7eaac7">0</text>
+        <text x="8" y="246" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821911Z</text>
+        <text x="232" y="246" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="246" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="246" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="246" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="246" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="246" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="246" textLength="48" style="fill: #636363">nested</text>
+        <text x="464" y="246" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="246" textLength="16" style="fill: #909d63">#3</text>
+        <text x="512" y="246" textLength="48" style="fill: #636363">nested</text>
+        <text x="568" y="246" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="592" y="246" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="616" y="246" textLength="48" style="fill: #636363">nested</text>
+        <text x="672" y="246" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="696" y="246" textLength="16" style="fill: #7eaac7">#5</text>
+        <text x="720" y="246" textLength="56" style="fill: #636363">example</text>
+        <text x="784" y="246" textLength="48" style="fill: #636363">nested</text>
+        <text x="8" y="263" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821911Z</text>
+        <text x="232" y="263" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="263" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="263" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="263" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="263" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="263" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="263" textLength="48" style="fill: #636363">nested</text>
+        <text x="464" y="263" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="488" y="263" textLength="16" style="fill: #909d63">#3</text>
+        <text x="512" y="263" textLength="48" style="fill: #636363">nested</text>
+        <text x="568" y="263" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="592" y="263" textLength="16" style="fill: #86d3ce">#4</text>
+        <text x="616" y="263" textLength="56" style="fill: #636363">example</text>
+        <text x="680" y="263" textLength="48" style="fill: #636363">nested</text>
+        <text x="8" y="280" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82191</text>
+        <text x="208" y="280" textLength="24">2Z </text>
+        <text x="232" y="280" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="280" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="280" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="280" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="280" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="280" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="280" textLength="48" style="fill: #636363">nested</text>
+        <text x="464" y="280" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="488" y="280" textLength="16" style="fill: #909d63">#3</text>
+        <text x="512" y="280" textLength="56" style="fill: #636363">example</text>
+        <text x="576" y="280" textLength="48" style="fill: #636363">nested</text>
+        <text x="8" y="297" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821912Z</text>
+        <text x="232" y="297" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="297" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="297" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="297" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="297" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="384" y="297" textLength="16" style="fill: #ddb46d">#2</text>
+        <text x="408" y="297" textLength="56" style="fill: #636363">example</text>
+        <text x="472" y="297" textLength="48" style="fill: #636363">nested</text>
+        <text x="8" y="314" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8219</text>
+        <text x="200" y="314" textLength="32">42Z </text>
+        <text x="232" y="314" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="314" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="314" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="314" textLength="40"> app </text>
+        <text x="360" y="314" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="314" textLength="16" style="fill: #aa6292">#6</text>
+        <text x="408" y="314" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="314" textLength="80"> sync_fn: </text>
+        <text x="544" y="314" textLength="48" style="fill: #aa6292">param1</text>
+        <text x="592" y="314" textLength="24"> = </text>
+        <text x="616" y="314" textLength="8" style="fill: #7eaac7">1</text>
+        <text x="624" y="314" textLength="16">, </text>
+        <text x="640" y="314" textLength="48" style="fill: #aa6292">param2</text>
+        <text x="688" y="314" textLength="24"> = </text>
+        <text x="712" y="314" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="331" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82194</text>
+        <text x="208" y="331" textLength="24">7Z </text>
+        <text x="232" y="331" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="331" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="331" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="331" textLength="40"> app </text>
+        <text x="360" y="331" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="331" textLength="16" style="fill: #aa6292">#6</text>
+        <text x="408" y="331" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="331" textLength="216"> Message in Sync Function: </text>
+        <text x="680" y="331" textLength="24" style="fill: #aa6292">sum</text>
+        <text x="704" y="331" textLength="24"> = </text>
+        <text x="728" y="331" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="8" y="348" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82194</text>
+        <text x="208" y="348" textLength="24">8Z </text>
+        <text x="232" y="348" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="348" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="348" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="348" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="348" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="348" textLength="16" style="fill: #aa6292">#6</text>
+        <text x="408" y="348" textLength="56" style="fill: #636363">example</text>
+        <text x="472" y="348" textLength="56" style="fill: #636363">sync_fn</text>
+        <text x="8" y="365" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8219</text>
+        <text x="200" y="365" textLength="32">65Z </text>
+        <text x="232" y="365" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="365" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="365" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="365" textLength="40"> app </text>
+        <text x="360" y="365" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="365" textLength="16" style="fill: #f79a94">#7</text>
+        <text x="408" y="365" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="365" textLength="80"> sync_fn: </text>
+        <text x="544" y="365" textLength="48" style="fill: #aa6292">param1</text>
+        <text x="592" y="365" textLength="24"> = </text>
+        <text x="616" y="365" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="624" y="365" textLength="16">, </text>
+        <text x="640" y="365" textLength="48" style="fill: #aa6292">param2</text>
+        <text x="688" y="365" textLength="24"> = </text>
+        <text x="712" y="365" textLength="8" style="fill: #7eaac7">4</text>
+        <text x="8" y="382" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82196</text>
+        <text x="208" y="382" textLength="24">9Z </text>
+        <text x="232" y="382" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="382" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="382" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="382" textLength="40"> app </text>
+        <text x="360" y="382" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="382" textLength="16" style="fill: #f79a94">#7</text>
+        <text x="408" y="382" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="382" textLength="216"> Message in Sync Function: </text>
+        <text x="680" y="382" textLength="24" style="fill: #aa6292">sum</text>
+        <text x="704" y="382" textLength="24"> = </text>
+        <text x="728" y="382" textLength="8" style="fill: #7eaac7">7</text>
+        <text x="8" y="399" textLength="216" style="fill: #636363">2026-11-14T10:55:04.821969Z</text>
+        <text x="232" y="399" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="399" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="399" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="399" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="399" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="399" textLength="16" style="fill: #f79a94">#7</text>
+        <text x="408" y="399" textLength="56" style="fill: #636363">example</text>
+        <text x="472" y="399" textLength="56" style="fill: #636363">sync_fn</text>
+        <text x="8" y="416" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8219</text>
+        <text x="200" y="416" textLength="32">82Z </text>
+        <text x="232" y="416" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="416" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="416" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="416" textLength="40"> app </text>
+        <text x="360" y="416" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="416" textLength="16" style="fill: #fedda4">#8</text>
+        <text x="408" y="416" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="416" textLength="160"> Movable Owned Guard</text>
+        <text x="8" y="433" textLength="176" style="fill: #636363">2026-11-14T10:55:04.82</text>
+        <text x="184" y="433" textLength="48">2009Z </text>
+        <text x="232" y="433" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="433" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="433" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="433" textLength="40"> app </text>
+        <text x="360" y="433" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="433" textLength="16" style="fill: #cedda0">#9</text>
+        <text x="408" y="433" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="433" textLength="88"> async_fn: </text>
+        <text x="552" y="433" textLength="40" style="fill: #aa6292">param</text>
+        <text x="592" y="433" textLength="24"> = </text>
+        <text x="616" y="433" textLength="24" style="fill: #7eaac7">foo</text>
+        <text x="8" y="450" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="450" textLength="32">14Z </text>
+        <text x="232" y="450" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="450" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="450" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="450" textLength="40"> app </text>
+        <text x="360" y="450" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="450" textLength="16" style="fill: #cedda0">#9</text>
+        <text x="408" y="450" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="450" textLength="272"> First Message in Async Function: </text>
+        <text x="736" y="450" textLength="24" style="fill: #aa6292">len</text>
+        <text x="760" y="450" textLength="24"> = </text>
+        <text x="784" y="450" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="8" y="467" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822014Z</text>
+        <text x="232" y="467" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="467" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="467" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="467" textLength="40"> app </text>
+        <text x="360" y="467" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="467" textLength="24" style="fill: #b1fff9">#10</text>
+        <text x="416" y="467" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="467" textLength="88"> async_fn: </text>
+        <text x="560" y="467" textLength="40" style="fill: #aa6292">param</text>
+        <text x="600" y="467" textLength="24"> = </text>
+        <text x="624" y="467" textLength="72" style="fill: #7eaac7">abcdefghi</text>
+        <text x="8" y="484" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82201</text>
+        <text x="208" y="484" textLength="24">7Z </text>
+        <text x="232" y="484" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="484" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="484" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="484" textLength="40"> app </text>
+        <text x="360" y="484" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="484" textLength="24" style="fill: #b1fff9">#10</text>
+        <text x="416" y="484" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="484" textLength="272"> First Message in Async Function: </text>
+        <text x="744" y="484" textLength="24" style="fill: #aa6292">len</text>
+        <text x="768" y="484" textLength="24"> = </text>
+        <text x="792" y="484" textLength="8" style="fill: #7eaac7">9</text>
+        <text x="8" y="501" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="501" textLength="32">31Z </text>
+        <text x="232" y="501" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="501" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="501" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="501" textLength="40"> app </text>
+        <text x="360" y="501" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="501" textLength="24" style="fill: #b1fff9">#10</text>
+        <text x="416" y="501" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="501" textLength="280"> Second Message in Async Function: </text>
+        <text x="752" y="501" textLength="24" style="fill: #aa6292">len</text>
+        <text x="776" y="501" textLength="24"> = </text>
+        <text x="800" y="501" textLength="8" style="fill: #7eaac7">9</text>
+        <text x="8" y="518" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82203</text>
+        <text x="208" y="518" textLength="24">2Z </text>
+        <text x="232" y="518" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="518" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="518" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="518" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="518" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="518" textLength="24" style="fill: #b1fff9">#10</text>
+        <text x="416" y="518" textLength="56" style="fill: #636363">example</text>
+        <text x="480" y="518" textLength="64" style="fill: #636363">async_fn</text>
+        <text x="8" y="535" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82203</text>
+        <text x="208" y="535" textLength="24">4Z </text>
+        <text x="232" y="535" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="535" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="535" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="535" textLength="40"> app </text>
+        <text x="360" y="535" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="535" textLength="16" style="fill: #cedda0">#9</text>
+        <text x="408" y="535" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="464" y="535" textLength="280"> Second Message in Async Function: </text>
+        <text x="744" y="535" textLength="24" style="fill: #aa6292">len</text>
+        <text x="768" y="535" textLength="24"> = </text>
+        <text x="792" y="535" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="8" y="552" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82203</text>
+        <text x="208" y="552" textLength="24">5Z </text>
+        <text x="232" y="552" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="552" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="552" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="552" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="552" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="552" textLength="16" style="fill: #cedda0">#9</text>
+        <text x="408" y="552" textLength="56" style="fill: #636363">example</text>
+        <text x="472" y="552" textLength="64" style="fill: #636363">async_fn</text>
+        <text x="8" y="569" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="569" textLength="32">45Z </text>
+        <text x="232" y="569" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="569" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="569" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="569" textLength="40"> app </text>
+        <text x="360" y="569" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="569" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="416" y="569" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="569" textLength="176"> Instrumented In Place</text>
+        <text x="8" y="586" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82204</text>
+        <text x="208" y="586" textLength="24">7Z </text>
+        <text x="232" y="586" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="586" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="586" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="586" textLength="40"> app </text>
+        <text x="360" y="586" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="586" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="408" y="586" textLength="184"> Instrumented In Place </text>
+        <text x="592" y="586" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="586" textLength="24" style="fill: #ec9fd1">#12</text>
+        <text x="648" y="586" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="586" textLength="88"> async_fn: </text>
+        <text x="792" y="586" textLength="40" style="fill: #aa6292">param</text>
+        <text x="832" y="586" textLength="24"> = </text>
+        <text x="856" y="586" textLength="72" style="fill: #7eaac7">something</text>
+        <text x="8" y="603" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82204</text>
+        <text x="208" y="603" textLength="24">8Z </text>
+        <text x="232" y="603" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="603" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="603" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="603" textLength="40"> app </text>
+        <text x="360" y="603" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="603" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="408" y="603" textLength="184"> Instrumented In Place </text>
+        <text x="592" y="603" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="603" textLength="24" style="fill: #ec9fd1">#12</text>
+        <text x="648" y="603" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="603" textLength="272"> First Message in Async Function: </text>
+        <text x="976" y="603" textLength="24" style="fill: #aa6292">len</text>
+        <text x="1000" y="603" textLength="24"> = </text>
+        <text x="1024" y="603" textLength="8" style="fill: #7eaac7">9</text>
+        <text x="8" y="620" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82204</text>
+        <text x="208" y="620" textLength="24">9Z </text>
+        <text x="232" y="620" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="620" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="620" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="620" textLength="40"> app </text>
+        <text x="360" y="620" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="620" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="408" y="620" textLength="184"> Instrumented In Place </text>
+        <text x="592" y="620" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="620" textLength="24" style="fill: #ec9fd1">#12</text>
+        <text x="648" y="620" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="620" textLength="280"> Second Message in Async Function: </text>
+        <text x="984" y="620" textLength="24" style="fill: #aa6292">len</text>
+        <text x="1008" y="620" textLength="24"> = </text>
+        <text x="1032" y="620" textLength="8" style="fill: #7eaac7">9</text>
+        <text x="8" y="637" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="637" textLength="32">50Z </text>
+        <text x="232" y="637" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="637" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="637" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="637" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="637" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="637" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="416" y="637" textLength="168" style="fill: #636363">Instrumented In Place</text>
+        <text x="592" y="637" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="616" y="637" textLength="24" style="fill: #ec9fd1">#12</text>
+        <text x="648" y="637" textLength="56" style="fill: #636363">example</text>
+        <text x="712" y="637" textLength="64" style="fill: #636363">async_fn</text>
+        <text x="8" y="654" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822050Z</text>
+        <text x="232" y="654" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="654" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="654" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="654" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="654" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="654" textLength="24" style="fill: #b3e0ff">#11</text>
+        <text x="416" y="654" textLength="56" style="fill: #636363">example</text>
+        <text x="480" y="654" textLength="168" style="fill: #636363">Instrumented In Place</text>
+        <text x="8" y="671" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82205</text>
+        <text x="208" y="671" textLength="24">1Z </text>
+        <text x="232" y="671" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="671" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="671" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="671" textLength="40"> app </text>
+        <text x="360" y="671" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="671" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="416" y="671" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="671" textLength="176"> Instrumented Detached</text>
+        <text x="8" y="688" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="688" textLength="32">64Z </text>
+        <text x="232" y="688" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="688" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="688" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="688" textLength="40"> app </text>
+        <text x="360" y="688" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="688" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="408" y="688" textLength="184"> Instrumented Detached </text>
+        <text x="592" y="688" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="688" textLength="24" style="fill: #ddb46d">#14</text>
+        <text x="648" y="688" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="688" textLength="88"> async_fn: </text>
+        <text x="792" y="688" textLength="40" style="fill: #aa6292">param</text>
+        <text x="832" y="688" textLength="24"> = </text>
+        <text x="856" y="688" textLength="16" style="fill: #7eaac7">uh</text>
+        <text x="8" y="705" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82206</text>
+        <text x="208" y="705" textLength="24">6Z </text>
+        <text x="232" y="705" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="705" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="705" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="705" textLength="40"> app </text>
+        <text x="360" y="705" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="705" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="408" y="705" textLength="184"> Instrumented Detached </text>
+        <text x="592" y="705" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="705" textLength="24" style="fill: #ddb46d">#14</text>
+        <text x="648" y="705" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="705" textLength="272"> First Message in Async Function: </text>
+        <text x="976" y="705" textLength="24" style="fill: #aa6292">len</text>
+        <text x="1000" y="705" textLength="24"> = </text>
+        <text x="1024" y="705" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="722" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="722" textLength="32">74Z </text>
+        <text x="232" y="722" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="722" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="722" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="722" textLength="40"> app </text>
+        <text x="360" y="722" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="722" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="408" y="722" textLength="184"> Instrumented Detached </text>
+        <text x="592" y="722" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="616" y="722" textLength="24" style="fill: #ddb46d">#14</text>
+        <text x="648" y="722" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="704" y="722" textLength="280"> Second Message in Async Function: </text>
+        <text x="984" y="722" textLength="24" style="fill: #aa6292">len</text>
+        <text x="1008" y="722" textLength="24"> = </text>
+        <text x="1032" y="722" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="739" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822074Z</text>
+        <text x="232" y="739" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="739" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="739" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="739" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="739" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="384" y="739" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="416" y="739" textLength="168" style="fill: #636363">Instrumented Detached</text>
+        <text x="592" y="739" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="616" y="739" textLength="24" style="fill: #ddb46d">#14</text>
+        <text x="648" y="739" textLength="56" style="fill: #636363">example</text>
+        <text x="712" y="739" textLength="64" style="fill: #636363">async_fn</text>
+        <text x="8" y="756" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82207</text>
+        <text x="208" y="756" textLength="24">5Z </text>
+        <text x="232" y="756" textLength="40" style="fill: #636363">TRACE</text>
+        <text x="280" y="756" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="756" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="756" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="756" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="756" textLength="24" style="fill: #bc5653">#13</text>
+        <text x="416" y="756" textLength="56" style="fill: #636363">example</text>
+        <text x="480" y="756" textLength="168" style="fill: #636363">Instrumented Detached</text>
+        <text x="8" y="773" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8220</text>
+        <text x="200" y="773" textLength="32">81Z </text>
+        <text x="232" y="773" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="773" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="773" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="773" textLength="40"> app </text>
+        <text x="360" y="773" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="773" textLength="24" style="fill: #909d63">#15</text>
+        <text x="416" y="773" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="472" y="773" textLength="64"> foreign</text>
+        <text x="8" y="790" textLength="184" style="fill: #636363">2026-11-14T10:55:04.822</text>
+        <text x="192" y="790" textLength="40">402Z </text>
+        <text x="232" y="790" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="790" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="790" textLength="120"> `log::info!`: </text>
+        <text x="456" y="790" textLength="8" style="fill: #aa6292">a</text>
+        <text x="464" y="790" textLength="24"> = </text>
+        <text x="488" y="790" textLength="8" style="fill: #7eaac7">1</text>
+        <text x="496" y="790" textLength="16">, </text>
+        <text x="512" y="790" textLength="8" style="fill: #aa6292">b</text>
+        <text x="520" y="790" textLength="24"> = </text>
+        <text x="544" y="790" textLength="8" style="fill: #7eaac7">2</text>
+        <text x="8" y="807" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="807" textLength="32">22Z </text>
+        <text x="232" y="807" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="807" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="807" textLength="120"> `log::info!`: </text>
+        <text x="456" y="807" textLength="8" style="fill: #aa6292">c</text>
+        <text x="464" y="807" textLength="24"> = </text>
+        <text x="488" y="807" textLength="8" style="fill: #7eaac7">3</text>
+        <text x="496" y="807" textLength="16">, </text>
+        <text x="512" y="807" textLength="8" style="fill: #aa6292">d</text>
+        <text x="520" y="807" textLength="24"> = </text>
+        <text x="544" y="807" textLength="8" style="fill: #7eaac7">4</text>
+        <text x="8" y="824" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="824" textLength="32">41Z </text>
+        <text x="232" y="824" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="824" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="824" textLength="144"> `tracing::event!`</text>
+        <text x="8" y="841" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="841" textLength="32">55Z </text>
+        <text x="232" y="841" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="841" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="841" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="841" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="392" y="841" textLength="248"> `tracing::info_span!` Span A: </text>
+        <text x="640" y="841" textLength="8" style="fill: #aa6292">e</text>
+        <text x="648" y="841" textLength="24"> = </text>
+        <text x="672" y="841" textLength="8" style="fill: #7eaac7">5</text>
+        <text x="680" y="841" textLength="16">, </text>
+        <text x="696" y="841" textLength="8" style="fill: #aa6292">f</text>
+        <text x="704" y="841" textLength="24"> = </text>
+        <text x="728" y="841" textLength="8" style="fill: #7eaac7">6</text>
+        <text x="8" y="858" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="858" textLength="32">66Z </text>
+        <text x="232" y="858" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="858" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="858" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="858" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="858" textLength="24" style="fill: #7eaac7">#17</text>
+        <text x="392" y="858" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="448" y="858" textLength="232"> `tracing::info_span!` Span A</text>
+        <text x="8" y="875" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="875" textLength="32">72Z </text>
+        <text x="232" y="875" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="875" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="875" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="875" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="875" textLength="24" style="fill: #7eaac7">#17</text>
+        <text x="392" y="875" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="448" y="875" textLength="184"> `tracing::event!` In A</text>
+        <text x="8" y="892" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82247</text>
+        <text x="208" y="892" textLength="24">8Z </text>
+        <text x="232" y="892" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="892" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="892" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="892" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="360" y="892" textLength="24" style="fill: #7eaac7">#17</text>
+        <text x="392" y="892" textLength="56" style="fill: #636363">example</text>
+        <text x="456" y="892" textLength="224" style="fill: #636363">`tracing::info_span!` Span A</text>
+        <text x="8" y="909" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="909" textLength="32">84Z </text>
+        <text x="232" y="909" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="909" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="909" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="909" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="909" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="909" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="448" y="909" textLength="232"> `tracing::info_span!` Span A</text>
+        <text x="8" y="926" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82248</text>
+        <text x="208" y="926" textLength="24">9Z </text>
+        <text x="232" y="926" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="926" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="926" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="926" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="926" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="926" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="448" y="926" textLength="208"> `tracing::event!`` In A: </text>
+        <text x="656" y="926" textLength="8" style="fill: #aa6292">g</text>
+        <text x="664" y="926" textLength="24"> = </text>
+        <text x="688" y="926" textLength="8" style="fill: #7eaac7">7</text>
+        <text x="696" y="926" textLength="16">, </text>
+        <text x="712" y="926" textLength="8" style="fill: #aa6292">h</text>
+        <text x="720" y="926" textLength="24"> = </text>
+        <text x="744" y="926" textLength="8" style="fill: #7eaac7">8</text>
+        <text x="8" y="943" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8224</text>
+        <text x="200" y="943" textLength="32">99Z </text>
+        <text x="232" y="943" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="943" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="943" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="943" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="943" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="943" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="943" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="943" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="504" y="943" textLength="304"> `tracing::info_span!` Nested Span B: </text>
+        <text x="808" y="943" textLength="8" style="fill: #aa6292">i</text>
+        <text x="816" y="943" textLength="24"> = </text>
+        <text x="840" y="943" textLength="8" style="fill: #7eaac7">9</text>
+        <text x="848" y="943" textLength="16">, </text>
+        <text x="864" y="943" textLength="8" style="fill: #aa6292">j</text>
+        <text x="872" y="943" textLength="24"> = </text>
+        <text x="896" y="943" textLength="16" style="fill: #7eaac7">10</text>
+        <text x="8" y="960" textLength="184" style="fill: #636363">2026-11-14T10:55:04.822</text>
+        <text x="192" y="960" textLength="40">507Z </text>
+        <text x="232" y="960" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="960" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="960" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="960" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="960" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="960" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="960" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="960" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="472" y="960" textLength="24" style="fill: #fedda4">#20</text>
+        <text x="504" y="960" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="560" y="960" textLength="288"> `tracing::info_span!` Nested Span B</text>
+        <text x="8" y="977" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="977" textLength="32">13Z </text>
+        <text x="232" y="977" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="977" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="977" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="977" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="977" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="977" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="977" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="977" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="472" y="977" textLength="24" style="fill: #fedda4">#20</text>
+        <text x="504" y="977" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="560" y="977" textLength="184"> `tracing::event!` In B</text>
+        <text x="8" y="994" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="994" textLength="32">20Z </text>
+        <text x="232" y="994" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="994" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="994" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="994" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="994" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="994" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="994" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="994" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="472" y="994" textLength="24" style="fill: #fedda4">#20</text>
+        <text x="504" y="994" textLength="56" style="fill: #636363">example</text>
+        <text x="568" y="994" textLength="280" style="fill: #636363">`tracing::info_span!` Nested Span B</text>
+        <text x="8" y="1011" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82252</text>
+        <text x="208" y="1011" textLength="24">7Z </text>
+        <text x="232" y="1011" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1011" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="1011" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1011" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="1011" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="1011" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="1011" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="1011" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="472" y="1011" textLength="24" style="fill: #cedda0">#21</text>
+        <text x="504" y="1011" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="560" y="1011" textLength="288"> `tracing::info_span!` Nested Span B</text>
+        <text x="8" y="1028" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1028" textLength="32">34Z </text>
+        <text x="232" y="1028" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1028" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="1028" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1028" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="1028" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="1028" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="1028" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="1028" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="472" y="1028" textLength="24" style="fill: #cedda0">#21</text>
+        <text x="504" y="1028" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="560" y="1028" textLength="272"> `tracing::event! tail arg` In B: </text>
+        <text x="832" y="1028" textLength="56" style="fill: #aa6292">message</text>
+        <text x="888" y="1028" textLength="24"> = </text>
+        <text x="912" y="1028" textLength="152" style="fill: #7eaac7">another message arg</text>
+        <text x="8" y="1045" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1045" textLength="32">42Z </text>
+        <text x="232" y="1045" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1045" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="1045" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1045" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="1045" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="1045" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="416" y="1045" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="1045" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="472" y="1045" textLength="24" style="fill: #cedda0">#21</text>
+        <text x="504" y="1045" textLength="56" style="fill: #636363">example</text>
+        <text x="568" y="1045" textLength="280" style="fill: #636363">`tracing::info_span!` Nested Span B</text>
+        <text x="8" y="1062" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82254</text>
+        <text x="208" y="1062" textLength="24">9Z </text>
+        <text x="232" y="1062" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1062" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="1062" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1062" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="360" y="1062" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="1062" textLength="16" style="fill: #636363">:&lt;</text>
+        <text x="416" y="1062" textLength="24" style="fill: #f79a94">#19</text>
+        <text x="448" y="1062" textLength="56" style="fill: #636363">example</text>
+        <text x="512" y="1062" textLength="280" style="fill: #636363">`tracing::info_span!` Nested Span B</text>
+        <text x="8" y="1079" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1079" textLength="32">55Z </text>
+        <text x="232" y="1079" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1079" textLength="16" style="fill: #cedda0">:&gt;</text>
+        <text x="304" y="1079" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1079" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="360" y="1079" textLength="24" style="fill: #aa6292">#18</text>
+        <text x="392" y="1079" textLength="56" style="fill: #636363">example</text>
+        <text x="456" y="1079" textLength="224" style="fill: #636363">`tracing::info_span!` Span A</text>
+        <text x="8" y="1096" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1096" textLength="32">61Z </text>
+        <text x="232" y="1096" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1096" textLength="16" style="fill: #636363">:&lt;</text>
+        <text x="304" y="1096" textLength="24" style="fill: #86d3ce">#16</text>
+        <text x="336" y="1096" textLength="56" style="fill: #636363">example</text>
+        <text x="400" y="1096" textLength="224" style="fill: #636363">`tracing::info_span!` Span A</text>
+        <text x="8" y="1113" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1113" textLength="32">70Z </text>
+        <text x="232" y="1113" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1113" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="1113" textLength="112"> slog::info!: </text>
+        <text x="448" y="1113" textLength="8" style="fill: #aa6292">l</text>
+        <text x="456" y="1113" textLength="24"> = </text>
+        <text x="480" y="1113" textLength="16" style="fill: #7eaac7">12</text>
+        <text x="496" y="1113" textLength="16">, </text>
+        <text x="512" y="1113" textLength="8" style="fill: #aa6292">k</text>
+        <text x="520" y="1113" textLength="24"> = </text>
+        <text x="544" y="1113" textLength="16" style="fill: #7eaac7">11</text>
+        <text x="8" y="1130" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82257</text>
+        <text x="208" y="1130" textLength="24">8Z </text>
+        <text x="232" y="1130" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1130" textLength="56" style="fill: #7eaac7">example</text>
+        <text x="336" y="1130" textLength="112"> slog::info!: </text>
+        <text x="448" y="1130" textLength="8" style="fill: #aa6292">p</text>
+        <text x="456" y="1130" textLength="24"> = </text>
+        <text x="480" y="1130" textLength="16" style="fill: #7eaac7">16</text>
+        <text x="496" y="1130" textLength="16">, </text>
+        <text x="512" y="1130" textLength="8" style="fill: #aa6292">o</text>
+        <text x="520" y="1130" textLength="24"> = </text>
+        <text x="544" y="1130" textLength="16" style="fill: #7eaac7">15</text>
+        <text x="560" y="1130" textLength="16">, </text>
+        <text x="576" y="1130" textLength="8" style="fill: #aa6292">n</text>
+        <text x="584" y="1130" textLength="24"> = </text>
+        <text x="608" y="1130" textLength="16" style="fill: #7eaac7">14</text>
+        <text x="624" y="1130" textLength="16">, </text>
+        <text x="640" y="1130" textLength="8" style="fill: #aa6292">m</text>
+        <text x="648" y="1130" textLength="24"> = </text>
+        <text x="672" y="1130" textLength="16" style="fill: #7eaac7">13</text>
+        <text x="8" y="1147" textLength="192" style="fill: #636363">2026-11-14T10:55:04.8225</text>
+        <text x="200" y="1147" textLength="32">84Z </text>
+        <text x="232" y="1147" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="1147" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="1147" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="1147" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="1147" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="384" y="1147" textLength="24" style="fill: #909d63">#15</text>
+        <text x="416" y="1147" textLength="56" style="fill: #636363">example</text>
+        <text x="480" y="1147" textLength="56" style="fill: #636363">foreign</text>
+        <text x="8" y="1164" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82258</text>
+        <text x="208" y="1164" textLength="24">5Z </text>
+        <text x="232" y="1164" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="1164" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="1164" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="1164" textLength="40"> app </text>
+        <text x="360" y="1164" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="1164" textLength="24" style="fill: #b1fff9">#22</text>
+        <text x="416" y="1164" textLength="24" style="fill: #7eaac7">abc</text>
+        <text x="440" y="1164" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="448" y="1164" textLength="24" style="fill: #7eaac7">def</text>
+        <text x="472" y="1164" textLength="48"> Check</text>
+        <text x="520" y="1164" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="528" y="1164" textLength="104"> sanitization</text>
+        <text x="632" y="1164" textLength="8" style="fill: #bc5653">␇</text>
+        <text x="640" y="1164" textLength="24">.: </text>
+        <text x="664" y="1164" textLength="24" style="fill: #aa6292">key</text>
+        <text x="688" y="1164" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="696" y="1164" textLength="8" style="fill: #bc5653">␍</text>
+        <text x="704" y="1164" textLength="8" style="fill: #aa6292">.</text>
+        <text x="712" y="1164" textLength="24"> = </text>
+        <text x="736" y="1164" textLength="40" style="fill: #7eaac7">value</text>
+        <text x="776" y="1164" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="784" y="1164" textLength="8" style="fill: #bc5653">␍</text>
+        <text x="792" y="1164" textLength="8" style="fill: #7eaac7">.</text>
+        <text x="800" y="1164" textLength="16">, </text>
+        <text x="816" y="1164" textLength="168" style="fill: #aa6292">&quot;\x1b[34mANSI\x1b[0m&quot;</text>
+        <text x="984" y="1164" textLength="24"> = </text>
+        <text x="1008" y="1164" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="1016" y="1164" textLength="64" style="fill: #7eaac7">[34mANSI</text>
+        <text x="1080" y="1164" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="1088" y="1164" textLength="24" style="fill: #7eaac7">[0m</text>
+        <text x="8" y="1181" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822585Z</text>
+        <text x="232" y="1181" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="1181" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="1181" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="320" y="1181" textLength="40"> app </text>
+        <text x="360" y="1181" textLength="16" style="fill: #909d63">&gt;&gt;</text>
+        <text x="384" y="1181" textLength="24" style="fill: #b1fff9">#22</text>
+        <text x="416" y="1181" textLength="24" style="fill: #7eaac7">abc</text>
+        <text x="440" y="1181" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="448" y="1181" textLength="24" style="fill: #7eaac7">def</text>
+        <text x="472" y="1181" textLength="16"> A</text>
+        <text x="488" y="1181" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="496" y="1181" textLength="16"> B</text>
+        <text x="512" y="1181" textLength="8" style="fill: #bc5653">␇</text>
+        <text x="520" y="1181" textLength="24">.: </text>
+        <text x="544" y="1181" textLength="24" style="fill: #aa6292">key</text>
+        <text x="568" y="1181" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="576" y="1181" textLength="8" style="fill: #bc5653">␍</text>
+        <text x="584" y="1181" textLength="8" style="fill: #aa6292">.</text>
+        <text x="592" y="1181" textLength="24"> = </text>
+        <text x="616" y="1181" textLength="40" style="fill: #7eaac7">value</text>
+        <text x="656" y="1181" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="664" y="1181" textLength="8" style="fill: #bc5653">␍</text>
+        <text x="672" y="1181" textLength="8" style="fill: #7eaac7">.</text>
+        <text x="680" y="1181" textLength="16">, </text>
+        <text x="696" y="1181" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="704" y="1181" textLength="64" style="fill: #aa6292">[34mANSI</text>
+        <text x="768" y="1181" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="776" y="1181" textLength="24" style="fill: #aa6292">[0m</text>
+        <text x="800" y="1181" textLength="24"> = </text>
+        <text x="824" y="1181" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="832" y="1181" textLength="64" style="fill: #7eaac7">[34mANSI</text>
+        <text x="896" y="1181" textLength="8" style="fill: #bc5653">␛</text>
+        <text x="904" y="1181" textLength="24" style="fill: #7eaac7">[0m</text>
+        <text x="8" y="1198" textLength="200" style="fill: #636363">2026-11-14T10:55:04.82258</text>
+        <text x="208" y="1198" textLength="24">6Z </text>
+        <text x="232" y="1198" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="1198" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="1198" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="1198" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="1198" textLength="16" style="fill: #636363">&lt;&lt;</text>
+        <text x="384" y="1198" textLength="24" style="fill: #b1fff9">#22</text>
+        <text x="416" y="1198" textLength="24" style="fill: #636363">abc</text>
+        <text x="440" y="1198" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="448" y="1198" textLength="24" style="fill: #636363">def</text>
+        <text x="480" y="1198" textLength="40" style="fill: #636363">Check</text>
+        <text x="520" y="1198" textLength="8" style="fill: #bc5653">␡</text>
+        <text x="528" y="1198" textLength="104" style="fill: #636363"> sanitization</text>
+        <text x="632" y="1198" textLength="8" style="fill: #bc5653">␇</text>
+        <text x="640" y="1198" textLength="8" style="fill: #636363">.</text>
+        <text x="8" y="1215" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822586Z</text>
+        <text x="232" y="1215" textLength="40" style="fill: #86d3ce">DEBUG</text>
+        <text x="280" y="1215" textLength="16" style="fill: #cedda0">|&gt;</text>
+        <text x="304" y="1215" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="1215" textLength="24" style="fill: #636363">app</text>
+        <text x="360" y="1215" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="384" y="1215" textLength="16" style="fill: #fedda4">#8</text>
+        <text x="408" y="1215" textLength="56" style="fill: #636363">example</text>
+        <text x="472" y="1215" textLength="152" style="fill: #636363">Movable Owned Guard</text>
+        <text x="8" y="1232" textLength="216" style="fill: #636363">2026-11-14T10:55:04.822586Z</text>
+        <text x="232" y="1232" textLength="32" style="fill: #909d63">INFO</text>
+        <text x="280" y="1232" textLength="16" style="fill: #636363">|&lt;</text>
+        <text x="304" y="1232" textLength="16" style="fill: #bc5653">#1</text>
+        <text x="328" y="1232" textLength="56" style="fill: #636363">example</text>
+        <text x="392" y="1232" textLength="24" style="fill: #636363">app</text>
+        <!-- SIZE 1257 1128 -->
+    </g>
+</svg>
