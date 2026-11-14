@@ -34,11 +34,6 @@ event and defers formatting until they are consumed.
 | [`polog-util`] | [API Docs][`polog-util`] | [README][polog-util-readme] | Optional utilities and middleware. |
 | [`pologger`] | [API Docs][`pologger`] | [README][pologger-readme] | Reference logger backend implementation. |
 
-Each crate ships its own README with the sections that apply to it:
-- [`polog`] has the API and macro documentation,
-- [`polog-util`] has the  composition guide,
-- [`pologger`] has the formatter and configuration reference.
-
 
 ## When to use `polog` and when not to
 
