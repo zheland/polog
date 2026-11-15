@@ -33,10 +33,12 @@ pub struct SpanId(
 /// Share one instance across every handler that must produce interoperating
 /// IDs.
 #[derive(Debug)]
-pub struct SpanIdGenerator(
-    #[cfg(target_has_atomic = "64")] AtomicU64,
-    #[cfg(not(target_has_atomic = "64"))] AtomicU32,
-);
+pub struct SpanIdGenerator(SpanIdGeneratorAtomic);
+
+#[cfg(target_has_atomic = "64")]
+type SpanIdGeneratorAtomic = AtomicU64;
+#[cfg(not(target_has_atomic = "64"))]
+type SpanIdGeneratorAtomic = AtomicU32;
 
 /// The kind of a span, describing how the span's lifetime relates to
 /// its creator's.
@@ -312,12 +314,7 @@ impl SpanIdGenerator {
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
-        Self(
-            #[cfg(target_has_atomic = "64")]
-            AtomicU64::new(1),
-            #[cfg(not(target_has_atomic = "64"))]
-            AtomicU32::new(1),
-        )
+        Self(SpanIdGeneratorAtomic::new(1))
     }
 
     /// Generates a new [`SpanId`].
@@ -327,6 +324,8 @@ impl SpanIdGenerator {
     /// wraps to `1` again.
     /// A single `SpanIdGenerator` therefore produces IDs that are unique within
     /// one full `u64` cycle — never exhausted in practice.
+    ///
+    /// On targets without 64-bit atomics it falls back to `u32` atomic counter.
     ///
     /// A handler that owns its own generator produces IDs unique only within
     /// that handler, which is the minimum [`BaseHandler`] requires.
@@ -355,6 +354,9 @@ impl SpanIdGenerator {
 
     /// Returns a shared reference to the underlying atomic counter.
     ///
+    /// On targets with 64-bit atomics the returned type is `AtomicU64`.
+    /// On targets without them it falls back to `AtomicU32`.
+    ///
     /// # Test utility
     ///
     /// Exposed only with the `test-util` feature.
@@ -373,7 +375,7 @@ impl SpanIdGenerator {
     #[cfg_attr(docsrs, doc(cfg(feature = "test-util")))]
     #[inline]
     #[must_use]
-    pub const fn as_inner(&self) -> &AtomicU64 {
+    pub const fn as_inner(&self) -> &SpanIdGeneratorAtomic {
         &self.0
     }
 }
@@ -543,9 +545,9 @@ where
         // SAFETY: The read is performed once per field.
         unsafe {
             let handler = core::ptr::read(&raw const this.handler);
-            let _ = this.descriptor;
-            let _ = this.id;
-            let _ = this.kind;
+            let _ = this.descriptor; // `Copy` type.
+            let _ = this.id; // `Copy` type.
+            let _ = this.kind; // `Copy` type.
             handler
         }
     }
@@ -724,8 +726,8 @@ where
         // SAFETY: The read is performed once per field.
         unsafe {
             let handler = core::ptr::read(&raw const this.handler);
-            let _ = this.descriptor;
-            let _ = this.id;
+            let _ = this.descriptor; // `Copy` type.
+            let _ = this.id; // `Copy` type.
             handler
         }
     }
