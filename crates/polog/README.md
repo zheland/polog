@@ -627,7 +627,6 @@ polog::error!(
 
 ## Span support
 
-
 Spans track hierarchical regions of execution.
 `polog` uses explicit parent span borrowing or detaching, giving the caller
 full control over span ancestry and lifetime.
@@ -851,11 +850,11 @@ format them without dynamic dispatch for sync loggers.
 The same argument tuple passes through the handler chain in one of three
 views:
 
-| View | Type | Bounds | Sharable |
+| View | Type | Bounds | How to share |
 |:--:|:--:|:--:|:--:|
-| Caller | `impl LogArgs<'a>` | `'a + DisplayableMixedArgs<'a> + IntoSendable<Sendable: DisplayableMixedArgs<'static>>` | No |
-| Static | `impl StaticLogArgs` | `'static + Send + Sync + DisplayableMixedArgs<'static>` | `Arc<Args>` |
-| Borrowed | `&impl StaticLogArgs` | `'static + Send + Sync + DisplayableMixedArgs<'static>` | `&Args` |
+| Caller | `impl LogArgs<'a>` | `'a + DisplayableMixedArgs<'a> + IntoSendable<Sendable: DisplayableMixedArgs<'static>>` | Convert to Static first |
+| Static | `impl StaticLogArgs` | `'static + Send + Sync + DisplayableMixedArgs<'static>` | Wrap in `Arc<Args>` |
+| Borrowed | `&impl StaticLogArgs` | `'static + Send + Sync + DisplayableMixedArgs<'static>` | Already shareable |
 
 `Handler::log` and `Handler::enter_span` take the caller view.
 The handler can format it in place or consume it to produce the static
@@ -1761,15 +1760,15 @@ baseline in the same profile.
 **Compile time** (relative to no logging in the same profile, lower is
 better):
 
-| Facade            | Dev Format | Dev Send   | Rel Format | Rel Send   |
-|:-----------------:|:----------:|:----------:|:----------:|:----------:|
-| baseline          |     4.3s   |     4.4s   |     9.2s   |     9.2s   |
-| `log`             |     +20%   |     +19%   |      +9%   |      +8%   |
-| `slog`            |     +38%   |     +34%   |     +12%   |     +12%   |
-| `polog`           |     +31%   |     +30%   |     +23%   |     +24%   |
-| `tracing`         |     +76%   |     +75%   |     +28%   |     +28%   |
-| `polog` + spans   |     +44%   |     +42%   |     +28%   |     +30%   |
-| `tracing` + spans |    +106%   |    +104%   |     +40%   |     +40%   |
+| Facade            | Dev Format | Dev Send   | Release Format | Release Send   |
+|:-----------------:|:----------:|:----------:|:--------------:|:--------------:|
+| baseline          |     4.3s   |     4.4s   |       9.2s     |       9.2s     |
+| `log`             |     +20%   |     +19%   |        +9%     |        +8%     |
+| `slog`            |     +38%   |     +34%   |       +12%     |       +12%     |
+| `polog`           |     +31%   |     +30%   |       +23%     |       +24%     |
+| `tracing`         |     +76%   |     +75%   |       +28%     |       +28%     |
+| `polog` + spans   |     +44%   |     +42%   |       +28%     |       +30%     |
+| `tracing` + spans |    +106%   |    +104%   |       +40%     |       +40%     |
 
 In dev, `polog` adds roughly 40% of the compile-time overhead that
 `tracing` adds (+31% vs +76%), and approximately the same as `slog`
@@ -1793,15 +1792,15 @@ to each other (+31% vs +23%) than `tracing`'s (+76% vs +28%).
 
 **Run time** (relative to no logging in the same profile, lower is better):
 
-| Facade            | Dev Format | Dev Send   | Rel Format | Rel Send   |
-|:-----------------:|:----------:|:----------:|:----------:|:----------:|
-| Baseline          |   104.1s   |   103.6s   |     4.1s   |     4.2s   |
-| `log`             |     2.1×   |     2.2×   |     5.8×   |     6.6×   |
-| `slog`            |     1.9×   |     1.8×   |     6.1×   |     5.3×   |
-| `polog`           |     2.0×   |   **1.2×** |     5.9×   |   **1.4×** |
-| `tracing`         |     2.1×   |     2.0×   |     6.2×   |     5.2×   |
-| `polog` + spans   |     2.5×   |   **1.2×** |     8.2×   |   **1.6×** |
-| `tracing` + spans |     3.1×   |     2.7×   |    11.2×   |     9.2×   |
+| Facade            | Dev Format | Dev Send   | Release Format | Release Send   |
+|:-----------------:|:----------:|:----------:|:--------------:|:--------------:|
+| Baseline          |   104.1s   |   103.6s   |       4.1s     |       4.2s     |
+| `log`             |     2.1×   |     2.2×   |       5.8×     |       6.6×     |
+| `slog`            |     1.9×   |     1.8×   |       6.1×     |       5.3×     |
+| `polog`           |     2.0×   |   **1.2×** |       5.9×     |     **1.4×**   |
+| `tracing`         |     2.1×   |     2.0×   |       6.2×     |       5.2×     |
+| `polog` + spans   |     2.5×   |   **1.2×** |       8.2×     |     **1.6×**   |
+| `tracing` + spans |     3.1×   |     2.7×   |      11.2×     |       9.2×     |
 
 
 **In format mode, all four facades are within ~10% of each other in both

@@ -752,6 +752,22 @@ where
 ///
 /// All methods are monomorphised over the argument types, enabling the compiler
 /// to inline and optimize the entire call chain.
+///
+/// # `Rc<H>` is not a `SharedHandler`
+///
+/// `Rc<H>` implements [`Handler`] (via the blanket `impl Handler for Rc<H>`)
+/// but intentionally cannot implement `SharedHandler`, because `Rc` is
+/// neither `Send` nor `Sync`.
+/// Since [`Logger`] is blanket-implemented only for `H: SharedHandler<()>`,
+/// this means `Rc<H>` cannot be used through the logging macros either.
+/// Use `Arc<H>`, which does implement `SharedHandler`.
+///
+/// The `Rc` `Handler` impl exists so that middleware composed from `Rc`-wrapped
+/// pieces still satisfies `Handler` bounds.
+/// It is not intended as a logger.
+///
+/// [`Handler`]: crate::Handler
+/// [`Logger`]: crate::Logger
 pub trait SharedHandler<Context>: 'static + Send + Sync + Clone + Handler<Context>
 where
     Context: ContextArgs,
