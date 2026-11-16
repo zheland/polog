@@ -176,6 +176,7 @@ macro_rules! log {
         let descriptor: &'static $crate::Descriptor =
             $crate::log_descriptor_ref!( $($($args)*)? );
         let logger = &mut *$logger;
+        #[allow(clippy::allow_attributes, unreachable_code, reason = "macro-generated")]
         if let Some(context) = $crate::LoggerExt::try_enable(logger, descriptor) {
             $crate::LoggerExt::log(
                 logger,
@@ -196,6 +197,7 @@ macro_rules! __log_fatal_impl {
             $crate::log_descriptor_ref!( $($($args)*)? );
         const { assert!(DESCRIPTOR.level.into_u8() == $crate::Level::Fatal.into_u8()) };
         let logger = &mut *$logger;
+        #[allow(clippy::allow_attributes, unreachable_code, reason = "macro-generated")]
         if let Some(context) = $crate::LoggerExt::try_enable(logger, DESCRIPTOR) {
             $crate::LoggerExt::log(
                 logger,

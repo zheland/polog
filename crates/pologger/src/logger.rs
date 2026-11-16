@@ -112,7 +112,7 @@ pub struct ExternalEntry<'a, Args> {
 
     /// Pre-formatted message, if the foreign facade supplies one.
     ///
-    /// `tracing` sets this for `message = ...` fields on `event!` calls;
+    /// `tracing` sets this for `message = ...` fields on `event!` calls.
     /// `log` sets it for the primary record message.
     /// `slog` sets it for the primary `msg` argument.
     pub message_fmt: Option<&'a fmt::Arguments<'a>>,
@@ -1877,7 +1877,7 @@ where
     if let Some(name) = external_entry.message_fmt {
         fmt.write_key("message")?;
         fmt.write_message(&name, external_entry.kind)?;
-    } else if let Some(message_fmt) = external_entry.descriptor.name {
+    } else if let Some(message_fmt) = external_entry.descriptor.message {
         fmt.write_key("message")?;
         fmt.write_message(&message_fmt, external_entry.kind)?;
     }

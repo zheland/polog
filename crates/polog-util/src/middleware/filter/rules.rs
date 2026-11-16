@@ -9,7 +9,7 @@ use polog::{Descriptor, LevelFilter};
 use crate::filters::{effective_target, external_effective_target, path_prefix_match};
 use crate::{ExternalDescriptor, ExternalFilterFn, FilterFn};
 
-/// One prefix → maximum‑level mapping within a [`FilterRules`].
+/// One prefix and its matching maximum‑level mapping within a [`FilterRules`].
 ///
 /// The `prefix` is matched against a descriptor's effective target using
 /// path prefix matching: the rule matches if the prefix equals the target or is
@@ -389,19 +389,17 @@ where
     U: AsRef<str>,
 {
     #[inline]
-    fn is_external_enabled(&self, descriptor: &ExternalDescriptor<'_>) -> bool {
-        if descriptor.level > self.max_level {
+    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        if descriptor.level() > self.max_level {
             return false;
         }
 
         let target = external_effective_target(descriptor);
         let max_level = self.max_level_for(target);
-        descriptor.level <= max_level
-    }
-
-    #[inline]
-    fn external_max_level(&self) -> LevelFilter {
-        self.max_level
+        descriptor.level() <= max_level
     }
 }
 
@@ -468,9 +466,10 @@ mod tests {
     use polog::{Descriptor, DescriptorKind, Level, LevelFilter};
     use polog_test_helpers::tracker::Tracker;
 
+    use crate::test_util::SimpleBorrowingExternalDescriptor;
     use crate::{
-        ExternalDescriptor, ExternalFilterFn, Filter, FilterFn, FilterRule, FilterRules,
-        FilterRulesBuilder, ParseFilterRulesError,
+        ExternalFilterFn, Filter, FilterFn, FilterRule, FilterRules, FilterRulesBuilder,
+        ParseFilterRulesError,
     };
 
     const fn descriptor(
@@ -719,7 +718,7 @@ mod tests {
     fn test_rules_external_filter() {
         let rules = FilterRules::parse("info,module=debug").unwrap().to_owning();
 
-        let desc = |level| ExternalDescriptor {
+        let desc = |level| SimpleBorrowingExternalDescriptor {
             name: None,
             level,
             target: Some("other"),
@@ -731,6 +730,5 @@ mod tests {
         assert!(rules.is_external_enabled(&desc(Level::Info)));
         assert!(!rules.is_external_enabled(&desc(Level::Debug)));
         assert!(!rules.is_external_enabled(&desc(Level::Trace)));
-        assert_eq!(rules.external_max_level(), Level::Debug);
     }
 }

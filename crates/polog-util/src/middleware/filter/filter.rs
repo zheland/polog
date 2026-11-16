@@ -3,7 +3,7 @@ use polog::{
     LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::ExternalDescriptor;
+use crate::{ExternalDescriptor, ExternalHandler};
 
 /// Handler middleware that filters events and spans by a [`FilterFn`].
 ///
@@ -82,17 +82,11 @@ pub trait FilterFn {
 /// Can be used to filter events that arrive from `log`, `slog`, or `tracing`.
 ///
 /// [`FilterFn`]: crate::FilterFn
-pub trait ExternalFilterFn {
+pub trait ExternalFilterFn: FilterFn {
     /// Returns `true` if the descriptor passes the filter.
-    fn is_external_enabled(&self, descriptor: &ExternalDescriptor<'_>) -> bool;
-
-    /// The highest‑severity [`LevelFilter`] this filter will accept.
-    ///
-    /// Returning a tighter filter than `LevelFilter::ALL` lets the wrapped
-    /// handler (or a foreign facade that consults this value) skip entire
-    /// levels at the call site, before `try_enable` is even reached.
-    /// Returning `LevelFilter::ALL` means "no early‑out hint available".
-    fn external_max_level(&self) -> LevelFilter;
+    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor;
 }
 
 impl<H, F> Filter<H, F> {
@@ -115,21 +109,6 @@ where
 
     #[inline]
     fn max_level(&self) -> LevelFilter {
-        LevelFilter::ALL
-    }
-}
-
-impl<F> ExternalFilterFn for F
-where
-    F: Fn(&ExternalDescriptor<'_>) -> bool,
-{
-    #[inline]
-    fn is_external_enabled(&self, descriptor: &ExternalDescriptor<'_>) -> bool {
-        (self)(descriptor)
-    }
-
-    #[inline]
-    fn external_max_level(&self) -> LevelFilter {
         LevelFilter::ALL
     }
 }
@@ -361,6 +340,104 @@ where
 {
 }
 
+impl<H, F, Context> ExternalHandler<Context> for Filter<H, F>
+where
+    H: ExternalHandler<Context>,
+    F: FilterFn,
+    Context: ContextArgs,
+{
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        todo!()
+    }
+}
+
 #[cfg(feature = "shared-filter")]
 #[cfg_attr(docsrs, doc(cfg(feature = "shared-filter")))]
 impl<T> FilterFn for alloc::sync::Arc<parking_lot::RwLock<T>>
@@ -385,13 +462,11 @@ where
     T: ExternalFilterFn,
 {
     #[inline]
-    fn is_external_enabled(&self, descriptor: &ExternalDescriptor<'_>) -> bool {
+    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
         T::is_external_enabled(&*self.read(), descriptor)
-    }
-
-    #[inline]
-    fn external_max_level(&self) -> LevelFilter {
-        T::external_max_level(&*self.read())
     }
 }
 
@@ -405,7 +480,7 @@ mod tests {
     use polog_test_helpers::tracker::Tracker;
 
     use crate::filters::{Always, Never};
-    use crate::{ExternalDescriptor, ExternalFilterFn, Filter, FilterFn};
+    use crate::{ExternalFilterFn, Filter, FilterFn};
 
     #[test]
     fn test_filter_accepts_and_rejects() {
@@ -436,38 +511,6 @@ mod tests {
         assert_eq!(tracker.take_events(), [""; 0]);
 
         assert_eq!(FilterFn::max_level(&filter), LevelFilter::ALL);
-    }
-
-    #[test]
-    fn test_filter_external_filter_fn_closure() {
-        let filter = |d: &ExternalDescriptor<'_>| d.level == Level::Info;
-
-        let desc = |level| ExternalDescriptor {
-            name: Some("name"),
-            level,
-            target: Some("target"),
-            module_path: None,
-            file: None,
-            line: None,
-            column: None,
-        };
-
-        assert!(!ExternalFilterFn::is_external_enabled(
-            &filter,
-            &desc(Level::Warn)
-        ));
-        assert!(ExternalFilterFn::is_external_enabled(
-            &filter,
-            &desc(Level::Info)
-        ));
-        assert!(!ExternalFilterFn::is_external_enabled(
-            &filter,
-            &desc(Level::Debug)
-        ));
-        assert_eq!(
-            ExternalFilterFn::external_max_level(&filter),
-            LevelFilter::ALL
-        );
     }
 
     #[test]
@@ -590,12 +633,13 @@ mod tests {
 
         use parking_lot::RwLock;
 
-        let inner = Arc::new(RwLock::new(|d: &ExternalDescriptor<'_>| {
-            d.level == Level::Info
-        }));
+        use crate::filters::MaxLevel;
+        use crate::test_util::SimpleBorrowingExternalDescriptor;
+
+        let inner = Arc::new(RwLock::new(MaxLevel(LevelFilter::Info)));
         let filter = Arc::clone(&inner);
 
-        let desc = |level| ExternalDescriptor {
+        let desc = |level| SimpleBorrowingExternalDescriptor {
             name: Some("name"),
             level,
             target: Some("target"),
@@ -617,9 +661,5 @@ mod tests {
             &filter,
             &desc(Level::Debug)
         ));
-        assert_eq!(
-            ExternalFilterFn::external_max_level(&filter),
-            LevelFilter::ALL
-        );
     }
 }

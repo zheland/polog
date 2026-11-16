@@ -321,7 +321,7 @@ where
             .unwrap_or(KnownSpanId::SpanId(SpanId(tracing_id)));
 
         let mut descriptor = descriptor_from_metadata(metadata);
-        descriptor.name = Some("record");
+        descriptor.message = Some("record");
         let args = RecordArgs { record: values };
 
         let entry = ExternalEntry {
@@ -350,7 +350,7 @@ where
         };
 
         let mut descriptor = descriptor_from_metadata(metadata);
-        descriptor.name = Some("record_follows_from");
+        descriptor.message = Some("record_follows_from");
 
         let entry = ExternalEntry {
             descriptor: &descriptor,

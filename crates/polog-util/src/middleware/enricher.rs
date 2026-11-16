@@ -5,6 +5,8 @@ use polog::{
     SpanKind, StaticLogArgs,
 };
 
+use crate::ExternalHandler;
+
 /// A [`Handler`] that appends a value to the context of every event and span.
 ///
 /// `Enricher<H, F>` wraps a downstream [`Handler`] and, before delegating,
@@ -301,6 +303,106 @@ where
     Context: ContextArgs,
     Context::WithDebuggableArg<F::Output>: ContextArgs,
 {
+}
+
+impl<H, F, Context> ExternalHandler<Context> for Enricher<H, F>
+where
+    H: ExternalHandler<Context::WithDebuggableArg<F::Output>>,
+    F: EnricherFn,
+    F::Output: 'static + Debug,
+    Context: ContextArgs,
+    Context::WithDebuggableArg<F::Output>: ContextArgs,
+{
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: crate::ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: crate::ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: crate::ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: crate::ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: crate::ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: crate::ExternalDescriptor,
+    {
+        todo!()
+    }
+
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: Desc,
+        args: Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: crate::ExternalDescriptor,
+        Args: crate::ExternalArgs,
+    {
+        todo!()
+    }
+
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: crate::ExternalDescriptor,
+    {
+        todo!()
+    }
 }
 
 #[cfg(feature = "log-0-4")]
