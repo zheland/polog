@@ -17,7 +17,7 @@
 //! context wrappers that middleware can inject.
 //!
 //! `polog-util` provides:
-//! - Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`], [`Either`],
+//! - Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`],
 //!   [`Enricher`], [`OffloaderHandle`].
 //! - Middleware that wraps a [`BorrowingHandler`]: [`BorrowingFanout`].
 //! - Middleware that makes a non‑shared handler shareable: [`Shared`].
@@ -118,28 +118,6 @@
 //!    because the small sizes cover real use, and nesting composes cleanly past
 //!    that. An opt‑in feature that raises the limit can be added later without
 //!    a breaking change.
-//!
-//! ## Recommended chains
-//!
-//! ```text
-//! // Filter at the call site, offload the backend work.
-//! let handler = Filter::new(
-//!     new_offloader(backend, ...).0,
-//!     MaxLevel(LevelFilter::Info),
-//! );
-//!
-//! // Two expensive backends, fanout at the call site.
-//! // Both branches are OffloaderHandle, which is not a BorrowingHandler.
-//! let handler = Fanout::new((backend_a, backend_b));
-//!
-//! // Two cheap backends, both BorrowingHandler.
-//! // No Arc allocation in the multi‑accepted case.
-//! let handler = BorrowingFanout::new((ViaLog(a), ViaLog(b)));
-//!
-//! // Fanout on the worker side.
-//! let inner = BorrowingFanout::new((ViaLog(a), ViaSlog(b)));
-//! let (handler, service) = new_offloader(inner, ...);
-//! ```
 //!
 //!
 //! # API Cheat Sheet
@@ -353,10 +331,10 @@
 //!
 //! ```rust
 //! # #[cfg(feature = "log-0-4")] {
-//! use polog_util::delegators::log_0_4::ViaLog;
+//! use polog_util::delegators::log_0_4::{ViaLog, ViaLogFlags};
 //!
 //! # let handler = polog::Discard;
-//! let handler = ViaLog(handler);
+//! let handler = ViaLog::new(handler, ViaLogFlags::empty());
 //! # }
 //! ```
 //!
@@ -413,15 +391,17 @@
 //! | `alloc` | yes | Enables `alloc`‑based items such as `TypeErasedArcLogArgs`, `TypeErasedArcContextArgs`, and `FilterRules` | `polog/alloc` |
 //! | `std` | yes | Enables `std`‑based middleware and utilities, including some enrichers and the offloader. | `alloc`, `polog/std` |
 //! | `fanout` | no | Enables the fanout middleware. | `alloc`, `dep:dashmap` (transitive `std`) |
-//! | `offloader` | no | Enables the offloading middleware. | `std`, `dep:crossbeam-channel`, `dep:oneshot` |
-//! | `offloader-support-tokio` | no | Enables `tokio::task::block_in_place` during offloader flush‑on‑panic when running on a multi‑thread Tokio runtime. | `offloader`, `dep:tokio` |
+//! | `offloader` | no | Enables the offloading middleware. | `std`, `dep:crossbeam-channel`, `dep:oneshot`, `oneshot/std` |
+//! | `offloader-support-tokio` | no | Enables `tokio::task::block_in_place` during offloader flush‑on‑panic when running on a multi‑thread Tokio runtime. | `offloader`, `dep:tokio`, `tokio/rt`, `tokio/rt-multi-thread` |
 //! | `shared` | no | Enables the sharing middleware. | `alloc`, `dep:parking_lot` (transitive `std`) |
 //! | `shared-filter` | no | Enables filter implementations for `Arc<RwLock<F>>`. | `alloc`, `dep:parking_lot` (transitive `std`) |
-//! | `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4` and `log_0_4::ViaLog`. | `dep:log` (version = 0.4), `log/kv` |
-//! | `slog-2` | no | Enables integrations for `slog = "2"` crate types, including `slog_2::ViaSlog`. | `dep:slog` (version = 2) |
+//! | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
+//! | `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4`, `log_0_4::BridgeLog`, and `tracing_0_1::ViaLog`. | `dep:log` (version = 0.4), `log/kv` |
+//! | `slog-2` | no | Enables integrations for `slog = "2"` crate types, including `slog_2::BridgeSlog` and `slog_2::ViaSlog`. | `dep:slog` (version = 2), `slog-2/dynamic-keys` |
 //! | `slog-2-semver-unstable` | no | Enables `slog = "2"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions. | `slog-2` |
 //! | `tracing-core-0-1` | no | Enables integrations for `tracing_core = "0.1"` crate types, including `conv::tracing_core_0_1`. | `dep:tracing-core` (version = 0.1) |
-//! | `tracing-0-1-semver-unstable` | no | Enables `tracing = "0.1"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions, including `tracing_0_1::ViaTracing`. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
+//! | `tracing-0-1` | no | Enables integrations for `tracing = "0.1"` crate types, including `tracing_0_1::BridgeTracing`. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
+//! | `tracing-0-1-semver-unstable` | no | Enables `tracing = "0.1"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions, including `tracing_0_1::ViaTracing`. | `tracing-0-1`, `dep:smallvec` |
 //!
 //! ## `*-semver-unstable` feature flags
 //!
@@ -522,11 +502,13 @@ extern crate alloc;
 extern crate std;
 
 mod args;
+pub mod bridges;
 pub mod context;
 pub mod conv;
 pub mod delegators;
 mod external;
 mod middleware;
+pub mod util;
 
 pub use args::*;
 pub use external::*;

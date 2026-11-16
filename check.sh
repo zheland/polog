@@ -62,7 +62,7 @@ main() {
 default,std,test-util,fanout,\
 offloader,offloader-support-tokio,\
 shared,shared-filter,\
-tracing-0-1-semver-unstable"
+tracing-0-1,tracing-0-1-semver-unstable"
     done
 
     # Check different combinations of features.

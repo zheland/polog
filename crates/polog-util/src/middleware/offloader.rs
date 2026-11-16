@@ -1,6 +1,7 @@
 //! Offloading middleware: moves all logging work onto a dedicated worker
 //! thread.
 
+use alloc::boxed::Box;
 use core::fmt::{self, Debug, Formatter};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
@@ -22,6 +23,10 @@ use polog::{
 };
 
 use crate::args::{TypeErasedArcLogArgs, TypeErasedArgs};
+use crate::{
+    ExternalArgs, ExternalDescriptor, ExternalHandler, TypeErasedExternalArgs,
+    TypeErasedExternalDescriptor,
+};
 
 /// A [`Handler`] middleware that offloads all logging work onto a dedicated
 /// worker thread.
@@ -267,7 +272,7 @@ impl<H, Context, CustomEvent, CustomHandler>
     #[inline]
     pub fn spawn(mut self) -> Result<std::thread::JoinHandle<()>, core_or_std::io::Error>
     where
-        H: 'static + Send + Handler<Context> + Handler<()>,
+        H: 'static + Send + ExternalHandler<Context> + Handler<()>,
         Context: ContextArgs,
         CustomEvent: 'static + Send,
         CustomHandler: 'static + Send + FnMut(&mut H, CustomEvent) -> ControlFlow<(), ()>,
@@ -292,7 +297,7 @@ impl<H, Context, CustomEvent, CustomHandler>
     #[inline]
     pub fn run_blocking(&mut self)
     where
-        H: Handler<()> + Handler<Context>,
+        H: ExternalHandler<Context> + Handler<()>,
         Context: ContextArgs,
         CustomHandler: FnMut(&mut H, CustomEvent) -> ControlFlow<(), ()>,
     {
@@ -409,6 +414,115 @@ impl<H, Context, CustomEvent, CustomHandler>
                 } => {
                     if !disabled_spans.contains(&span_id) {
                         self.handler.ready_poll_span(descriptor, span_id, context);
+                    }
+                }
+
+                Event::LogExternal {
+                    descriptor,
+                    args,
+                    span_id,
+                    context,
+                } => {
+                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                        <H as ExternalHandler<Context>>::log_external(
+                            &mut self.handler,
+                            &*descriptor,
+                            &args,
+                            span_id,
+                            context,
+                        );
+                    }
+                }
+
+                Event::NewSpanExternal {
+                    descriptor,
+                    args,
+                    parent_span_id,
+                    span_id,
+                    context,
+                } => {
+                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                        <H as ExternalHandler<Context>>::new_span_external(
+                            &mut self.handler,
+                            &*descriptor,
+                            &args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    } else {
+                        let _is_newly_inserted = disabled_spans.insert(span_id);
+                    }
+                }
+
+                Event::EnterSpanExternal {
+                    descriptor,
+                    args,
+                    parent_span_id,
+                    span_id,
+                    context,
+                } => {
+                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                        <H as ExternalHandler<Context>>::enter_span_external(
+                            &mut self.handler,
+                            &*descriptor,
+                            &args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    } else {
+                        let _is_newly_inserted = disabled_spans.insert(span_id);
+                    }
+                }
+
+                Event::ExitSpanExternal {
+                    descriptor,
+                    span_id,
+                    context,
+                } => {
+                    if !disabled_spans.remove(&span_id) {
+                        self.handler
+                            .exit_span_external(&*descriptor, span_id, context);
+                    }
+                }
+
+                Event::CloseSpanExternal {
+                    descriptor,
+                    span_id,
+                    context,
+                } => {
+                    if !disabled_spans.remove(&span_id) {
+                        self.handler
+                            .close_span_external(&*descriptor, span_id, context);
+                    }
+                }
+
+                Event::RecordSpanExternal {
+                    descriptor,
+                    args,
+                    span_id,
+                    context,
+                } => {
+                    if !disabled_spans.contains(&span_id) {
+                        self.handler
+                            .record_span_external(&*descriptor, &args, span_id, context);
+                    }
+                }
+
+                Event::LinkSpanExternal {
+                    descriptor,
+                    followed_span_id,
+                    follower_span_id,
+                    context,
+                } => {
+                    if !disabled_spans.contains(&follower_span_id) {
+                        self.handler.link_span_external(
+                            &*descriptor,
+                            followed_span_id,
+                            follower_span_id,
+                            context,
+                        );
                     }
                 }
 
@@ -914,6 +1028,161 @@ impl<Context, CustomEvent> OffloaderHandle<Context, CustomEvent> {
             None,
         );
     }
+
+    #[inline]
+    fn log_external_by_ref<Desc, Args>(
+        &self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        let args = TypeErasedExternalArgs::from_args(&args);
+        self.send_with_backpressure(
+            Event::LogExternal {
+                descriptor: Box::new(descriptor),
+                args,
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[inline]
+    fn new_span_external_by_ref<Desc, Args>(
+        &self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        let args = TypeErasedExternalArgs::from_args(&args);
+        self.send_with_backpressure(
+            Event::NewSpanExternal {
+                descriptor: Box::new(descriptor),
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[inline]
+    fn enter_span_external_by_ref<Desc, Args>(
+        &self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        let args = TypeErasedExternalArgs::from_args(&args);
+        self.send_with_backpressure(
+            Event::EnterSpanExternal {
+                descriptor: Box::new(descriptor),
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[inline]
+    fn exit_span_external_by_ref<Desc>(&self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        self.send_with_backpressure(
+            Event::ExitSpanExternal {
+                descriptor: Box::new(descriptor),
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[inline]
+    fn close_span_external_by_ref<Desc>(&self, descriptor: Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        self.send_with_backpressure(
+            Event::CloseSpanExternal {
+                descriptor: Box::new(descriptor),
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[inline]
+    fn record_span_external_by_ref<Desc, Args>(
+        &self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        let args = TypeErasedExternalArgs::from_args(&args);
+        self.send_with_backpressure(
+            Event::RecordSpanExternal {
+                descriptor: Box::new(descriptor),
+                args,
+                span_id,
+                context,
+            },
+            None,
+        );
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external_by_ref<Desc>(
+        &self,
+        descriptor: Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        let descriptor = TypeErasedExternalDescriptor::from_descriptor(&descriptor);
+        self.send_with_backpressure(
+            Event::LinkSpanExternal {
+                descriptor: Box::new(descriptor),
+                followed_span_id,
+                follower_span_id,
+                context,
+            },
+            None,
+        );
+    }
 }
 
 impl OffloaderBackpressurePolicy {
@@ -1126,6 +1395,117 @@ where
 {
 }
 
+impl<Context, CustomEvent> ExternalHandler<Context> for OffloaderHandle<Context, CustomEvent>
+where
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        _descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        // [`Handler::try_enable_external`] on `Offload` always accepts the
+        // event.
+        //
+        // The full `try_enable` check is still performed inside the worker,
+        // before the job is forwarded to the wrapped handler.
+        // This matches the semantics of a non-offloaded chain.
+        Some(context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.log_external_by_ref(descriptor, args, span_id, context);
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.new_span_external_by_ref(descriptor, args, parent_span_id, span_id, context);
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.enter_span_external_by_ref(descriptor, args, parent_span_id, span_id, context);
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        self.exit_span_external_by_ref(descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        self.close_span_external_by_ref(descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.record_span_external_by_ref(descriptor, args, span_id, context);
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        self.link_span_external_by_ref(descriptor, followed_span_id, follower_span_id, context);
+    }
+}
+
 impl<Context, CustomEvent> BaseHandler for &OffloaderHandle<Context, CustomEvent>
 where
     Context: ContextArgs,
@@ -1137,12 +1517,12 @@ where
 
     #[inline]
     fn flush_blocking(&mut self) {
-        OffloaderHandle::flush_blocking_by_ref(&**self);
+        self.flush_blocking_by_ref();
     }
 
     #[inline]
     fn flush_on_panic(&mut self) {
-        OffloaderHandle::flush_on_panic_by_ref(&**self);
+        self.flush_on_panic_by_ref();
     }
 
     // `should_panic_on_bug` and `panic` methods are intentionally left at their
@@ -1161,7 +1541,7 @@ where
         span_kind: SpanKind,
         context: Context,
     ) {
-        OffloaderHandle::exit_span_by_ref(&**self, descriptor, span_id, span_kind, context);
+        self.exit_span_by_ref(descriptor, span_id, span_kind, context);
     }
 
     #[inline]
@@ -1171,7 +1551,7 @@ where
         span_id: SpanId,
         context: Context,
     ) {
-        OffloaderHandle::enter_poll_span_by_ref(&**self, descriptor, span_id, context);
+        self.enter_poll_span_by_ref(descriptor, span_id, context);
     }
 
     #[inline]
@@ -1181,7 +1561,7 @@ where
         span_id: SpanId,
         context: Context,
     ) {
-        OffloaderHandle::pending_poll_span_by_ref(&**self, descriptor, span_id, context);
+        self.pending_poll_span_by_ref(descriptor, span_id, context);
     }
 
     #[inline]
@@ -1191,7 +1571,7 @@ where
         span_id: SpanId,
         context: Context,
     ) {
-        OffloaderHandle::ready_poll_span_by_ref(&**self, descriptor, span_id, context);
+        self.ready_poll_span_by_ref(descriptor, span_id, context);
     }
 }
 
@@ -1220,7 +1600,7 @@ where
     ) where
         Args: LogArgs<'a>,
     {
-        OffloaderHandle::log_by_ref(&**self, descriptor, args, span_id, context);
+        self.log_by_ref(descriptor, args, span_id, context);
     }
 
     #[inline]
@@ -1235,8 +1615,7 @@ where
     ) where
         Args: LogArgs<'a>,
     {
-        OffloaderHandle::enter_span_by_ref(
-            &**self,
+        self.enter_span_by_ref(
             descriptor,
             args,
             parent_span_id,
@@ -1256,7 +1635,7 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        OffloaderHandle::log_static_by_ref(&**self, descriptor, args, span_id, context);
+        self.log_static_by_ref(descriptor, args, span_id, context);
     }
 
     #[inline]
@@ -1271,8 +1650,7 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        OffloaderHandle::enter_span_static_by_ref(
-            &**self,
+        self.enter_span_static_by_ref(
             descriptor,
             args,
             parent_span_id,
@@ -1288,6 +1666,111 @@ where
     Context: ContextArgs,
     CustomEvent: Send,
 {
+}
+
+impl<Context, CustomEvent> ExternalHandler<Context> for &OffloaderHandle<Context, CustomEvent>
+where
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        OffloaderHandle::try_enable_external(&**self, descriptor, context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.log_external_by_ref(descriptor, args, span_id, context);
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.new_span_external_by_ref(descriptor, args, parent_span_id, span_id, context);
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.enter_span_external_by_ref(descriptor, args, parent_span_id, span_id, context);
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        self.exit_span_external_by_ref(descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        self.close_span_external_by_ref(descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        self.record_span_external_by_ref(descriptor, args, span_id, context);
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        self.link_span_external_by_ref(descriptor, followed_span_id, follower_span_id, context);
+    }
 }
 
 /// One job in the offloader's channel.
@@ -1332,12 +1815,57 @@ enum Event<Context, CustomEvent> {
         span_id: SpanId,
         context: Context,
     },
+
+    LogExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        args: TypeErasedExternalArgs,
+        span_id: Option<SpanId>,
+        context: Context,
+    },
+    NewSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        args: TypeErasedExternalArgs,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Context,
+    },
+    EnterSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        args: TypeErasedExternalArgs,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Context,
+    },
+    ExitSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        span_id: SpanId,
+        context: Context,
+    },
+    CloseSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        span_id: SpanId,
+        context: Context,
+    },
+    RecordSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        args: TypeErasedExternalArgs,
+        span_id: SpanId,
+        context: Context,
+    },
+    LinkSpanExternal {
+        descriptor: Box<TypeErasedExternalDescriptor>,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    },
+
     FlushBlocking {
         flushed: oneshot::Sender<()>,
     },
     FlushOnPanic {
         flushed: oneshot::Sender<()>,
     },
+
     Shutdown,
     Custom(CustomEvent),
 }
@@ -1400,38 +1928,28 @@ fn can_block_in_place() -> bool {
         .is_ok_and(|handle| handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread)
 }
 
-#[expect(clippy::unwrap_used, reason = "okay in tests")]
 #[cfg(test)]
 mod tests {
     use alloc::sync::{Arc, Weak};
-    use alloc::{format, vec};
     use core::ops::ControlFlow;
-    use core::time::Duration;
-    use std::time::Instant;
 
-    use polog::{
-        BaseHandler, Descriptor, DynHandler, Handler, Level, LevelFilter, Logger, SpanIdGenerator,
-        SpanKind, log_descriptor_ref,
-    };
-    use polog_test_helpers::panic::catch_unwind_on_thread;
-    use polog_test_helpers::tracker::Tracker;
+    use polog::{Discard, SpanIdGenerator};
 
-    use crate::filters::MaxLevel;
     use crate::{
-        Filter, OffloaderBackpressurePolicy, OffloaderCapacity, OffloaderHandle, OffloaderService,
+        OffloaderBackpressurePolicy, OffloaderCapacity, OffloaderHandle, OffloaderService,
         new_offloader,
     };
 
     #[expect(clippy::type_complexity, reason = "okay in tests")]
     #[inline]
     fn new_test_offloader(
-        tracker: Tracker,
+        discard: Discard,
     ) -> (
         OffloaderHandle<(), !>,
-        OffloaderService<Tracker, (), !, impl FnMut(&mut Tracker, !) -> ControlFlow<(), ()>>,
+        OffloaderService<Discard, (), !, impl FnMut(&mut Discard, !) -> ControlFlow<(), ()>>,
     ) {
         new_offloader(
-            tracker,
+            discard,
             Arc::new(SpanIdGenerator::new()),
             OffloaderCapacity::Unbounded,
             OffloaderBackpressurePolicy::Block,
@@ -1442,8 +1960,7 @@ mod tests {
 
     #[test]
     fn test_offloader_accessors() {
-        let tracker = Tracker::default();
-        let (logger, mut service) = new_test_offloader(tracker.clone());
+        let (logger, mut service) = new_test_offloader(Discard);
 
         let inner = Arc::downgrade(&service.inner);
         assert_eq!(Weak::strong_count(&inner), 2);
@@ -1457,565 +1974,5 @@ mod tests {
         assert_eq!(Weak::strong_count(&inner), 1);
         drop(logger);
         assert_eq!(Weak::strong_count(&inner), 0);
-    }
-
-    #[test]
-    fn test_offloader_forward() {
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "log_static", "flush_blocking"]
-        );
-
-        let mut span = polog::info_span!(&mut logger, "Span");
-        span.handler_mut().flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "enter_span_static(nested)", "flush_blocking"]
-        );
-
-        drop(span);
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            ["exit_span(nested)", "flush_blocking"]
-        );
-
-        logger.flush_blocking();
-        logger.flush_on_panic();
-        assert_eq!(tracker.take_events(), ["flush_blocking", "flush_on_panic"]);
-
-        logger.stop();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_clone() {
-        let tracker = Tracker::default();
-        let (mut logger1, service) = new_test_offloader(tracker.clone());
-        let mut logger2 = logger1.clone();
-        let worker = service.spawn().unwrap();
-
-        polog::info!(&mut logger1, "Message");
-        logger1.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "log_static", "flush_blocking"]
-        );
-
-        polog::info!(&mut logger2, "Message");
-        logger2.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "log_static", "flush_blocking"]
-        );
-
-        logger1.stop();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_disabled_span() {
-        let tracker = Tracker::default();
-        let filtered = Filter::new(tracker.clone(), MaxLevel(LevelFilter::Info));
-        let (mut logger, service) = new_offloader(
-            filtered.clone(),
-            Arc::new(SpanIdGenerator::new()),
-            OffloaderCapacity::Unbounded,
-            OffloaderBackpressurePolicy::Block,
-            None,
-            |_, ev: !| match ev {},
-        );
-        let worker = service.spawn().unwrap();
-
-        let span = polog::debug_span!(&mut logger, "Span");
-        drop(span);
-        logger.flush_blocking();
-        assert_eq!(tracker.take_events(), ["flush_blocking"]);
-
-        let span = polog::info_span!(&mut logger, "Span");
-        drop(span);
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            [
-                "try_enable",
-                "enter_span_static(nested)",
-                "exit_span(nested)",
-                "flush_blocking"
-            ]
-        );
-
-        logger.stop();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_low_level() {
-        const INFO_DESC: &Descriptor = log_descriptor_ref!(Level::Info, "Message");
-
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        let span_id = logger.generate_span_id();
-        assert_eq!(tracker.take_events(), [""; 0]); // Generated by offloader.
-
-        let _ = logger.try_enable(INFO_DESC, ());
-        logger.flush_blocking();
-        assert_eq!(tracker.take_events(), ["flush_blocking",]);
-
-        logger.log(INFO_DESC, (), None, ());
-        logger.log_static(INFO_DESC, (), None, ());
-        logger.enter_span(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.enter_span_static(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.flush_blocking();
-
-        assert_eq!(
-            tracker.take_events(),
-            [
-                "try_enable",
-                "log_static",
-                "try_enable",
-                "log_static",
-                "try_enable",
-                "enter_span_static(nested)",
-                "exit_span(nested)",
-                "try_enable",
-                "enter_span_static(nested)",
-                "exit_span(nested)",
-                "flush_blocking",
-            ]
-        );
-
-        logger.enter_span(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.enter_poll_span(INFO_DESC, span_id, ());
-        logger.pending_poll_span(INFO_DESC, span_id, ());
-        logger.enter_poll_span(INFO_DESC, span_id, ());
-        logger.ready_poll_span(INFO_DESC, span_id, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.flush_blocking();
-        logger.flush_on_panic();
-
-        assert_eq!(
-            tracker.take_events(),
-            [
-                "try_enable",
-                "enter_span_static(nested)",
-                "enter_poll_span",
-                "pending_poll_span",
-                "enter_poll_span",
-                "ready_poll_span",
-                "exit_span(nested)",
-                "flush_blocking",
-                "flush_on_panic",
-            ],
-        );
-
-        logger.stop();
-        worker.join().unwrap();
-    }
-
-    #[expect(clippy::needless_borrow, reason = "explicitly tested")]
-    #[test]
-    fn test_offloader_low_level_by_ref() {
-        const INFO_DESC: &Descriptor = log_descriptor_ref!(Level::Info, "Message");
-
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-        let mut logger = &logger; // Check implementations for `&OffloaderHandle`.
-
-        let span_id = (&&logger).generate_span_id();
-        assert_eq!(tracker.take_events(), [""; 0]); // Generated by offloader.
-
-        let _ = (&&logger).try_enable(INFO_DESC, ());
-        logger.flush_blocking();
-        assert_eq!(tracker.take_events(), ["flush_blocking",]);
-
-        logger.log(INFO_DESC, (), None, ());
-        logger.log_static(INFO_DESC, (), None, ());
-        logger.enter_span(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.enter_span_static(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.flush_blocking();
-
-        assert_eq!(
-            tracker.take_events(),
-            [
-                "try_enable",
-                "log_static",
-                "try_enable",
-                "log_static",
-                "try_enable",
-                "enter_span_static(nested)",
-                "exit_span(nested)",
-                "try_enable",
-                "enter_span_static(nested)",
-                "exit_span(nested)",
-                "flush_blocking",
-            ]
-        );
-
-        logger.enter_span(INFO_DESC, (), None, span_id, SpanKind::Nested, ());
-        logger.enter_poll_span(INFO_DESC, span_id, ());
-        logger.pending_poll_span(INFO_DESC, span_id, ());
-        logger.enter_poll_span(INFO_DESC, span_id, ());
-        logger.ready_poll_span(INFO_DESC, span_id, ());
-        logger.exit_span(INFO_DESC, span_id, SpanKind::Nested, ());
-        logger.flush_blocking();
-        logger.flush_on_panic();
-
-        assert_eq!(
-            tracker.take_events(),
-            [
-                "try_enable",
-                "enter_span_static(nested)",
-                "enter_poll_span",
-                "pending_poll_span",
-                "enter_poll_span",
-                "ready_poll_span",
-                "exit_span(nested)",
-                "flush_blocking",
-                "flush_on_panic",
-            ],
-        );
-
-        logger.stop();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_should_panic_on_bug_default() {
-        const BUG_DESC: &Descriptor = log_descriptor_ref!(Level::Bug, "Bug message");
-
-        let tracker = Tracker::default();
-        tracker.set_should_panic_on_bug(Some(false));
-        let (logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        assert!(!tracker.should_panic_on_bug(BUG_DESC, None));
-        assert_eq!(tracker.take_events(), ["should_panic_on_bug"]);
-
-        assert_eq!(
-            logger.should_panic_on_bug(BUG_DESC, None),
-            cfg!(debug_assertions),
-        );
-
-        // Tracker was not asked.
-        assert_eq!(tracker.take_events(), [""; 0]);
-
-        drop(logger);
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_panic_default() {
-        const FATAL_DESC: &Descriptor = polog::log_descriptor_ref!(Level::Fatal, "Fatal message");
-
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        let _unused = catch_unwind_on_thread(&logger, |mut logger| {
-            logger.panic(FATAL_DESC, None);
-        })
-        .unwrap_err();
-        assert_eq!(tracker.take_events(), [""; 0]); // The offloader panicked.
-
-        drop(logger);
-        worker.join().unwrap();
-    }
-
-    #[expect(clippy::arithmetic_side_effects, reason = "okay in tests")]
-    #[test]
-    fn test_offloader_flush_timeout() {
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_offloader(
-            tracker.clone(),
-            Arc::new(SpanIdGenerator::new()),
-            OffloaderCapacity::Unbounded,
-            OffloaderBackpressurePolicy::Block,
-            Some(Duration::from_millis(1)),
-            |_, ev: !| match ev {},
-        );
-        let worker = service.spawn().unwrap();
-
-        loop {
-            polog::info!(&mut logger, "Message");
-            if tracker.take_events().is_empty() {
-                // Messages has not bee flushed yet.
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(1));
-        }
-
-        let mut events = vec![];
-        let deadline = Instant::now() + Duration::from_secs(1);
-        loop {
-            events.append(&mut tracker.take_events());
-            if ["try_enable", "log_static", "flush_blocking"]
-                .into_iter()
-                .all(|event| events.contains(&event))
-            {
-                break;
-            }
-            assert!(Instant::now() < deadline, "Timed out waiting for events");
-            std::thread::sleep(Duration::from_millis(1));
-        }
-
-        logger.stop();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_shutdown_on_drop() {
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        drop(logger);
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_custom_event() {
-        enum CustomEvent {
-            SetDetailsEnabled(bool),
-            AnotherStop,
-        }
-
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_offloader(
-            tracker.clone(),
-            Arc::new(SpanIdGenerator::new()),
-            OffloaderCapacity::Unbounded,
-            OffloaderBackpressurePolicy::Block,
-            Some(Duration::from_millis(1)),
-            |tracker, ev: CustomEvent| match ev {
-                CustomEvent::SetDetailsEnabled(value) => {
-                    tracker.set_details_enabled(value);
-                    ControlFlow::Continue(())
-                }
-                CustomEvent::AnotherStop => ControlFlow::Break(()),
-            },
-        );
-        let worker = service.spawn().unwrap();
-
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-        assert_eq!(tracker.take_details(), &[""; 0]);
-
-        logger.send_custom(CustomEvent::SetDetailsEnabled(true), None);
-
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_details(),
-            &[
-                "try_enable(\"Message\", ())",
-                "log_static(\"Message\", (), None, ())"
-            ]
-        );
-
-        logger.send_custom(CustomEvent::AnotherStop, None);
-
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_backpressure() {
-        let tracker = Tracker::default();
-        tracker.set_details_enabled(true);
-        let new_offloader = |policy| {
-            new_offloader::<_, (), _, _>(
-                tracker.clone(),
-                Arc::new(SpanIdGenerator::new()),
-                OffloaderCapacity::Bounded(2),
-                policy,
-                None,
-                |_, ev: !| match ev {},
-            )
-        };
-
-        for (mut logger, service) in [
-            new_offloader(OffloaderBackpressurePolicy::DROP_NEWEST),
-            new_offloader(OffloaderBackpressurePolicy::DropNewest {
-                timeout: Duration::from_millis(1),
-            }),
-        ] {
-            polog::info!(&mut logger, "Event 1");
-            polog::info!(&mut logger, "Event 2");
-            polog::info!(&mut logger, "Event 3");
-            polog::info!(&mut logger, "Event 4");
-            let worker = service.spawn().unwrap();
-            logger.flush_blocking();
-
-            assert_eq!(
-                tracker.take_details(),
-                &[
-                    "try_enable(\"Log events dropped in offloader\", ())",
-                    "log(\"Log events dropped in offloader\", (), None, ())",
-                    "try_enable(\"Event 1\", ())",
-                    "log_static(\"Event 1\", (), None, ())",
-                    "try_enable(\"Event 2\", ())",
-                    "log_static(\"Event 2\", (), None, ())",
-                ]
-            );
-
-            logger.stop();
-            worker.join().unwrap();
-        }
-
-        for (mut logger, service) in [
-            new_offloader(OffloaderBackpressurePolicy::DROP_OLDEST),
-            new_offloader(OffloaderBackpressurePolicy::DropOldest {
-                timeout: Duration::from_millis(1),
-            }),
-        ] {
-            polog::info!(&mut logger, "Event 1");
-            polog::info!(&mut logger, "Event 2");
-            polog::info!(&mut logger, "Event 3");
-            polog::info!(&mut logger, "Event 4");
-            let worker = service.spawn().unwrap();
-            logger.flush_blocking();
-
-            assert_eq!(
-                tracker.take_details(),
-                &[
-                    "try_enable(\"Log events dropped in offloader\", ())",
-                    "log(\"Log events dropped in offloader\", (), None, ())",
-                    "try_enable(\"Event 3\", ())",
-                    "log_static(\"Event 3\", (), None, ())",
-                    "try_enable(\"Event 4\", ())",
-                    "log_static(\"Event 4\", (), None, ())",
-                ]
-            );
-
-            logger.stop();
-            worker.join().unwrap();
-        }
-    }
-
-    #[test]
-    fn test_offloader_handoff_channel() {
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_offloader::<_, (), _, _>(
-            tracker.clone(),
-            Arc::new(SpanIdGenerator::new()),
-            OffloaderCapacity::Bounded(0),
-            OffloaderBackpressurePolicy::Block,
-            None,
-            |_, ev: !| match ev {},
-        );
-        let worker = service.spawn().unwrap();
-
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "log_static", "flush_blocking"]
-        );
-
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-        assert_eq!(
-            tracker.take_events(),
-            &["try_enable", "log_static", "flush_blocking"]
-        );
-
-        drop(logger);
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn test_offloader_backpressure_policy_shorthands() {
-        assert_eq!(
-            OffloaderBackpressurePolicy::DROP_NEWEST,
-            OffloaderBackpressurePolicy::DropNewest {
-                timeout: Duration::ZERO,
-            }
-        );
-        assert_eq!(
-            OffloaderBackpressurePolicy::DROP_OLDEST,
-            OffloaderBackpressurePolicy::DropOldest {
-                timeout: Duration::ZERO,
-            }
-        );
-    }
-
-    #[test]
-    fn test_offloader_drop_service() {
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-        drop(service);
-
-        let mut logger = logger.clone();
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-
-        assert_eq!(tracker.take_events(), [""; 0]);
-    }
-
-    #[test]
-    fn test_offloader_drop_service_into_handler() {
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-        let _handler = service.drop_into_handler();
-
-        let mut logger = logger.clone();
-        polog::info!(&mut logger, "Message");
-        logger.flush_blocking();
-
-        assert_eq!(tracker.take_events(), [""; 0]);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_offloader_flush_on_panic_async_multi_thread() {
-        let tracker = Tracker::default();
-        let (mut logger, service) = new_test_offloader(tracker.clone());
-        let worker = service.spawn().unwrap();
-
-        logger.flush_on_panic();
-        assert_eq!(tracker.take_events(), ["flush_on_panic"]);
-
-        logger.stop();
-        worker.join().unwrap();
-        assert_eq!(tracker.take_events(), ["flush_blocking"]);
-
-        logger.flush_on_panic();
-        assert_eq!(tracker.take_events(), [""; 0]);
-    }
-
-    #[test]
-    fn test_offloader_fmt() {
-        let tracker = Tracker::default();
-        let (logger, service) = new_test_offloader(tracker.clone());
-
-        assert_eq!(
-            format!("{logger:?}"),
-            "OffloaderHandle { sender: Sender { .. }, inner: OffloaderInner { receiver: Receiver \
-             { .. }, num_events_dropped: 0, is_shutdown: false, span_id_generator: \
-             SpanIdGenerator(1), backpressure_policy: Block, flush_interval: None, _context: \
-             PhantomData<()> } }",
-        );
-
-        assert_eq!(
-            format!("{service:?}"),
-            "OffloaderService { handler: Tracker(Mutex { data: TrackerInner { span_id_generator: \
-             SpanIdGenerator(1), events: [], details: [], details_enabled: false, \
-             should_panic_on_bug: None }, poisoned: false, .. }), inner: OffloaderInner { \
-             receiver: Receiver { .. }, num_events_dropped: 0, is_shutdown: false, \
-             span_id_generator: SpanIdGenerator(1), backpressure_policy: Block, flush_interval: \
-             None, _context: PhantomData<()> }, custom_handler: FnMut(..) }",
-        );
     }
 }

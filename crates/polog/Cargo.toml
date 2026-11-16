@@ -27,7 +27,11 @@ categories = [
 default = [ "alloc", "std" ]
 alloc = []
 std = [ "alloc" ]
+either-1 = [ "dep:either-1" ]
 test-util = []
+
+[dependencies]
+either-1 = { package = "either", version = "1", default-features = false, optional = true }
 
 [dev-dependencies]
 polog-test-helpers = { workspace = true }
@@ -41,6 +45,10 @@ required-features = [ "alloc" ]
 [[test]]
 name = "off_thread"
 required-features = [ "alloc" ]
+
+[[test]]
+name = "either"
+required-features = [ "either-1" ]
 
 [badges.maintenance]
 status = "passively-maintained"

@@ -1,5 +1,7 @@
 use std::thread;
 
+#[cfg(feature = "log-0-4")]
+use polog::LevelFilter;
 use polog::{Logger, SharedHandler, SpanId, SpanKind};
 use polog_util::OffloaderHandle;
 
@@ -197,6 +199,62 @@ impl<H, C> OffThreadLogger<H, C> {
     #[inline]
     pub const fn take_service_handle(&mut self) -> Option<thread::JoinHandle<()>> {
         self.service_handle.take()
+    }
+
+    /// Registers this logger as the process-wide `log` backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same error as `log::set_boxed_logger`: the global
+    /// logger has already been set.
+    #[cfg(feature = "log-0-4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "log-0-4")))]
+    #[inline]
+    pub fn register_as_global_log_logger(
+        &self,
+        max_level: LevelFilter,
+    ) -> Result<(), log_0_4::SetLoggerError>
+    where
+        H: SharedHandler<()> + polog_util::ExternalHandler<()>,
+    {
+        use polog_util::bridges::log_0_4::BridgeLog;
+        BridgeLog::new(self.handler().clone()).try_install_global(max_level)
+    }
+
+    /// Registers this logger as the process-wide `tracing` subscriber.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same error as `tracing::subscriber::set_global_default`:
+    /// the global subscriber has already been set.
+    #[cfg(feature = "tracing-0-1")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tracing-0-1")))]
+    #[inline]
+    pub fn register_as_global_tracing_subscriber(
+        &self,
+    ) -> Result<(), tracing_0_1::subscriber::SetGlobalDefaultError>
+    where
+        H: SharedHandler<()> + polog_util::ExternalHandler<()>,
+    {
+        use polog_util::bridges::tracing_0_1::BridgeTracing;
+        BridgeTracing::new(self.handler().clone()).try_install_global()
+    }
+
+    /// Registers this logger as the process-wide `tracing` subscriber.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same error as `tracing::subscriber::set_global_default`:
+    /// the global subscriber has already been set.
+    #[cfg(feature = "slog-2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "slog-2")))]
+    #[inline]
+    pub fn to_slog_logger(&self) -> slog_2::Logger
+    where
+        H: SharedHandler<()> + polog_util::ExternalHandler<()>,
+    {
+        use polog_util::bridges::slog_2::BridgeSlog;
+        BridgeSlog::new(self.handler().clone()).into_slog_logger()
     }
 }
 

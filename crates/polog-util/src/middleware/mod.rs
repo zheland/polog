@@ -1,6 +1,5 @@
 #[cfg(feature = "fanout")]
 mod borrowing_fanout;
-mod either;
 mod enricher;
 #[cfg(feature = "std")]
 mod enrichers;
@@ -15,7 +14,6 @@ mod shared;
 #[cfg(feature = "fanout")]
 #[cfg_attr(docsrs, doc(cfg(feature = "fanout")))]
 pub use borrowing_fanout::*;
-pub use either::*;
 pub use enricher::*;
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]

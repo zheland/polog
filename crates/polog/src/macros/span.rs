@@ -56,6 +56,7 @@ macro_rules! span {
         let descriptor: &'static $crate::Descriptor =
             $crate::span_descriptor_ref!( $($($args)*)? );
         let logger = &mut *$logger;
+        #[allow(clippy::allow_attributes, unreachable_code, reason = "macro-generated")]
         if let Some(context) = $crate::LoggerExt::try_enable(logger, descriptor) {
             $crate::LoggerExt::borrowing_span(
                 logger,
@@ -142,6 +143,7 @@ macro_rules! owning_span {
         let descriptor: &'static $crate::Descriptor =
             $crate::span_descriptor_ref!( $($($args)*)? );
         let logger = &*$logger;
+        #[allow(clippy::allow_attributes, unreachable_code, reason = "macro-generated")]
         if let Some(context) = $crate::LoggerExt::try_enable(logger, descriptor) {
             $crate::LoggerExt::owning_span(
                 logger,

@@ -1,5 +1,6 @@
 //! Delegators from `polog` to `slog` 2.x.x.
 
+use core::fmt;
 use core::marker::PhantomData;
 
 use polog::{
@@ -9,6 +10,10 @@ use polog::{
 use slog_2 as slog;
 
 use crate::conv::slog_2::level_into_foreign_approx;
+use crate::util::MaybeStaticStr;
+use crate::{
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+};
 
 static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 
@@ -59,9 +64,78 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 /// [`slog::Logger::log`]: slog_2::Logger::log
 /// [`slog::Record`]: slog_2::Record
 #[derive(Clone, Debug)]
-pub struct ViaSlog<D>(pub slog::Logger<D>)
+pub struct ViaSlog<D>
 where
-    D: Send + Sync + slog::Drain<Ok = (), Err = !>;
+    D: Send + Sync + slog::Drain<Ok = (), Err = !>,
+{
+    handler: slog::Logger<D>,
+
+    flags: ViaSlogFlags,
+}
+
+bitflags::bitflags! {
+    /// Rendering options for the [`ViaSlog`] delegator.
+    ///
+    /// `slog` has no span lifecycle.
+    /// A `polog` span, and every operation on it (entry, exit, dynamic-field
+    /// `record`, `follows_from` link, cl therefore be rendered as an ordinary
+    /// record to be visible at all.
+    ///
+    /// [`ViaSlog`]: crate::ViaSlog
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+    pub struct ViaSlogFlags: u32 {
+
+        /// Emit span entry as a `log::Record`.
+        ///
+        /// When set, [`Handler::enter_span`] and
+        /// [`ExternalHandler::enter_span_external`] render a record
+        /// carrying the span's descriptor and arguments.
+        ///
+        /// [`Handler::enter_span`]: polog::Handler::enter_span
+        /// [`ExternalHandler::enter_span_external`]: crate::ExternalHandler::enter_span_external
+        const LOG_ENTER_SPAN = 1 << 0;
+
+        /// Emit dynamic-field `record` and `follows_from` operations on
+        /// a span as `log::Record`s.
+        ///
+        /// When set, [`ExternalHandler::record_span_external`] renders
+        /// a record whose message is derived from the recorded fields.
+        ///
+        /// [`ExternalHandler::record_span_external`]: crate::ExternalHandler::record_span_external
+        const LOG_RECORD_SPAN = 1 << 1;
+    }
+}
+impl<D> ViaSlog<D>
+where
+    D: Send + Sync + slog::Drain<Ok = (), Err = !>,
+{
+    /// Creates a new bridge from `polog` to `slog` 2.x.
+    #[inline]
+    #[must_use]
+    pub const fn new(handler: slog::Logger<D>, flags: ViaSlogFlags) -> Self {
+        Self { handler, flags }
+    }
+
+    /// Returns a reference to the wrapped handler.
+    #[inline]
+    #[must_use]
+    pub const fn handler(&self) -> &slog::Logger<D> {
+        &self.handler
+    }
+
+    /// Returns a mutable reference to the wrapped handler.
+    #[inline]
+    #[must_use]
+    pub const fn handler_mut(&mut self) -> &mut slog::Logger<D> {
+        &mut self.handler
+    }
+
+    /// Consumes the middleware, returning the wrapped handler.
+    #[inline]
+    pub fn into_handler(self) -> slog::Logger<D> {
+        self.handler
+    }
+}
 
 impl<D> BaseHandler for ViaSlog<D>
 where
@@ -152,7 +226,7 @@ where
     ) where
         Args: LogArgs<'a>,
     {
-        log(&self.0, descriptor, &args);
+        log(&self.handler, descriptor, &args);
     }
 
     #[inline]
@@ -170,7 +244,7 @@ where
         // `slog` has no span lifecycle.
         // Log the span entry as a regular record so the span's message and
         // args are at least visible.
-        log(&self.0, descriptor, &args);
+        log(&self.handler, descriptor, &args);
     }
 
     #[inline]
@@ -183,7 +257,7 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        log(&self.0, descriptor, &args);
+        log(&self.handler, descriptor, &args);
     }
 
     #[inline]
@@ -201,7 +275,7 @@ where
         // `slog` has no span lifecycle.
         // Log the span entry as a regular record so the span's message and
         // args are at least visible.
-        log(&self.0, descriptor, &args);
+        log(&self.handler, descriptor, &args);
     }
 }
 
@@ -220,7 +294,7 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        log(&self.0, descriptor, args);
+        log(&self.handler, descriptor, args);
     }
 
     #[inline]
@@ -235,10 +309,12 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        // `slog` has no span lifecycle.
-        // Log the span entry as a regular record so the span's message and
-        // args are at least visible.
-        log(&self.0, descriptor, args);
+        if self.flags.contains(ViaSlogFlags::LOG_ENTER_SPAN) {
+            // `slog` has no span lifecycle.
+            // Log the span entry as a regular record so the span's message and
+            // args are at least visible.
+            log(&self.handler, descriptor, args);
+        }
     }
 }
 
@@ -247,6 +323,119 @@ where
     D: 'static + Send + Sync + Clone + slog::Drain<Ok = (), Err = !>,
     Context: ContextArgs,
 {
+}
+
+impl<D, Context> ExternalHandler<Context> for ViaSlog<D>
+where
+    D: 'static + Send + Sync + Clone + slog::Drain<Ok = (), Err = !>,
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        _descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        // `slog::Drain` has no `is_enabled` hook, so per-drain filtering is
+        // applied when the record is actually logged.
+        Some(context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        _span_id: Option<SpanId>,
+        _context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        log_external(&self.handler, descriptor, args);
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        _descriptor: &Desc,
+        _args: &Args,
+        _parent_span_id: Option<SpanId>,
+        _span_id: SpanId,
+        _context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        _parent_span_id: Option<SpanId>,
+        _span_id: SpanId,
+        _context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        if self.flags.contains(ViaSlogFlags::LOG_ENTER_SPAN) {
+            // `log` has no span lifecycle.
+            // Log the span entry as a regular record so the span's message and
+            // args are at least visible.
+            log_external(&self.handler, &descriptor, args);
+        }
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        _span_id: SpanId,
+        _context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        if self.flags.contains(ViaSlogFlags::LOG_RECORD_SPAN) {
+            // `log` has no span lifecycle.
+            // Log the span entry as a regular record so the span's message and
+            // args are at least visible.
+            log_external(&self.handler, &descriptor, args);
+        }
+    }
+
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        _descriptor: &Desc,
+        _followed_span_id: SpanId,
+        _follower_span_id: SpanId,
+        _context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+    }
 }
 
 /// Emits one `slog::Record` built from a `polog` descriptor and argument
@@ -277,7 +466,11 @@ where
 {
     let level = level_into_foreign_approx(descriptor.level);
     let tag = descriptor.target.unwrap_or(descriptor.module_path);
-    let kv = Kv::new(descriptor.param_names, args);
+    let kv = ArgsSerializer {
+        keys: descriptor.param_names,
+        values: args,
+        _lt: PhantomData,
+    };
     let msg = format_args!("{}", descriptor.message);
 
     // # UNRELIABLE API USAGE (feature-gated).
@@ -317,32 +510,106 @@ where
     logger.log(&record);
 }
 
+/// Emits one `slog::Record` built from a `polog` external descriptor and
+/// external arguments.
+///
+/// # Source-location fidelity
+///
+/// There are two mutually exclusive ways to build a [`slog::RecordStatic`]:
+///
+/// - **Semver-reliable path** (default). Uses [`slog::record_static!`], which
+///   is the only construction route slog documents as supported. The resulting
+///   `RecordLocation` points at *this* function's expansion site, so every
+///   forwarded record reports the same `file` / `line` / `column` / `module`,
+///   not the polog call site.
+///
+/// - **semver-unstable path** (`slog-2-semver-unstable` feature). Constructs
+///   [`slog::RecordStatic`] and [`slog::RecordLocation`] directly from their
+///   public-but-not-semver-stable fields so that the descriptor's real source
+///   location and module path reach the drain. This mirrors the
+///   `FieldSet::value_set_all` hack in the tracing adapter: it is the only way
+///   to get the correct data, and it is fenced off behind a feature flag
+///   because a minor slog release may break it.
+#[inline]
+fn log_external<D, Desc, Args>(logger: &slog::Logger<D>, descriptor: &Desc, args: Args)
+where
+    D: Send + Sync + slog::Drain<Ok = (), Err = !>,
+    Desc: ExternalDescriptor,
+    Args: ExternalArgs,
+{
+    let level = level_into_foreign_approx(descriptor.level());
+    let tag = descriptor
+        .target()
+        .or_else(|| descriptor.module_path())
+        .map_or("", |tag| tag.as_str());
+    let args = ExternalArgsSerializer(args);
+
+    let message = fmt::from_fn(|f| {
+        descriptor
+            .message()
+            .map_or(Ok(()), |message| write!(f, "{message}"))
+    });
+    let message = format_args!("{message}");
+
+    // # UNRELIABLE API USAGE (feature-gated).
+    //
+    // `RecordStatic` and `RecordLocation` fields are public but the docs mark
+    // `record_static!` as the supported constructor. Building them by hand is
+    // the only way to plumb the polog call-site location through. Any field
+    // addition or rename in slog is a semver-compatible break for this code.
+    //
+    // `location` is declared in the outer scope so that `record_static`
+    // (which holds `&location`) does not outlive it.
+    #[cfg(feature = "slog-2-semver-unstable")]
+    let location = slog::RecordLocation {
+        file: descriptor
+            .file()
+            .as_ref()
+            .and_then(MaybeStaticStr::try_as_static_str)
+            .unwrap_or(""),
+        line: descriptor.line().unwrap_or(0),
+        column: descriptor.column().unwrap_or(0),
+        // Keep empty as `slog` currently does not record it as well.
+        function: "",
+        module: descriptor
+            .module_path()
+            .as_ref()
+            .and_then(MaybeStaticStr::try_as_static_str)
+            .unwrap_or(""),
+    };
+
+    #[cfg(feature = "slog-2-semver-unstable")]
+    let record_static = slog::RecordStatic {
+        location: &location,
+        level,
+        tag,
+    };
+
+    // Semver-reliable path. Note that `record_static!` produces a
+    // `RecordStatic<'_>` borrowing a function-local `static LOC`, so the
+    // resulting `record_static` binding cannot outlive this function either.
+    #[cfg(not(feature = "slog-2-semver-unstable"))]
+    let record_static = slog::record_static!(level, tag);
+
+    let record = slog::Record::new(&record_static, &message, slog::BorrowedKV(&args));
+
+    logger.log(&record);
+}
+
 /// Bridges a heterogeneous tuple of `Display` values to `slog::KV`.
 ///
-/// Plays the same role as `log_0_4::Kv`: it walks the leaf arguments in order
-/// and emits each as a `Key` / `Display` pair. Uses
-/// `Serializer::emit_arguments` so no per-argument `slog::Value` bound is
+/// Plays the same role as `log_0_4::ArgsVisitor`: it walks the leaf arguments
+/// in order and emits each as a `Key` / `Display` pair.
+/// Uses `Serializer::emit_arguments` so no per-argument `slog::Value` bound is
 /// required.
 #[derive(Copy, Clone, Debug)]
-struct Kv<'a, T> {
+struct ArgsSerializer<'a, T> {
     keys: &'static [&'static str],
     values: &'a T,
     _lt: PhantomData<&'a ()>,
 }
 
-impl<'a, T> Kv<'a, T> {
-    #[inline]
-    #[must_use]
-    const fn new(keys: &'static [&'static str], values: &'a T) -> Self {
-        Self {
-            keys,
-            values,
-            _lt: PhantomData,
-        }
-    }
-}
-
-impl<'a, 'b, T> slog::KV for Kv<'a, T>
+impl<'a, 'b, T> slog::KV for ArgsSerializer<'a, T>
 where
     'b: 'a,
     T: DisplayableMixedArgs<'b>,
@@ -361,11 +628,86 @@ where
     }
 }
 
+/// Bridges external arguments to `slog::KV`.
+#[derive(Copy, Clone, Debug)]
+struct ExternalArgsSerializer<Args>(Args);
+
+impl<Args> slog::KV for ExternalArgsSerializer<Args>
+where
+    Args: ExternalArgs,
+{
+    fn serialize(
+        &self,
+        _record: &slog::Record<'_>,
+        serializer: &mut dyn slog::Serializer,
+    ) -> slog::Result {
+        self.0.visit(&mut ExternalArgsSerializerVisitor(serializer));
+        Ok(())
+    }
+}
+
+struct ExternalArgsSerializerVisitor<'a>(&'a mut dyn slog::Serializer);
+
+impl ExternalArgsVisitor for ExternalArgsSerializerVisitor<'_> {
+    #[inline]
+    fn visit_message(&mut self, _value: ExternalArgValue<'_>) {}
+
+    #[inline]
+    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>) {
+        let key = str_to_key(key);
+
+        // `polog` does not support argument visitor failures.
+        // Silently ignore errors.
+        let _result = match value {
+            ExternalArgValue::Unit => self.0.emit_unit(key),
+            ExternalArgValue::None => self.0.emit_none(key),
+            ExternalArgValue::Bool(value) => self.0.emit_bool(key, value),
+            ExternalArgValue::Char(value) => self.0.emit_char(key, value),
+            ExternalArgValue::U8(value) => self.0.emit_u8(key, value),
+            ExternalArgValue::I8(value) => self.0.emit_i8(key, value),
+            ExternalArgValue::U16(value) => self.0.emit_u16(key, value),
+            ExternalArgValue::I16(value) => self.0.emit_i16(key, value),
+            ExternalArgValue::U32(value) => self.0.emit_u32(key, value),
+            ExternalArgValue::I32(value) => self.0.emit_i32(key, value),
+            ExternalArgValue::U64(value) => self.0.emit_u64(key, value),
+            ExternalArgValue::I64(value) => self.0.emit_i64(key, value),
+            ExternalArgValue::U128(value) => self.0.emit_u128(key, value),
+            ExternalArgValue::I128(value) => self.0.emit_i128(key, value),
+            ExternalArgValue::Usize(value) => self.0.emit_usize(key, value),
+            ExternalArgValue::Isize(value) => self.0.emit_isize(key, value),
+            ExternalArgValue::F32(value) => self.0.emit_f32(key, value),
+            ExternalArgValue::F64(value) => self.0.emit_f64(key, value),
+            ExternalArgValue::Str(value) => self.0.emit_str(key, value),
+            ExternalArgValue::Display(display) => {
+                self.0.emit_arguments(key, &format_args!("{display}"))
+            }
+            ExternalArgValue::Debug(debug) => {
+                self.0.emit_arguments(key, &format_args!("{debug:?}"))
+            }
+            ExternalArgValue::Error(error) => self.0.emit_arguments(key, &format_args!("{error}")),
+            ExternalArgValue::Fmt(arguments) => self.0.emit_arguments(key, arguments),
+        };
+    }
+}
+
+#[inline]
+fn str_to_key(value: MaybeStaticStr<'_>) -> slog_2::Key {
+    match value {
+        MaybeStaticStr::Static(value) => slog_2::Key::from(value),
+        #[cfg(feature = "alloc")]
+        MaybeStaticStr::Borrowed(value) => {
+            slog_2::Key::from(alloc::borrow::ToOwned::to_owned(value))
+        }
+        #[cfg(not(feature = "alloc"))]
+        MaybeStaticStr::Borrowed(_value) => slog_2::Key::from("requires `polog/alloc` feature"),
+    }
+}
+
 #[cfg(feature = "alloc")]
 #[cfg(test)]
 mod tests {
     use alloc::borrow::ToOwned;
-    use alloc::string::String;
+    use alloc::string::{String, ToString};
     use alloc::sync::Arc;
     use alloc::vec::Vec;
     use alloc::{format, vec};
@@ -376,7 +718,7 @@ mod tests {
     use slog_2 as slog;
     use slog_2::KV;
 
-    use crate::delegators::slog_2::ViaSlog;
+    use crate::delegators::slog_2::{ViaSlog, ViaSlogFlags};
 
     #[derive(Clone, Default, Debug)]
     pub struct Tracker {
@@ -384,11 +726,11 @@ mod tests {
     }
 
     #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug)]
-    struct FieldVisitor(Vec<(&'static str, String)>);
+    struct FieldVisitor(Vec<(String, String)>);
 
     #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub enum Event {
-        Log(String, Vec<(&'static str, String)>),
+        Log(String, Vec<(String, String)>),
         IsEnabled,
     }
 
@@ -406,8 +748,8 @@ mod tests {
     }
 
     impl slog::Serializer for FieldVisitor {
-        fn emit_arguments(&mut self, key: slog::Key, val: &fmt::Arguments<'_>) -> slog::Result {
-            self.0.push((key, format!("{val}")));
+        fn emit_arguments(&mut self, key: slog::Key, value: &fmt::Arguments<'_>) -> slog::Result {
+            self.0.push((key.to_string(), format!("{value}")));
             Ok(())
         }
     }
@@ -448,9 +790,15 @@ mod tests {
     }
 
     fn test_log_basic(tracker: &Tracker) {
-        let mut logger = ViaSlog(tracker.logger());
+        let mut logger = ViaSlog {
+            handler: tracker.logger(),
+            flags: ViaSlogFlags::all(),
+        };
 
-        assert!(slog_2::Drain::is_enabled(&logger.0, slog_2::Level::Info));
+        assert!(slog_2::Drain::is_enabled(
+            &logger.handler,
+            slog_2::Level::Info
+        ));
         assert_eq!(tracker.take_events(), [Event::IsEnabled]);
 
         // Test: `Handler::log`.
@@ -466,7 +814,10 @@ mod tests {
             tracker.take_events(),
             [Event::Log(
                 "With args".to_owned(),
-                vec![("foo", "1".to_owned()), ("bar", "2".to_owned())],
+                vec![
+                    ("foo".to_owned(), "1".to_owned()),
+                    ("bar".to_owned(), "2".to_owned())
+                ],
             )]
         );
 
@@ -501,7 +852,16 @@ mod tests {
     fn test_log_static(tracker: &Tracker) {
         use crate::Fanout2;
 
-        let mut logger = Fanout2::new((ViaSlog(tracker.logger()), ViaSlog(tracker.logger())));
+        let mut logger = Fanout2::new((
+            ViaSlog {
+                handler: tracker.logger(),
+                flags: ViaSlogFlags::all(),
+            },
+            ViaSlog {
+                handler: tracker.logger(),
+                flags: ViaSlogFlags::all(),
+            },
+        ));
 
         // Test: `Handler::log_static`.
         polog::info!(&mut logger, "Message");
@@ -536,8 +896,16 @@ mod tests {
     fn test_log_borrowed(tracker: &Tracker) {
         use crate::BorrowingFanout2;
 
-        let mut logger =
-            BorrowingFanout2::new((ViaSlog(tracker.logger()), ViaSlog(tracker.logger())));
+        let mut logger = BorrowingFanout2::new((
+            ViaSlog {
+                handler: tracker.logger(),
+                flags: ViaSlogFlags::all(),
+            },
+            ViaSlog {
+                handler: tracker.logger(),
+                flags: ViaSlogFlags::all(),
+            },
+        ));
 
         // Test: `Handler::log_borrowed`.
         polog::info!(&mut logger, "Message");
@@ -570,7 +938,10 @@ mod tests {
 
     #[expect(clippy::unwrap_used, reason = "okay in tests")]
     async fn test_log_async(tracker: &Tracker) {
-        let mut logger = ViaSlog(tracker.logger());
+        let mut logger = ViaSlog {
+            handler: tracker.logger(),
+            flags: ViaSlogFlags::all(),
+        };
 
         let deferred = polog::deferred_info_span!(&mut logger, "Polled");
         let task = tokio::task::spawn(example_async_fn.poll_instrument(deferred));
@@ -580,8 +951,14 @@ mod tests {
             tracker.take_events(),
             [
                 Event::Log("Polled".to_owned(), vec![]),
-                Event::Log("Some warn!".to_owned(), vec![("3 * 4", "12".to_owned())],),
-                Event::Log("Another warn!".to_owned(), vec![("4 * 5", "20".to_owned())],),
+                Event::Log(
+                    "Some warn!".to_owned(),
+                    vec![("3 * 4".to_owned(), "12".to_owned())],
+                ),
+                Event::Log(
+                    "Another warn!".to_owned(),
+                    vec![("4 * 5".to_owned(), "20".to_owned())],
+                ),
             ]
         );
     }

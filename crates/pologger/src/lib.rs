@@ -81,15 +81,19 @@
 //! It wires the choices that nearly every binary makes the same way:
 //!
 //! ```rust
-//! # #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))] {
+//! # #[cfg(all(feature = "log-0-4", feature = "slog-2", feature = "tracing-0-1"))] {
 //! # use log_0_4 as log;
+//! # use slog_2 as slog;
 //! # use tracing_0_1 as tracing;
 //! let (mut logger, config) =
 //!     pologger::OffThreadLoggerBuilder::stderr_text("debug,foo=info,bar=trace")
-//!         .register_as_global_log_logger(true)
-//!         .register_as_global_tracing_subscriber(true)
 //!         .build()
 //!         .unwrap();
+//!
+//! let max_level = config.max_level();
+//! logger.register_as_global_log_logger(max_level).unwrap();
+//! logger.register_as_global_tracing_subscriber().unwrap();
+//! let slog_logger = logger.to_slog_logger();
 //!
 //! polog::info!(&mut logger, "Message 1"); // Printed
 //! polog::trace!(&mut logger, "Message 2"); // Filtered out
@@ -100,11 +104,15 @@
 //! let filter = polog_util::FilterRules::parse("trace,foo=debug,bar=info")
 //!     .unwrap()
 //!     .to_owning();
+//!
 //! *config.filter.write() = filter;
+//! config.update_global_log_level();
+//! config.update_global_tracing_interest_cache();
 //!
 //! polog::trace!(&mut logger, "Message 5"); // Printed
 //! log::info!("Hello from log"); // Printed
 //! tracing::event!(tracing::Level::INFO, "Hello from tracing"); // Printed
+//! slog::info!(slog_logger, "Hello from slog"; "key" => "value"); // Printed
 //! # }
 //! ```
 //!
@@ -135,9 +143,14 @@
 //! # #[cfg(all(feature = "log-0-4", feature = "slog-2", feature = "tracing-0-1"))] {
 //! # use log_0_4 as log;
 //! # use tracing_0_1 as tracing;
+//! # use slog_2 as slog;
 //! use std::sync::Arc;
 //! use std::time::Duration;
 //! use parking_lot::RwLock;
+//!
+//! use polog_util::bridges::log_0_4::BridgeLog;
+//! use polog_util::bridges::slog_2::BridgeSlog;
+//! use polog_util::bridges::tracing_0_1::BridgeTracing;
 //!
 //! let span_id_generator = Arc::new(polog::SpanIdGenerator::new());
 //!
@@ -150,21 +163,14 @@
 //!     pologger::ColorizePreset::Auto,
 //! );
 //!
+//! let config = Arc::new(RwLock::new(pologger::LoggerConfig::compact()));
 //! let backend = pologger::Pologger::new(
 //!     Arc::clone(&span_id_generator),
 //!     // Use can specify multiple formatters like:
 //!     // (stderr_formatter, file_formatter)
 //!     stderr_formatter,
-//!     Arc::new(RwLock::new(pologger::LoggerConfig::compact())),
+//!     Arc::clone(&config),
 //! );
-//!
-//! let backend = pologger::SharedPologger::new(backend, filter.clone());
-//!
-//! backend.register_as_global_log_logger().expect("log global");
-//! backend
-//!     .register_as_global_tracing_subscriber()
-//!     .expect("tracing global");
-//! let slog_logger = backend.make_slog_logger();
 //!
 //! let (handler, service) = polog_util::new_offloader(
 //!     backend,
@@ -181,17 +187,26 @@
 //!
 //! let mut logger = polog_util::Enricher::new(handler, polog_util::SystemTimeEnricherFn);
 //!
+//! BridgeLog::new(logger.clone())
+//!     .try_install_global(polog::LevelFilter::Trace)
+//!     .unwrap();
+//! BridgeTracing::new(logger.clone())
+//!     .try_install_global()
+//!     .unwrap();
+//! let slog_logger = BridgeSlog::new(logger.clone()).into_slog_logger();
+//!
 //! polog::info!(&mut logger, "Hello from pologger"; key = "value");
 //! log::info!("Hello from log");
 //! tracing::event!(tracing::Level::INFO, "Hello from tracing");
+//! slog::info!(slog_logger, "Hello from slog"; "key" => "value");
 //! # }
 //! ```
 //!
 //! [`Pologger`] does not implement [`polog::SharedHandler`], so it cannot be
 //! used directly as a `polog::Logger`.
-//! It must be wrapped in [`SharedPologger`] and then in a middleware that
-//! provides `SharedHandler<()>` — typically [`OffloaderHandle`], which moves
-//! the `Pologger` onto a dedicated worker thread.
+//! It must be wrapped in a middleware that provides `SharedHandler<()>` —
+//! typically [`OffloaderHandle`], which moves the `Pologger` onto a dedicated
+//! worker thread.
 //! [`polog_util::Shared<H>`] provides a synchronous alternative, and
 //! [`polog_util::Fanout<H1, H2>`] dispatches one event to two handlers.
 //!
@@ -373,11 +388,11 @@
 //! `SharedPologger` as flat `Log` events with the `root` parent span.
 //!
 //! `tracing` has a span lifecycle, and `SharedPologger` maps it as follows:
-//! - `new_span` emits a `ForeignNew` event on a fresh polog `SpanId`.
+//! - `new_span` emits a `ExternalNew` event on a fresh polog `SpanId`.
 //! - `enter` emits a `DetachedEnter` event on a new polog `SpanId` whose parent
 //!   is the span object’s ID.
 //! - `exit` emits the matching `DetachedExit`.
-//! - `try_close` emits `ForeignClose` on the span object’s ID.
+//! - `try_close` emits `ExternalClose` on the span object’s ID.
 //! - `event` attaches to the innermost entered span of this subscriber on the
 //!   current thread, using a thread‑local enter stack that `SharedPologger`
 //!   maintains per `tracing::Subscriber`.
@@ -451,6 +466,12 @@
 //!
 //! # API Cheat Sheet
 //!
+//! ## Backends
+//!
+//! | Item | Purpose |
+//! |:--:|:--|
+//! | [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
+//!
 //! ## Builders and handles
 //!
 //! | Item | Purpose |
@@ -461,20 +482,13 @@
 //! | [`OffThreadLoggerBuilder::custom_text`] | `TextFormatter` to a caller‑supplied `io::Write`, colors off. |
 //! | [`OffThreadLoggerBuilder::custom_ndjson`] | `NdJsonFormatter` to a caller‑supplied `io::Write`. |
 //! | [`OffThreadLoggerBuilder::with_formatter`] | Arbitrary [`Formatter`]; formatter config is `()`. |
-//! | [`OffThreadLoggerBuilder::register_as_global_log_logger`] | Also registers the built chain as the global `log` logger. Requires `log-0-4`. |
-//! | [`OffThreadLoggerBuilder::register_as_global_tracing_subscriber`] | Also registers the built chain as the global `tracing` subscriber. Requires `tracing-0-1`. |
 //! | [`OffThreadLoggerBuilder::build`] | Parses the filter, wires the chain, spawns the worker, optionally registers globals. |
 //! | [`OffThreadLogger`] | Logger handle returned by `build`. Implements [`polog::Logger`]; owns the worker; joins it on drop. |
+//! | [`OffThreadLogger::register_as_global_log_logger`] | Registers the built chain as the global `log` logger. Requires `log-0-4`. |
+//! | [`OffThreadLogger::register_as_global_tracing_subscriber`] | Registers the built chain as the global `tracing` subscriber. Requires `tracing-0-1`. |
+//! | [`OffThreadLogger::to_slog_logger`] | Returns the built chain as slog logger. Requires `slog-2`. |
 //! | [`OffThreadLoggerConfig`] | `Arc<RwLock<...>>` handles shared with the live logger for live reconfiguration. |
 //! | [`OffThreadLoggerShutdownEvent`] | Sentinel event used by `OffThreadLogger::drop` to stop the worker. |
-//!
-//! ## Backends
-//!
-//! | Item | Purpose |
-//! |:--:|:--|
-//! | [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
-//! | [`SharedPologger`] | `Clone` wrapper around `Arc<Mutex<Pologger>>` that adds the foreign‑facade impls. |
-//! | [`RwLock`] | Re‑export of `parking_lot::RwLock`, used by every public `Arc<RwLock<...>>` handle. |
 //!
 //! ## Formatters
 //!
@@ -484,7 +498,7 @@
 //! | [`TextFormatter`] | Human‑readable output; ANSI colors, dynamic padding, timestamp highlighting, control‑char sanitization. |
 //! | [`NdJsonFormatter`] | One JSON object per line; RFC 8259 escaping, no sanitization. |
 //! | [`Either<F1, F2>`] | Runtime selection between two formatters (re‑export from `polog-util`). |
-//! | `(F1, F2)` | Writes each event to both formatters in order. |
+//! | `(F1, F2, ..., Fn)` | Writes each event to both formatters in order. |
 //! | [`Discard`] | A [`Formatter`] that discards everything (re‑export from `polog`). |
 //!
 //! ## Formatter constructors
@@ -513,42 +527,15 @@
 //! | [`NdJsonFormatterConfig`] | `flags` for an [`NdJsonFormatter`]. |
 //! | [`NdJsonFormatterFlags`] | NDJSON‑specific flags. |
 //!
-//! ## Flag sets
-//!
-//! | Set | Presets | Values |
-//! |:--:|:--|:--|
-//! | [`EventKinds`] | `DEFAULT`, `TRACING`, `ALL` | `LOG`, `NESTED_ENTER`, `NESTED_EXIT`, `DETACHED_ENTER`, `DETACHED_EXIT`, `FOREIGN_NEW`, `FOREIGN_CLOSE`, `TASK_POLL`, `TASK_PENDING`, `TASK_READY`. |
-//! | [`DescriptorFields`] | `MINIMAL`, `DEFAULT`, `ALL` | `KIND`, `LEVEL`, `MODULE_PATH`, `TARGET`, `MESSAGE`, `FILENAME`, `LINE`, `COLUMN`. |
-//! | [`SiteFields`] | `MINIMAL`, `DEFAULT`, `ALL` | `PARENT_SPAN_ID`, `SPAN_ID`, `ARGUMENTS`. |
-//! | [`ContextFields`] | `DEFAULT`, `CHEAP`, `COSTLY`, `ALL` | `UTC_TIME*`, `LOCAL_TIME*`, `MONOTONIC_TIME*`, `PROCESS_CPU_TIME*`, `THREAD_CPU_TIME*`, `LOCAL_UTC_OFFSET`, `PROCESS_ID`, `PROCESS_NAME`, `THREAD_ID`, `THREAD_NAME`, `TASK_ID`, `TASK_NAME`, `CPU_ID`. |
-//! | [`DerivedFields`] | `DEFAULT`, `SPAN_PATH`, `ALL` | `SPAN_PATH_KIND`, `SPAN_PATH_ID`, `SPAN_PATH_NAME`. |
-//! | [`BehaviorFlags`] | `DEFAULT`, `ALL` | `DEFAULT_SYSTEM_TIME`, `TARGET_DEFAULT_MODULE_PATH`, `CACHED_PARENT_SPAN_IDS`, `USE_FN_META_ATTRIBUTE`, `USE_LOCATION_AS_DEFAULT_MESSAGE`. |
-//!
-//! ## Foreign facades
-//!
-//! | Item | Purpose |
-//! |:--:|:--|
-//! | [`SharedPologger::register_as_global_log_logger`] | Registers as the process‑wide `log` backend. Requires `log-0-4`. |
-//! | [`SharedPologger::make_slog_logger`] | Returns a `slog::Logger` that drains into the backend. Requires `slog-2`. |
-//! | [`SharedPologger::register_as_global_tracing_subscriber`] | Registers as the process‑wide `tracing` subscriber. Requires `tracing-0-1`. |
-//! | [`ExternalEntry`] | Borrowed representation of a foreign event, passed to [`Pologger::log_external_entry`]. |
-//! | [`ExternalArguments`] | Visitor trait; one impl per foreign facade. |
-//! | [`ExternalArg`] | Borrowed value from a foreign event. |
-//!
-//! ## Errors
-//!
-//! | Item | Purpose |
-//! |:--:|:--|
-//! | [`BuildOffThreadLoggerError`] | Returned by [`OffThreadLoggerBuilder::build`]. Variants: `ParseFilter`, `GlobalLogAlreadySet`, `GlobalTracingAlreadySet`, `SpawnLogger`. |
-//!
 //!
 //! # Feature flags
 //!
-//! | Feature | Default | Description |
-//! |:--:|:--:|:--|
-//! | `log-0-4` | no | Implements `log::Log` for `SharedPologger` and exposes `register_as_global_log_logger()`. |
-//! | `slog-2` | no | Implements `slog::Drain` for `SharedPologger` and exposes `make_slog_logger()`. |
-//! | `tracing-0-1` | no | Implements `tracing::Subscriber` for `SharedPologger` and exposes `register_as_global_tracing_subscriber()`. |
+//! | Feature | Default | Description | Enables deps and features |
+//! |:--:|:--:|:--:|:--:|
+//! | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
+//! | `log-0-4` | no | Implements `log::Log` for `SharedPologger` and exposes `register_as_global_log_logger()`. | `dep:log` (version = 0.4), `log/alloc`, `log/kv`, `polog-util/log-0-4` |
+//! | `slog-2` | no | Implements `slog::Drain` for `SharedPologger` and exposes `make_slog_logger()`. | `dep:slog`  (version = 2), `polog-util/slog-2` |
+//! | `tracing-0-1` | no | Implements `tracing::Subscriber` for `SharedPologger` and exposes `register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `dep:tracing` (version = 0.1), `dep:dashmap`, `polog-util/tracing-0-1`, `tracing-core/std` |
 //!
 //!
 //! # FAQ
@@ -752,10 +739,8 @@ mod formatter;
 mod formatters;
 mod logger;
 mod off_thread;
-mod shared;
 #[cfg(test)]
 mod test_util;
-pub mod util;
 
 pub use formatter::*;
 pub use formatters::*;
@@ -763,4 +748,3 @@ pub use logger::*;
 pub use off_thread::*;
 /// A re-export of `parking_lot::RwLock`.
 pub use parking_lot::RwLock;
-pub use shared::*;

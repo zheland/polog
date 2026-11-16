@@ -1,4 +1,5 @@
-//! Delegators for different log backends.
+//! Delegators for different log backends to forwards events from `polog` to
+//! other log backends.
 
 #[cfg(feature = "log-0-4")]
 #[cfg_attr(docsrs, doc(cfg(feature = "log-0-4")))]

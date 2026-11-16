@@ -5,6 +5,8 @@ use polog::{
     SpanKind, StaticLogArgs,
 };
 
+use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+
 /// A [`Handler`] that appends a value to the context of every event and span.
 ///
 /// `Enricher<H, F>` wraps a downstream [`Handler`] and, before delegating,
@@ -301,6 +303,140 @@ where
     Context: ContextArgs,
     Context::WithDebuggableArg<F::Output>: ContextArgs,
 {
+}
+
+impl<H, F, Context> ExternalHandler<Context> for Enricher<H, F>
+where
+    H: ExternalHandler<Context::WithDebuggableArg<F::Output>>,
+    F: EnricherFn,
+    F::Output: 'static + Debug,
+    Context: ContextArgs,
+    Context::WithDebuggableArg<F::Output>: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
+        H::try_enable_external(&self.handler, descriptor, context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        H::log_external(&mut self.handler, descriptor, args, span_id, context);
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        H::new_span_external(
+            &mut self.handler,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        H::enter_span_external(
+            &mut self.handler,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
+        H::exit_span_external(&mut self.handler, descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
+        H::close_span_external(&mut self.handler, descriptor, span_id, context);
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
+        H::record_span_external(&mut self.handler, descriptor, args, span_id, context);
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
+        H::link_span_external(
+            &mut self.handler,
+            descriptor,
+            followed_span_id,
+            follower_span_id,
+            context,
+        );
+    }
 }
 
 #[cfg(feature = "log-0-4")]
