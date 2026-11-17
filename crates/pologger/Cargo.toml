@@ -29,9 +29,8 @@ tracing-0-1 = [ "dep:tracing-core-0-1", "dep:tracing-0-1", "dep:dashmap", "polog
 
 [dependencies]
 bitflags = { version = "2.13.2", default-features = false }
-chrono = { version = "0.4.45", default-features = false, features = [ "clock" ] }
 dashmap = { version = "6.2.1", default-features = false, optional = true }
-humantime = { version = "2.4.0", default-features = false }
+jiff = { version = "1.0.0", default-features = false, features = [ "std" ] }
 # Bumping `parking_lot` requires a `pologger` breaking-change release,
 # because the version of `parking_lot` is a part of `pologger`'s public type identity.
 parking_lot = { version = "0.13.0", default-features = false }

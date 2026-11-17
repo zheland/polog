@@ -1262,6 +1262,10 @@ where
         return Ok(());
     };
 
+    // Convert SystemTime to jiff::Timestamp once.
+    let timestamp =
+        Timestamp::try_from(time).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+
     if print_utc_time {
         let precision = time_precision_from_flags(
             flags.context_fields,
@@ -1272,23 +1276,34 @@ where
             ],
         );
 
-        let value = match precision {
-            TimePrecision::Seconds => humantime::format_rfc3339_seconds(time),
-            TimePrecision::Millis => humantime::format_rfc3339_millis(time),
-            TimePrecision::Micros => humantime::format_rfc3339_micros(time),
-            TimePrecision::Nanos => humantime::format_rfc3339_nanos(time),
-        };
-
         fmt.write_key("utc_time")?;
-        fmt.write_time_already_sanitized(&value, FormatterTimeKind::Utc)?;
+        // jiff's Timestamp implements Display with RFC 3339 formatting.
+        match precision {
+            TimePrecision::Seconds => fmt.write_time_already_sanitized(
+                &format_args!("{timestamp:.0}"),
+                FormatterTimeKind::Utc,
+            )?,
+            TimePrecision::Millis => fmt.write_time_already_sanitized(
+                &format_args!("{timestamp:.3}"),
+                FormatterTimeKind::Utc,
+            )?,
+            TimePrecision::Micros => fmt.write_time_already_sanitized(
+                &format_args!("{timestamp:.6}"),
+                FormatterTimeKind::Utc,
+            )?,
+            TimePrecision::Nanos => fmt.write_time_already_sanitized(
+                &format_args!("{timestamp:.9}"),
+                FormatterTimeKind::Utc,
+            )?,
+        }
     }
 
-    if print_local_time {
-        #[cfg(not(all(test, miri)))]
-        let time: chrono::DateTime<chrono::Local> = time.into();
-        #[cfg(all(test, miri))]
-        let time: chrono::DateTime<chrono::Utc> = chrono::DateTime::UNIX_EPOCH;
+    let zoned = (print_local_time || print_utc_offset)
+        .then(|| timestamp.to_zoned_datetime(TimeZone::system()));
 
+    if let Some(zoned) = &zoned
+        && print_local_time
+    {
         let precision = time_precision_from_flags(
             flags.context_fields,
             [
@@ -1301,30 +1316,32 @@ where
             .context_fields
             .contains(flags::ContextFields::LOCAL_UTC_OFFSET);
 
-        let value = match (print_local_utc_offset, precision) {
-            (false, TimePrecision::Seconds) => time.format("%Y-%m-%dT%H:%M:%S%.0f"),
-            (false, TimePrecision::Millis) => time.format("%Y-%m-%dT%H:%M:%S%.3f"),
-            (false, TimePrecision::Micros) => time.format("%Y-%m-%dT%H:%M:%S%.6f"),
-            (false, TimePrecision::Nanos) => time.format("%Y-%m-%dT%H:%M:%S%.9f"),
-            (true, TimePrecision::Seconds) => time.format("%Y-%m-%dT%H:%M:%S%.0f%:z"),
-            (true, TimePrecision::Millis) => time.format("%Y-%m-%dT%H:%M:%S%.3f%:z"),
-            (true, TimePrecision::Micros) => time.format("%Y-%m-%dT%H:%M:%S%.6f%:z"),
-            (true, TimePrecision::Nanos) => time.format("%Y-%m-%dT%H:%M:%S%.9f%:z"),
+        let fmt_str = match (print_local_utc_offset, precision) {
+            (false, TimePrecision::Seconds) => "%Y-%m-%dT%H:%M:%S%.0f",
+            (false, TimePrecision::Millis) => "%Y-%m-%dT%H:%M:%S%.3f",
+            (false, TimePrecision::Micros) => "%Y-%m-%dT%H:%M:%S%.6f",
+            (false, TimePrecision::Nanos) => "%Y-%m-%dT%H:%M:%S%.9f",
+            (true, TimePrecision::Seconds) => "%Y-%m-%dT%H:%M:%S%.0f%:z",
+            (true, TimePrecision::Millis) => "%Y-%m-%dT%H:%M:%S%.3f%:z",
+            (true, TimePrecision::Micros) => "%Y-%m-%dT%H:%M:%S%.6f%:z",
+            (true, TimePrecision::Nanos) => "%Y-%m-%dT%H:%M:%S%.9f%:z",
         };
 
         fmt.write_key("local_time")?;
-        fmt.write_time_already_sanitized(&value, FormatterTimeKind::Local)?;
+        fmt.write_time_already_sanitized(
+            &format_args!("{}", zoned.strftime(fmt_str)),
+            FormatterTimeKind::Local,
+        )?;
     }
 
-    if print_utc_offset {
-        #[cfg(not(all(test, miri)))]
-        let time: chrono::DateTime<chrono::Local> = time.into();
-        #[cfg(all(test, miri))]
-        let time: chrono::DateTime<chrono::Utc> = chrono::DateTime::UNIX_EPOCH;
-
-        let value = time.format("%:z");
+    if let Some(zoned) = &zoned
+        && print_utc_offset
+    {
         fmt.write_key("utc_offset")?;
-        fmt.write_time_already_sanitized(&value, FormatterTimeKind::UtcOffset)?;
+        fmt.write_time_already_sanitized(
+            &format_args!("{}", zoned.strftime("%:z")),
+            FormatterTimeKind::UtcOffset,
+        )?;
     }
 
     Ok(())
