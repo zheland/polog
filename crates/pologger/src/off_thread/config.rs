@@ -37,8 +37,7 @@ use crate::LoggerConfig;
 ///
 /// Writes are visible to the logger on the next event it processes, on both
 /// sides of the offloader.
-/// A write through [`filter`], for example, updates the caller-side [`Filter`]
-/// and the worker-side [`SharedPologger`] foreign-event filter together,
+/// A write through [`filter`], for example, updates the caller-side [`Filter`],
 /// because both branches of the pipeline hold clones of the same
 /// `Arc<RwLock<OwningFilterRules>>`.
 ///
@@ -72,7 +71,6 @@ use crate::LoggerConfig;
 /// [`OffThreadLoggerBuilder`]: crate::OffThreadLoggerBuilder
 /// [`OffThreadLoggerBuilder::build`]: crate::OffThreadLoggerBuilder::build
 /// [`OwningFilterRules`]: polog_util::OwningFilterRules
-/// [`SharedPologger`]: crate::SharedPologger
 /// [`TextFormatterConfig`]: crate::TextFormatterConfig
 /// [`with_formatter`]: crate::OffThreadLoggerBuilder::with_formatter
 /// [`filter`]: Self::filter
@@ -82,10 +80,6 @@ use crate::LoggerConfig;
 pub struct OffThreadLoggerConfig<FmtCfg> {
     /// The `RUST_LOG`-style filter applied to both `polog` events and
     /// foreign events.
-    ///
-    /// Shared with:
-    /// - the caller-side [`Filter`] middleware,
-    /// - the worker-side [`SharedPologger`] foreign-event filter.
     ///
     /// A write through this handle takes effect on the next event processed
     /// by either side, but only for facades that read the filter per event.
@@ -111,7 +105,7 @@ pub struct OffThreadLoggerConfig<FmtCfg> {
     ///   the `log-0-4` feature is enabled and the logger is registered as the
     ///   global `log` logger. Without it, `log!` call sites at newly enabled
     ///   levels stay short-circuited by `log::max_level()` and never reach
-    ///   [`SharedPologger`].
+    ///   [`Pologger`].
     /// - **`tracing`**: after a write, call
     ///   [`Self::update_global_tracing_interest_cache`] if the `tracing-0-1`
     ///   feature is enabled and the logger is registered as the global
@@ -129,10 +123,10 @@ pub struct OffThreadLoggerConfig<FmtCfg> {
     /// Replacing the whole value is preferred because it holds the lock for
     /// a single assignment.
     ///
+    /// [`Pologger`]: crate::Pologger
     /// [`Filter`]: polog_util::Filter
     /// [`FilterRules::parse`]: polog_util::BorrowingFilterRules::parse
     /// [`FilterRules::to_owning`]: polog_util::FilterRules::to_owning
-    /// [`SharedPologger`]: crate::SharedPologger
     pub filter: Arc<RwLock<OwningFilterRules>>,
 
     /// The logger's own configuration: rendering flags and their setters.
@@ -178,8 +172,8 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     /// The caller must ensure that:
     ///
     /// - `filter` is the same `Arc` that was passed to [`Filter::new`] on the
-    ///   caller side and to [`SharedPologger::new`] on the worker side,
-    ///   otherwise mutations through this config will not reach the filter;
+    ///   caller side and to [`Pologger::new`] on the worker side, otherwise
+    ///   mutations through this config will not reach the filter;
     /// - `logger_config` is the same `Arc` that was passed to
     ///   [`Pologger::new`], otherwise flag updates will not reach the backend;
     /// - `formatter_config` is the same handle that the formatter holds,
@@ -192,7 +186,7 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     /// [`Filter::new`]: polog_util::Filter::new
     /// [`OffThreadLoggerBuilder::build`]: crate::OffThreadLoggerBuilder::build
     /// [`Pologger::new`]: crate::Pologger::new
-    /// [`SharedPologger::new`]: crate::SharedPologger::new
+    /// [`Pologger::new`]: crate::Pologger::new
     #[inline]
     #[must_use]
     pub const fn new(
@@ -212,7 +206,7 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     /// The [`log`] crate caches a process-global max level and every `log!`
     /// call site checks it before the event is constructed.
     /// A write to     /// [`Self::filter`] is immediately visible to
-    /// [`SharedPologger`]'s `log::Log::enabled` and `log::Log::log`, but `log!`
+    /// [`Pologger`]'s `log::Log::enabled` and `log::Log::log`, but `log!`
     /// will not reach either method if the cached max level still excludes the
     /// event's level.
     ///
@@ -222,12 +216,11 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     ///
     /// - When the filter is **relaxed**, this call is required for correctness.
     ///   Without it, call sites at newly enabled levels stay short-circuited by
-    ///   `log!` and never reach [`SharedPologger`].
+    ///   `log!` and never reach [`Pologger`].
     /// - When the filter is **tightened**, this call is a performance
     ///   optimization. Without it, events are still filtered correctly by
-    ///   [`SharedPologger`]'s per-event check, but `log!` still pays the cost
-    ///   of constructing the metadata and record before the record is
-    ///   discarded.
+    ///   [`Pologger`]'s per-event check, but `log!` still pays the cost of
+    ///   constructing the metadata and record before the record is discarded.
     ///
     /// # When to call
     ///
@@ -255,7 +248,7 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     /// [`FilterFn::max_level`]: polog_util::FilterFn::max_level
     /// [`OffThreadLoggerBuilder::build`]: crate::OffThreadLoggerBuilder::build
     /// [`Self::filter`]: Self::filter
-    /// [`SharedPologger`]: crate::SharedPologger
+    /// [`Pologger`]: crate::Pologger
     /// [`Subscriber::max_level_hint`]: https://docs.rs/tracing-core/latest/tracing_core/subscriber/trait.Subscriber.html#method.max_level_hint
     /// [`log`]: https://docs.rs/log/latest/log/
     /// [`polog`]: https://docs.rs/polog/latest/polog/
@@ -277,7 +270,7 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     ///
     /// [`tracing`] caches `Interest` per callsite and queries
     /// [`Subscriber::max_level_hint`] once, at subscriber registration.
-    /// A write to [`Self::filter`] is visible to [`SharedPologger`]'s
+    /// A write to [`Self::filter`] is visible to [`Pologger`]'s
     /// per-event `enabled` check, but callsites already cached as
     /// `Interest::never` stay disabled and `LevelFilter::current()` keeps
     /// the old hint.
@@ -301,7 +294,7 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     /// compiled.
     ///
     /// [`Self::filter`]: Self::filter
-    /// [`SharedPologger`]: crate::SharedPologger
+    /// [`Pologger`]: crate::Pologger
     /// [`Subscriber::register_callsite`]: https://docs.rs/tracing-core/latest/tracing_core/subscriber/trait.Subscriber.html#method.register_callsite
     /// [`Subscriber::max_level_hint`]: https://docs.rs/tracing-core/latest/tracing_core/subscriber/trait.Subscriber.html#method.max_level_hint
     /// [`tracing`]: https://docs.rs/tracing/latest/tracing/

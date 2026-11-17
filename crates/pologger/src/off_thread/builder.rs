@@ -177,15 +177,11 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
     ///
     /// 1. Parses `log_filter` into a [`polog_util::FilterRules`] rule set.
     /// 2. Builds a [`Pologger`] over the configured formatter.
-    /// 3. Wraps the backend in a [`SharedPologger`] with a clone of the rule
-    ///    set as the foreign-event filter.
-    /// 4. Optionally registers the shared backend as the global `log` logger
-    ///    and/or the global `tracing` subscriber.
-    /// 5. Wraps the shared backend in an offloader worker and spawns the worker
+    /// 3. Wraps the shared backend in an offloader worker and spawns the worker
     ///    thread.
-    /// 6. Wraps the offloader in a [`polog_util::Filter`] with the same rule
+    /// 4. Wraps the offloader in a [`polog_util::Filter`] with the same rule
     ///    set.
-    /// 7. Wraps the handler in a [`polog_util::Enricher`] that adds
+    /// 5. Wraps the handler in a [`polog_util::Enricher`] that adds
     ///    `SystemTime`.
     ///
     /// Both the `polog`-side filter and the foreign-event filter use the
@@ -213,13 +209,6 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
     ///
     /// - [`BuildOffThreadLoggerError::ParseFilter`] — the filter specification
     ///   did not parse.
-    /// - [`BuildOffThreadLoggerError::GlobalLogAlreadySet`] — the global `log`
-    ///   logger was already set by another crate. Only reachable when
-    ///   [`register_as_global_log_logger(true)`] was called on the builder.
-    /// - [`BuildOffThreadLoggerError::GlobalTracingAlreadySet`] — the global
-    ///   `tracing` subscriber was already set. Only reachable when
-    ///   [`register_as_global_tracing_subscriber(true)`] was called on the
-    ///   builder.
     /// - [`BuildOffThreadLoggerError::SpawnLogger`] — the offloader worker
     ///   thread could not be spawned.
     ///
@@ -231,9 +220,6 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
     /// in `log` and `tracing`.
     /// Neither crate offers an unregister operation. The
     /// builder cannot roll back the first registration either.
-    ///
-    /// [`register_as_global_log_logger(true)`]: Self::register_as_global_log_logger
-    /// [`register_as_global_tracing_subscriber(true)`]: Self::register_as_global_tracing_subscriber
     #[inline]
     pub fn build(
         self,

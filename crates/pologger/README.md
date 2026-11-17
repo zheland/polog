@@ -465,6 +465,12 @@ both paths with no extra wiring.
 
 ## API Cheat Sheet
 
+### Backends
+
+| Item | Purpose |
+|:--:|:--|
+| [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
+
 ### Builders and handles
 
 | Item | Purpose |
@@ -482,12 +488,6 @@ both paths with no extra wiring.
 | [`OffThreadLogger::to_slog_logger`] | Returns the built chain as slog logger. Requires `slog-2`. |
 | [`OffThreadLoggerConfig`] | `Arc<RwLock<...>>` handles shared with the live logger for live reconfiguration. |
 | [`OffThreadLoggerShutdownEvent`] | Sentinel event used by `OffThreadLogger::drop` to stop the worker. |
-
-### Backends
-
-| Item | Purpose |
-|:--:|:--|
-| [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
 
 ### Formatters
 
@@ -532,9 +532,9 @@ both paths with no extra wiring.
 | Feature | Default | Description | Enables deps and features |
 |:--:|:--:|:--:|:--:|
 | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
-| `log-0-4` | no | Implements `log::Log` for `SharedPologger` and exposes `register_as_global_log_logger()`. | `dep:log` (version = 0.4), `log/alloc`, `log/kv`, `polog-util/log-0-4` | 
+| `log-0-4` | no | Implements `log::Log` for `SharedPologger` and exposes `register_as_global_log_logger()`. | `dep:log` (version = 0.4), `log/alloc`, `log/kv`, `polog-util/log-0-4` |
 | `slog-2` | no | Implements `slog::Drain` for `SharedPologger` and exposes `make_slog_logger()`. | `dep:slog`  (version = 2), `polog-util/slog-2` |
-| `tracing-0-1` | no | Implements `tracing::Subscriber` for `SharedPologger` and exposes `register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `dep:tracing` (version = 0.1), `dep:dashmap`, `polog-util/tracing-0-1`, `tracing-core/std` | 
+| `tracing-0-1` | no | Implements `tracing::Subscriber` for `SharedPologger` and exposes `register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `dep:tracing` (version = 0.1), `dep:dashmap`, `polog-util/tracing-0-1`, `tracing-core/std` |
 
 
 ## FAQ

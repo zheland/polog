@@ -105,6 +105,7 @@
 //! let filter = polog_util::FilterRules::parse("trace,foo=debug,bar=info")
 //!     .unwrap()
 //!     .to_owning();
+//!
 //! *config.filter.write() = filter;
 //! config.update_global_log_level();
 //! config.update_global_tracing_interest_cache();
@@ -463,6 +464,12 @@
 //!
 //! # API Cheat Sheet
 //!
+//! ## Backends
+//!
+//! | Item | Purpose |
+//! |:--:|:--|
+//! | [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
+//!
 //! ## Builders and handles
 //!
 //! | Item | Purpose |
@@ -480,14 +487,6 @@
 //! | [`OffThreadLogger::to_slog_logger`] | Returns the built chain as slog logger. Requires `slog-2`. |
 //! | [`OffThreadLoggerConfig`] | `Arc<RwLock<...>>` handles shared with the live logger for live reconfiguration. |
 //! | [`OffThreadLoggerShutdownEvent`] | Sentinel event used by `OffThreadLogger::drop` to stop the worker. |
-//!
-//! ## Backends
-//!
-//! | Item | Purpose |
-//! |:--:|:--|
-//! | [`Pologger`] | Core [`Handler`] implementation; owns a [`Formatter`], a shared [`SpanIdGenerator`], and a [`LoggerConfig`]. |
-//! | [`SharedPologger`] | `Clone` wrapper around `Arc<Mutex<Pologger>>` that adds the foreign‑facade impls. |
-//! | [`RwLock`] | Re‑export of `parking_lot::RwLock`, used by every public `Arc<RwLock<...>>` handle. |
 //!
 //! ## Formatters
 //!
@@ -525,6 +524,7 @@
 //! | [`ColorizePreset`] | `Off`, `Auto`, `On`. |
 //! | [`NdJsonFormatterConfig`] | `flags` for an [`NdJsonFormatter`]. |
 //! | [`NdJsonFormatterFlags`] | NDJSON‑specific flags. |
+//!
 //!
 //! # Feature flags
 //!
@@ -739,7 +739,6 @@ mod logger;
 mod off_thread;
 #[cfg(test)]
 mod test_util;
-pub mod util;
 
 pub use formatter::*;
 pub use formatters::*;

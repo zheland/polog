@@ -26,7 +26,7 @@ sharing, type erasure, delegators to `log`/`slog`/`tracing`, and small
 context wrappers that middleware can inject.
 
 `polog-util` provides:
-- Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`], [`Either`],
+- Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`],
   [`Enricher`], [`OffloaderHandle`].
 - Middleware that wraps a [`BorrowingHandler`]: [`BorrowingFanout`].
 - Middleware that makes a non‑shared handler shareable: [`Shared`].

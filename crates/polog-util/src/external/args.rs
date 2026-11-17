@@ -1,6 +1,5 @@
 use core::error::Error;
 use core::fmt;
-use core::ops::Deref;
 
 use crate::util::{DisplayAndDebug, MaybeStaticStr};
 
@@ -35,7 +34,7 @@ pub trait ExternalArgsVisitor {
 /// Implementations exist for `&log::Record`,
 /// `(&slog::Record, &slog::OwnedKVList)`, `&tracing::span::Attributes`,
 /// `&tracing::Event`, and `&tracing::span::Record`.
-/// The borrowed values in [`ExternalArg`] are only valid for the
+/// The borrowed values in [`ExternalArgValue`] are only valid for the
 /// duration of the `visit` call.
 pub trait ExternalArgs {
     /// Visits every field of the event.
@@ -48,39 +47,11 @@ pub trait ExternalArgs {
         Visitor: ExternalArgsVisitor;
 }
 
-/// Converts foreign arguments into a sendable, `'static` form.
-///
-/// Off-thread backends need an owned argument list that can be enqueued
-/// and rendered on a worker thread.
-/// The `Send + 'static` bounds on [`Self::OwningExternalArgs`] are what
-/// make the queue message acceptable to any runtime's `spawn`.
-#[cfg(feature = "alloc")]
-pub trait ExternalArgsIntoOwning: ExternalArgs {
-    /// The `'static + Send` counterpart of `Self`.
-    ///
-    /// Implements [`ExternalArgs`] so the worker can render it through
-    /// the same code path as the borrowed form.
-    type OwningExternalArgs: 'static + Send + ExternalArgs;
-
-    /// Consumes `self` and produces an owned form.
-    ///
-    /// Primitive values are copied verbatim.
-    /// Any trait-object value (`&dyn Display`, `&dyn Debug`,
-    /// `&dyn Error`, `&fmt::Arguments`) is formatted into a
-    /// [`MaybeString`] on the calling thread, because a trait object
-    /// cannot cross a thread boundary.
-    fn into_owning(self) -> Self::OwningExternalArgs;
-}
-
 /// A value from a foreign event.
 ///
 /// The `Str`, `Display`, `Debug`, `Error`, and `Fmt` variants borrow from
 /// the foreign event and are only valid for the duration of the adapter
 /// call.
-/// The `Stringified*` variants hold a [`MaybeString`] produced by
-/// formatting on the calling thread.
-/// They exist so that [`ExternalArgsIntoOwning`] can convert any borrowed value
-/// into a `'static + Send` form without a separate enum.
 #[derive(Clone, Debug)]
 pub enum ExternalArgValue<'a> {
     /// A unit value.
@@ -134,21 +105,6 @@ pub enum ExternalArgValue<'a> {
     /// A pre-formatted `format_args!` value.
     Fmt(&'a fmt::Arguments<'a>),
 }
-
-/// A string that exists only when the `alloc` feature is enabled.
-///
-/// Under `alloc`, `MaybeString` wraps `alloc::string::String` and behaves
-/// like one for the operations it exposes (`as_str`, `into_string`,
-/// [`Display`], [`Debug`], [`Deref`]).
-/// Without `alloc`, the inner field is the never type `!`, so
-/// `MaybeString` is uninhabited.
-/// No `Stringified*` variants of [`ExternalArg`] can be constructed, matching
-/// the fact that no allocation is possible.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct MaybeString(
-    #[cfg(feature = "alloc")] alloc::string::String,
-    #[cfg(not(feature = "alloc"))] !,
-);
 
 impl<Visitor> ExternalArgsVisitor for &mut Visitor
 where
@@ -219,82 +175,6 @@ impl fmt::Display for ExternalArgValue<'_> {
             ExternalArgValue::Error(error) => write!(f, "{error}"),
             ExternalArgValue::Fmt(args) => write!(f, "{args}"),
         }
-    }
-}
-
-impl MaybeString {
-    /// Creates an empty string.
-    #[cfg(feature = "alloc")]
-    #[inline]
-    #[must_use]
-    pub const fn new() -> Self {
-        Self(alloc::string::String::new())
-    }
-
-    /// Returns a `&str` view of the contents.
-    #[inline]
-    #[must_use]
-    pub const fn as_str(&self) -> &str {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self(value) => value.as_str(),
-        }
-    }
-
-    /// Consumes `self` and returns the underlying [`String`].
-    #[cfg(feature = "alloc")]
-    #[inline]
-    #[must_use]
-    pub fn into_string(self) -> alloc::string::String {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self(value) => value,
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Default for MaybeString {
-    #[inline]
-    fn default() -> Self {
-        Self(alloc::string::String::default())
-    }
-}
-
-impl fmt::Display for MaybeString {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self(value) => fmt::Display::fmt(value, f),
-        }
-    }
-}
-
-impl fmt::Debug for MaybeString {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self(value) => fmt::Debug::fmt(value, f),
-        }
-    }
-}
-
-impl Deref for MaybeString {
-    type Target = str;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl From<alloc::string::String> for MaybeString {
-    #[inline]
-    fn from(value: alloc::string::String) -> Self {
-        Self(value)
     }
 }
 

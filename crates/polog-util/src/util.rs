@@ -6,12 +6,12 @@ use core::hash::{Hash, Hasher};
 
 /// Blanket alias for `Display + Debug`.
 ///
-/// Used by [`ExternalArg::Display`] to name the bound for values that
+/// Used by [`ExternalArgValue::Display`] to name the bound for values that
 /// implement both traits.
 /// Implementing it is automatic: this trait has no methods and no required
 /// impls.
 ///
-/// [`ExternalArg::Display`]: crate::ExternalArg::Display
+/// [`ExternalArgValue::Display`]: crate::ExternalArgValue::Display
 pub trait DisplayAndDebug: fmt::Display + fmt::Debug {}
 impl<T> DisplayAndDebug for T where T: ?Sized + fmt::Display + fmt::Debug {}
 

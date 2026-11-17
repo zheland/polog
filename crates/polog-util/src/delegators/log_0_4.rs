@@ -36,15 +36,6 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 ///   the same `log` backend. See [Argument rendering] below for the difference
 ///   in behavior between the two paths.
 ///
-/// # Span handling
-///
-/// `log` has no span lifecycle.
-/// Span entry ([`Handler::enter_span`] /
-/// [`ExternalHandler::enter_span_external`]) is logged as an ordinary
-/// record when [`should_log_enter_span`] is `true`, so the span's
-/// descriptor and arguments are at least visible.
-/// Span exit and all poll events are silently dropped.
-///
 /// # Argument rendering
 ///
 /// **Native `polog` events** ([`Handler::log`], [`Handler::log_static`],
@@ -97,7 +88,6 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 /// [`ExternalHandler::log_external`]: crate::ExternalHandler::log_external
 /// [`ExternalHandler::enter_span_external`]: crate::ExternalHandler::enter_span_external
 /// [`ExternalHandler::try_enable_external`]: crate::ExternalHandler::try_enable_external
-/// [`should_log_enter_span`]: Self::should_log_enter_span
 /// [`log::Log::enabled`]: log_0_4::Log::enabled
 /// [`log::Log::log`]: log_0_4::Log::log
 /// [`log::Metadata`]: log_0_4::Metadata

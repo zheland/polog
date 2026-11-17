@@ -6,13 +6,13 @@ use core::hint::cold_path;
 use core::panic::Location;
 use core::time::Duration;
 use core::{fmt, mem};
-use jiff::Timestamp;
-use jiff::tz::TimeZone;
 use std::collections::{HashMap, hash_map};
 use std::io;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use parking_lot::RwLock;
 use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,

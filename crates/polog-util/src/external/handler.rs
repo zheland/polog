@@ -80,8 +80,6 @@ where
     ///   location).
     /// - `args`: A key-value argument list. Can be formatted in place, or
     ///   converted with
-    ///   [`ExternalArgsIntoOwning`](crate::ExternalArgsIntoOwning) for
-    ///   off-thread handling.
     /// - `span_id`: A `polog` span ID under which the event runs, or `None`
     ///   when no span is active.
     /// - `context`: The enriched context returned by `try_enable_external`.
@@ -103,17 +101,18 @@ where
     /// Those facades have no span lifecycle.
     ///
     /// `span_id` is the [`SpanId`] the adapter allocated for this span
-    /// (via
-    /// [`BaseHandler::generate_span_id`](polog::BaseHandler::generate_span_id)),
-    /// or `None` if the adapter does not associate a `polog` ID with
-    /// this span-object call.
+    /// (via [`BaseHandler::generate_span_id`]), or `None` if the adapter does
+    /// not associate a `polog` ID with this span-object call.
     /// The same `span_id` is used in the subsequent
     /// `enter_span_external`, `exit_span_external`, and
     /// `close_span_external` calls.
     ///
-    /// This method is only called when
-    /// [`try_enable_external`](Self::try_enable_external) has returned
-    /// `Some`; implementations must not re-check enablement.
+    /// This method is only called when [`try_enable_external`] has returned
+    /// `Some`.
+    /// Implementations must not re-check enablement.
+    ///
+    /// [`BaseHandler::generate_span_id`]: polog::BaseHandler::generate_span_id
+    /// [`try_enable_external`]: Self::try_enable_external
     fn new_span_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
@@ -203,7 +202,7 @@ where
     /// after the events that ran inside it.
     /// `log` and `slog` do not call this method.
     ///
-    /// `context` is a fresh [`Context`], not the enriched context
+    /// `context` is a fresh `Context`, not the enriched context
     /// returned by [`try_enable_external`](Self::try_enable_external) at
     /// span entry.
     /// Middleware may enrich it again.
@@ -221,8 +220,8 @@ where
     /// This is the `tracing::Subscriber::try_close` analogue: the span
     /// object is being destroyed and will not be entered or exited again.
     ///
-    /// `context` is a fresh [`Context`]. Because the span is being
-    /// destroyed, this call is not a filter point.
+    /// `context` is a fresh `Context`.
+    /// Because the span is being destroyed, this call is not a filter point.
     fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor;
@@ -237,9 +236,10 @@ where
     ///
     /// `descriptor` is the span object's metadata, identical to the
     /// descriptor passed to [`new_span_external`](Self::new_span_external).
-    /// `args` are the recorded fields, in source order. `span_id` is the
-    /// span object's ID (the value returned by `new_span_external`).
-    /// `context` is a fresh [`Context`], not the [`Self::EnrichedContext`]
+    /// `args` are the recorded fields, in source order.
+    /// `span_id` is the span object's ID (the value returned by
+    /// `new_span_external`).
+    /// `context` is a fresh `Context`, not the [`Self::EnrichedContext`]
     /// returned at span creation.
     ///
     /// This method is called unconditionally for spans that were accepted
@@ -251,6 +251,8 @@ where
     /// The default implementation discards the recorded fields, because
     /// `polog`'s native span model has no dynamic fields. Backends that
     /// track span state can override it to update the stored span.
+    ///
+    /// [`Self::EnrichedContext`]: polog::Handler::EnrichedContext
     fn record_span_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
@@ -268,15 +270,18 @@ where
     ///
     /// `span_id` is the follower; `follows_from_span_id` is the span the
     /// follower is causally related to. `descriptor` is the follower's
-    /// metadata. `context` is a fresh [`Context`].
+    /// metadata.
+    /// `context` is a fresh `Context`.
     ///
-    /// Like [`record_external`](Self::record_external), this is not a
-    /// filter point; `tracing::Subscriber::record_follows_from` is called
-    /// unconditionally on live spans.
+    /// Like [`record_span_external`], this is not a filter point.
+    /// `tracing::Subscriber::record_follows_from` is called unconditionally
+    /// on live spans.
     ///
     /// The default implementation discards the edge, because `polog`'s
     /// span model has no causal-link concept. Backends that store a span
     /// graph can override it.
+    ///
+    /// [`record_span_external`]: Self::record_span_external
     fn link_span_external<Desc>(
         &mut self,
         descriptor: &Desc,
