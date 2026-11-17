@@ -97,7 +97,7 @@ where
         _descriptor: &'static Descriptor,
         _args: Args,
         _span_id: Option<SpanId>,
-        context: !,
+        context: Self::EnrichedContext,
     ) where
         Args: LogArgs<'a>,
     {
@@ -112,7 +112,7 @@ where
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _span_kind: SpanKind,
-        context: !,
+        context: Self::EnrichedContext,
     ) where
         Args: LogArgs<'a>,
     {
@@ -125,10 +125,11 @@ where
         _descriptor: &'static Descriptor,
         _args: Args,
         _span_id: Option<SpanId>,
-        _context: Self::EnrichedContext,
+        context: Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match context {}
     }
 
     #[inline]
@@ -139,10 +140,11 @@ where
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _span_kind: SpanKind,
-        _context: Self::EnrichedContext,
+        context: Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match context {}
     }
 }
 
@@ -156,7 +158,7 @@ where
         _descriptor: &'static Descriptor,
         _args: &Args,
         _span_id: Option<SpanId>,
-        context: &!,
+        context: &Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
@@ -171,7 +173,7 @@ where
         _parent_span_id: Option<SpanId>,
         __span_id: SpanId,
         _span_kind: SpanKind,
-        context: &!,
+        context: &Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
@@ -240,7 +242,7 @@ impl<Context> Handler<Context> for &Discard
 where
     Context: ContextArgs,
 {
-    type EnrichedContext = Context;
+    type EnrichedContext = !;
 
     #[inline]
     fn try_enable(
@@ -257,10 +259,11 @@ where
         _descriptor: &'static Descriptor,
         _args: Args,
         _span_id: Option<SpanId>,
-        _context: Context,
+        context: Self::EnrichedContext,
     ) where
         Args: LogArgs<'a>,
     {
+        match context {}
     }
 
     #[inline]
@@ -271,10 +274,11 @@ where
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _span_kind: SpanKind,
-        _context: Context,
+        context: Self::EnrichedContext,
     ) where
         Args: LogArgs<'a>,
     {
+        match context {}
     }
 
     #[inline]
@@ -283,10 +287,11 @@ where
         _descriptor: &'static Descriptor,
         _args: Args,
         _span_id: Option<SpanId>,
-        _context: Self::EnrichedContext,
+        context: Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match context {}
     }
 
     #[inline]
@@ -297,10 +302,11 @@ where
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _span_kind: SpanKind,
-        _context: Self::EnrichedContext,
+        context: Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match context {}
     }
 }
 
@@ -314,10 +320,11 @@ where
         _descriptor: &'static Descriptor,
         _args: &Args,
         _span_id: Option<SpanId>,
-        _context: &Context,
+        context: &Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match *context {}
     }
 
     #[inline]
@@ -328,10 +335,11 @@ where
         _parent_span_id: Option<SpanId>,
         __span_id: SpanId,
         _span_kind: SpanKind,
-        _context: &Context,
+        context: &Self::EnrichedContext,
     ) where
         Args: StaticLogArgs,
     {
+        match *context {}
     }
 }
 
