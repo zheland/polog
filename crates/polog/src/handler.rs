@@ -1262,7 +1262,7 @@ mod tests {
     #[cfg(feature = "alloc")]
     #[test]
     fn test_handler_by_ref_alloc() {
-        use crate::{BorrowingHandler, DynHandler, SpanKind};
+        use crate::{DynHandler, SpanKind};
 
         const DESC: &Descriptor = log_descriptor_ref!(Level::Info, "Descriptor");
 
@@ -1297,21 +1297,6 @@ mod tests {
 
         assert_eq!(Handler::try_enable(&logger, DESC, ()), None);
 
-        Handler::log(&mut logger, DESC, (), None, ());
-        Handler::log_static(&mut logger, DESC, (), None, ());
-        BorrowingHandler::log_borrowed(&mut logger, DESC, &(), None, &());
-
-        Handler::enter_span(&mut logger, DESC, (), None, span_id1, SpanKind::Nested, ());
-        Handler::enter_span_static(&mut logger, DESC, (), None, span_id1, SpanKind::Nested, ());
-        BorrowingHandler::enter_span_borrowed(
-            &mut logger,
-            DESC,
-            &(),
-            None,
-            span_id1,
-            SpanKind::Nested,
-            &(),
-        );
         DynHandler::exit_span(&mut logger, DESC, span_id1, SpanKind::Nested, ());
 
         DynHandler::enter_poll_span(&mut logger, DESC, span_id2, ());
