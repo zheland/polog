@@ -1,7 +1,8 @@
 use alloc::sync::Arc;
 
 use parking_lot::RwLock;
-use polog_util::OwningFilterRules;
+use polog::LevelFilter;
+use polog_util::{FilterFn, OwningFilterRules};
 
 use crate::LoggerConfig;
 
@@ -199,6 +200,12 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
             logger_config,
             formatter_config,
         }
+    }
+
+    /// The highest‑severity [`LevelFilter`] the filter will accept.
+    #[inline]
+    pub fn max_level(&self) -> LevelFilter {
+        self.filter.read().max_level()
     }
 
     /// Updates the process-wide `log` max level to match the current filter.

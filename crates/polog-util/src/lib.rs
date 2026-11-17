@@ -119,28 +119,6 @@
 //!    that. An opt‑in feature that raises the limit can be added later without
 //!    a breaking change.
 //!
-//! ## Recommended chains
-//!
-//! ```text
-//! // Filter at the call site, offload the backend work.
-//! let handler = Filter::new(
-//!     new_offloader(backend, ...).0,
-//!     MaxLevel(LevelFilter::Info),
-//! );
-//!
-//! // Two expensive backends, fanout at the call site.
-//! // Both branches are OffloaderHandle, which is not a BorrowingHandler.
-//! let handler = Fanout::new((backend_a, backend_b));
-//!
-//! // Two cheap backends, both BorrowingHandler.
-//! // No Arc allocation in the multi‑accepted case.
-//! let handler = BorrowingFanout::new((ViaLog(a), ViaLog(b)));
-//!
-//! // Fanout on the worker side.
-//! let inner = BorrowingFanout::new((ViaLog(a), ViaSlog(b)));
-//! let (handler, service) = new_offloader(inner, ...);
-//! ```
-//!
 //!
 //! # API Cheat Sheet
 //!
@@ -353,10 +331,10 @@
 //!
 //! ```rust
 //! # #[cfg(feature = "log-0-4")] {
-//! use polog_util::delegators::log_0_4::ViaLog;
+//! use polog_util::delegators::log_0_4::{ViaLog, ViaLogFlags};
 //!
 //! # let handler = polog::Discard;
-//! let handler = ViaLog(handler);
+//! let handler = ViaLog::new(handler, ViaLogFlags::empty());
 //! # }
 //! ```
 //!

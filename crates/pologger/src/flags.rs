@@ -20,7 +20,7 @@ bitflags::bitflags! {
     /// events logged inside the spans.
     ///
     /// [`Pologger`]: crate::Pologger
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct EventKinds: u32 {
         /// Log event emitted by `polog::log!` or a level-specific logging
         /// macro.
@@ -130,7 +130,7 @@ bitflags::bitflags! {
     /// output.
     ///
     /// [`Pologger`]: crate::Pologger
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct DescriptorFields: u32 {
         /// `DescriptorKind` (log event or span).
         const KIND = 1 << 0;
@@ -199,7 +199,7 @@ bitflags::bitflags! {
     /// Per-call-site fields that a [`Pologger`] can render.
     ///
     /// [`Pologger`]: crate::Pologger
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct SiteFields: u32 {
         /// Parent span ID.
         const PARENT_SPAN_ID = 1 << 0;
@@ -242,7 +242,7 @@ bitflags::bitflags! {
     /// the chain.
     ///
     /// [`Pologger`]: crate::Pologger
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct ContextFields: u64 {
         /// Wall-clock time in UTC.
         const UTC_TIME = 1 << 0;
@@ -391,7 +391,7 @@ bitflags::bitflags! {
     /// [`Pologger`]: crate::Pologger
     /// [`BehaviorFlags::CACHED_PARENT_SPAN_IDS`]:
     ///     BehaviorFlags::CACHED_PARENT_SPAN_IDS
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct DerivedFields: u32 {
         /// Kind glyph for each span in the `span_path` array.
         const SPAN_PATH_KIND = 1 << 0;
@@ -430,7 +430,7 @@ bitflags::bitflags! {
     /// are typically left at `DEFAULT`.
     ///
     /// [`Pologger`]: crate::Pologger
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct BehaviorFlags: u32 {
         /// Fall back to `SystemTime::now()` when no `SystemTime` is present
         /// in the context.

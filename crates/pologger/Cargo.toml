@@ -23,7 +23,7 @@ categories = [
 
 [features]
 either-1 = [ "dep:either-1" ]
-log-0-4 = [ "dep:log-0-4", "log-0-4/alloc", "log-0-4/kv", "polog-util/log-0-4" ]
+log-0-4 = [ "dep:log-0-4", "log-0-4/kv", "polog-util/log-0-4" ]
 slog-2 = [ "dep:slog-2", "polog-util/slog-2" ]
 tracing-0-1 = [ "dep:tracing-core-0-1", "dep:tracing-0-1", "dep:dashmap", "polog-util/tracing-0-1", "tracing-core-0-1/std" ]
 

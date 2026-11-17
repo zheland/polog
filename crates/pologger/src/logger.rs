@@ -950,6 +950,26 @@ where
     {
         let flags = *self.config.read();
 
+        if flags
+            .behavior_flags
+            .contains(flags::BehaviorFlags::CACHED_PARENT_SPAN_IDS)
+        {
+            self.cache
+                .cache_parent_span_id_on_span_enter(parent_span_id, span_id);
+        }
+
+        if flags
+            .derived_fields
+            .intersects(flags::DerivedFields::SPAN_PATH_KIND | flags::DerivedFields::SPAN_PATH_ID)
+        {
+            self.cache.cache_parent_span_path_on_span_enter(
+                None,
+                parent_span_id,
+                span_id,
+                SpanPathSpanKind::External,
+            );
+        }
+
         self.log_external_entry(
             &ExternalEntry {
                 descriptor,

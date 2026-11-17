@@ -191,14 +191,22 @@ impl ExternalArgs for () {
 mod tests {
     use alloc::format;
     use core::fmt;
-    use std::io;
 
     use crate::ExternalArgValue;
     use crate::util::DisplayAndDebug;
 
     #[test]
     fn external_arg_fmt() {
-        let error = io::Error::new(io::ErrorKind::NotFound, "missing");
+        #[derive(Debug)]
+        struct Error;
+        impl fmt::Display for Error {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("missing")
+            }
+        }
+        impl core::error::Error for Error {}
+
+        let error = Error;
         let display: &dyn DisplayAndDebug = &123_i32;
         let debug: &dyn fmt::Debug = &"debug";
         let fmt_args = format_args!("-{}-", 123);

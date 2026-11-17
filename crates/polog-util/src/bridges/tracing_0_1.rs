@@ -305,7 +305,7 @@ where
         };
 
         if frame.is_enabled {
-            H::close_span_external(&mut self.handler.clone(), frame.metadata, frame.span_id, ());
+            H::exit_span_external(&mut self.handler.clone(), frame.metadata, frame.span_id, ());
         }
     }
 

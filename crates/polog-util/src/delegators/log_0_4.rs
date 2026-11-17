@@ -110,9 +110,8 @@ bitflags::bitflags! {
     /// record to be visible at all.
     ///
     /// [`ViaLog`]: crate::ViaLog
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct ViaLogFlags: u32 {
-
         /// Emit span entry as a `log::Record`.
         ///
         /// When set, [`Handler::enter_span`] and

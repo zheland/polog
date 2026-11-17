@@ -1114,7 +1114,7 @@ mod tests {
         \"kind\":\"log\",\
         \"kind\":\"nested_enter\",\"kind\":\"nested_exit\",\
         \"kind\":\"detached_enter\",\"kind\":\"detached_exit\",\
-        \"kind\":\"foreign_new\",\"kind\":\"foreign_close\",\
+        \"kind\":\"external_new\",\"kind\":\"external_close\",\
         \"kind\":\"task_poll\",\
         \"kind\":\"task_pending\",\
         \"kind\":\"task_ready\",\
@@ -1123,8 +1123,8 @@ mod tests {
         \"span_path_kind\":\"nested_exit\",\
         \"span_path_kind\":\"detached_enter\",\
         \"span_path_kind\":\"detached_exit\",\
-        \"span_path_kind\":\"foreign_new\",\
-        \"span_path_kind\":\"foreign_close\",\
+        \"span_path_kind\":\"external_new\",\
+        \"span_path_kind\":\"external_close\",\
         \"span_path_kind\":\"task_poll\",\
         \"span_path_kind\":\"task_pending\",\
         \"span_path_kind\":\"task_ready\",\

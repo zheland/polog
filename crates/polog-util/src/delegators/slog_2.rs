@@ -82,7 +82,7 @@ bitflags::bitflags! {
     /// record to be visible at all.
     ///
     /// [`ViaSlog`]: crate::ViaSlog
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct ViaSlogFlags: u32 {
 
         /// Emit span entry as a `log::Record`.
@@ -694,15 +694,12 @@ impl ExternalArgsVisitor for ExternalArgsSerializerVisitor<'_> {
 fn str_to_key(value: MaybeStaticStr<'_>) -> slog_2::Key {
     match value {
         MaybeStaticStr::Static(value) => slog_2::Key::from(value),
+        #[cfg(feature = "alloc")]
         MaybeStaticStr::Borrowed(value) => {
-            #[cfg(feature = "alloc")]
-            let value = slog_2::Key::from(alloc::borrow::ToOwned::to_owned(value));
-
-            #[cfg(not(feature = "alloc"))]
-            let value = slog_2::Key::from("requires_polog_alloc_feature");
-
-            value
+            slog_2::Key::from(alloc::borrow::ToOwned::to_owned(value))
         }
+        #[cfg(not(feature = "alloc"))]
+        MaybeStaticStr::Borrowed(_value) => slog_2::Key::from("requires `polog/alloc` feature"),
     }
 }
 

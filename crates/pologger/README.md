@@ -96,7 +96,7 @@ let (mut logger, config) =
         .build()
         .unwrap();
 
-let max_level = config.filter.read().max_level();
+let max_level = config.max_level();
 logger.register_as_global_log_logger(max_level).unwrap();
 logger.register_as_global_tracing_subscriber().unwrap();
 let slog_logger = logger.to_slog_logger();
@@ -105,7 +105,6 @@ polog::info!(&mut logger, "Message 1"); // Printed
 polog::trace!(&mut logger, "Message 2"); // Filtered out
 polog::trace!(&mut logger, target: "foo", "Message 3"); // Filtered out
 polog::trace!(&mut logger, target: "bar", "Message 4"); // Printed
-logger.flush_blocking();
 
 // Example of dynamic filter update.
 let filter = polog_util::FilterRules::parse("trace,foo=debug,bar=info")
@@ -150,6 +149,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use parking_lot::RwLock;
 
+use polog_util::bridges::log_0_4::BridgeLog;
+use polog_util::bridges::slog_2::BridgeSlog;
+use polog_util::bridges::tracing_0_1::BridgeTracing;
+
 let span_id_generator = Arc::new(polog::SpanIdGenerator::new());
 
 let filter = polog_util::FilterRules::parse("info,my_crate=debug")
@@ -169,8 +172,6 @@ let backend = pologger::Pologger::new(
     stderr_formatter,
     Arc::clone(&config),
 );
-
-let backend = pologger::SharedPologger::new(backend, filter.clone());
 
 let (handler, service) = polog_util::new_offloader(
     backend,

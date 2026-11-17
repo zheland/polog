@@ -334,11 +334,11 @@ mod tests {
 
     use crate::{LoggerConfig, OffThreadLoggerBuilder, TextFormatterConfig};
 
-    #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))]
+    #[cfg(feature = "slog-2")]
     #[derive(Clone, Debug)]
     struct Writer(Arc<polog_util::Mutex<Vec<u8>>>);
 
-    #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))]
+    #[cfg(feature = "slog-2")]
     impl std::io::Write for Writer {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             self.0.lock().write(buf)
@@ -406,7 +406,7 @@ mod tests {
         assert!(logger.take_service_handle().is_none());
     }
 
-    #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))]
+    #[cfg(all(feature = "log-0-4", feature = "slog-2", feature = "tracing-0-1"))]
     #[test]
     fn test_off_thread_builder_global() {
         use alloc::sync::Arc;
@@ -414,7 +414,6 @@ mod tests {
 
         use parking_lot::Mutex;
         use polog::LoggerExt;
-        use polog_util::FilterFn;
 
         use crate::OffThreadLoggerBuilder;
         use crate::test_util::assert_eq_with_wildcards;
@@ -425,9 +424,10 @@ mod tests {
                 .build()
                 .unwrap();
 
-        let max_level = config.filter.read().max_level();
+        let max_level = config.max_level();
         logger.register_as_global_log_logger(max_level).unwrap();
         logger.register_as_global_tracing_subscriber().unwrap();
+        let slog_logger = logger.to_slog_logger();
 
         polog::warn!(&mut logger, "Message 1");
         polog::info!(&mut logger, "Message 2");
@@ -438,6 +438,7 @@ mod tests {
         assert!(!log_0_4::log_enabled!(log_0_4::Level::Info));
         log_0_4::info!("Hello log");
         tracing_0_1::event!(tracing_0_1::Level::INFO, "Hello tracing");
+        slog_2::info!(slog_logger, "Hello from slog"; "key" => "value");
         logger.flush_blocking();
 
         let written = mem::take(&mut *writer.0.lock());
@@ -466,6 +467,7 @@ mod tests {
         assert!(log_0_4::log_enabled!(log_0_4::Level::Info));
         log_0_4::info!("Hello log");
         tracing_0_1::event!(tracing_0_1::Level::INFO, "Hello tracing");
+        slog_2::info!(slog_logger, "Hello slog");
         logger.flush_blocking();
 
         let written = mem::take(&mut *writer.0.lock());
@@ -477,6 +479,7 @@ mod tests {
 ????-??-??T??:??:??.??????Z root    root INFO  bar Message 4
 ????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests Hello log
 ????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests Hello tracing
+????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests Hello slog
 ",
         );
 
@@ -494,7 +497,7 @@ mod tests {
             str::from_utf8(&written).unwrap(),
             "\
 ????-??-??T??:??:??.??????Z root    root INFO  target Message: key = value
-????-??-??T??:??:??.??????Z root    root INFO  target Hello log: key = \"value\"
+????-??-??T??:??:??.??????Z root    root INFO  target Hello log: key = value
 ????-??-??T??:??:??.??????Z root    root INFO  target Hello tracing: key = value
 ",
         );
@@ -503,7 +506,7 @@ mod tests {
         test_off_thread_builder_global_tracing_kvs(&mut logger, &writer);
     }
 
-    #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))]
+    #[cfg(all(feature = "log-0-4", feature = "slog-2", feature = "tracing-0-1"))]
     fn test_off_thread_builder_global_tracing<L>(logger: &mut L, writer: &Writer)
     where
         L: polog::Logger,
@@ -593,14 +596,14 @@ mod tests {
             str::from_utf8(&written).unwrap(),
             "\
 ????-??-??T??:??:??.??????Z root :> #4   INFO  target Span1: foo = bar
-????-??-??T??:??:??.??????Z unkn    #4   INFO  target record: foo = true
-????-??-??T??:??:??.??????Z unkn    #4   INFO  target record_follows_from: follows_from_span_id = 1
+????-??-??T??:??:??.??????Z root :+ #4   INFO  target Span1: foo = true
+????-??-??T??:??:??.??????Z   #1 :@ #4   INFO  target Span1
 ????-??-??T??:??:??.??????Z root :< #4   INFO  target Span1
 ",
         );
     }
 
-    #[cfg(all(feature = "log-0-4", feature = "tracing-0-1"))]
+    #[cfg(all(feature = "log-0-4", feature = "slog-2", feature = "tracing-0-1"))]
     fn test_off_thread_builder_global_tracing_kvs<L>(logger: &mut L, writer: &Writer)
     where
         L: polog::Logger,
@@ -671,10 +674,9 @@ mod tests {
         use crate::test_util::assert_eq_with_wildcards;
 
         let writer = Writer(Arc::new(Mutex::new(Vec::new())));
-        let (mut logger, _config) =
-            OffThreadLoggerBuilder::custom_text(writer.clone(), "warn,foo=debug")
-                .build()
-                .unwrap();
+        let (mut logger, _config) = OffThreadLoggerBuilder::custom_text(writer.clone(), "trace")
+            .build()
+            .unwrap();
 
         let slog = logger.to_slog_logger();
 
@@ -689,10 +691,10 @@ mod tests {
         assert_eq_with_wildcards(
             str::from_utf8(&written).unwrap(),
             "\
-????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests slog::info!: b = 2, \
-             a = 1
-????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests slog::info!: f = 6, \
-             e = 5, d = 4, c = 3\n",
+????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests slog::info!: b \
+             = 2, a = 1
+????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests slog::info!: f \
+             = 6, e = 5, d = 4, c = 3\n",
         );
 
         let error: &dyn Error = &io::Error::new(io::ErrorKind::NotFound, "missing");
@@ -728,7 +730,7 @@ mod tests {
         let written = mem::take(&mut *writer.0.lock());
         assert_eq_with_wildcards(
             str::from_utf8(&written).unwrap(),
-            "????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests \
+            "????-??-??T??:??:??.??????Z root    root INFO  pologger::off_thread::builder::tests \
              slog::info!: fmt = abc, error = missing, f64 = -123, f32 = 123, isize = -123, usize \
              = 123, i128 = -123, u128 = 123, i64 = -123, u64 = 123, i32 = -123, u32 = 123, i16 = \
              -123, u16 = 123, i8 = -123, u8 = 123, str = abc, char = a, none = None, unit = ()\n",

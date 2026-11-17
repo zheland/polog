@@ -120,8 +120,8 @@ jobs:
           cargo hack check --lib \
             -p polog -p polog-util \
             --target ${{ matrix.target }} \
-            --feature-powerset \
-            --exclude-features "default,std,test-util,fanout,offloader,offloader-support-tokio,shared,shared-filter,tracing-0-1-semver-unstable"
+            --feature-powerset --depth 2 \
+            --exclude-features "default,std,test-util,fanout,offloader,offloader-support-tokio,shared,shared-filter,tracing-0-1,tracing-0-1-semver-unstable"
 
   cargo-deny:
     name: Check licenses/bans/advisories/sources

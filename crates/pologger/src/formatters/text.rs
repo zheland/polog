@@ -54,7 +54,7 @@ bitflags::bitflags! {
     /// Flags that control [`TextFormatter`] output.
     ///
     /// [`TextFormatter`]: TextFormatter
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
     pub struct TextFormatterFlags: u32 {
         /// Pad log levels to same width.
         const PAD_LEVELS = 1 << 0;

@@ -513,7 +513,7 @@ mod tests {
     use polog_test_helpers::tracker::Tracker;
 
     use crate::filters::{Always, Never};
-    use crate::{ExternalFilterFn, Filter, FilterFn};
+    use crate::{Filter, FilterFn};
 
     #[test]
     fn test_filter_accepts_and_rejects() {
@@ -667,8 +667,8 @@ mod tests {
 
         use parking_lot::RwLock;
 
-        use crate::TypeErasedExternalDescriptor;
         use crate::filters::MaxLevel;
+        use crate::{ExternalFilterFn, TypeErasedExternalDescriptor};
 
         let inner = Arc::new(RwLock::new(MaxLevel(LevelFilter::Info)));
         let filter = Arc::clone(&inner);
@@ -683,7 +683,7 @@ mod tests {
             column: None,
         };
 
-        assert!(!ExternalFilterFn::is_enabled_external(
+        assert!(ExternalFilterFn::is_enabled_external(
             &filter,
             &desc(Level::Warn)
         ));
