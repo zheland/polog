@@ -1028,11 +1028,13 @@ const fn kind_glyph(kind: FormatterEventKind, should_colorize: bool) -> &'static
             FormatterEventKind::NestedExit => "\x1b[90m<<\x1b[0m",
             FormatterEventKind::DetachedEnter => "\x1b[92m|>\x1b[0m",
             FormatterEventKind::DetachedExit => "\x1b[90m|<\x1b[0m",
-            FormatterEventKind::ForeignNew => "\x1b[92m:>\x1b[0m",
-            FormatterEventKind::ForeignClose => "\x1b[90m:<\x1b[0m",
             FormatterEventKind::TaskPoll => "\x1b[90m??\x1b[0m",
             FormatterEventKind::TaskPending => "\x1b[90m?.\x1b[0m",
             FormatterEventKind::TaskReady => "\x1b[90m?!\x1b[0m",
+            FormatterEventKind::ExternalNew => "\x1b[92m:>\x1b[0m",
+            FormatterEventKind::ExternalClose => "\x1b[90m:<\x1b[0m",
+            FormatterEventKind::ExternalRecord => ":+",
+            FormatterEventKind::ExternalLink => ":@",
         }
     } else {
         match kind {
@@ -1041,11 +1043,13 @@ const fn kind_glyph(kind: FormatterEventKind, should_colorize: bool) -> &'static
             FormatterEventKind::NestedExit => "<<",
             FormatterEventKind::DetachedEnter => "|>",
             FormatterEventKind::DetachedExit => "|<",
-            FormatterEventKind::ForeignNew => ":>",
-            FormatterEventKind::ForeignClose => ":<",
             FormatterEventKind::TaskPoll => "??",
             FormatterEventKind::TaskPending => "?.",
             FormatterEventKind::TaskReady => "?!",
+            FormatterEventKind::ExternalNew => ":>",
+            FormatterEventKind::ExternalClose => ":<",
+            FormatterEventKind::ExternalRecord => ":+",
+            FormatterEventKind::ExternalLink => ":@",
         }
     }
 }
@@ -1056,11 +1060,13 @@ const fn is_primary_kind(kind: FormatterEventKind) -> bool {
         FormatterEventKind::Log
         | FormatterEventKind::NestedEnter
         | FormatterEventKind::DetachedEnter
-        | FormatterEventKind::ForeignNew => true,
+        | FormatterEventKind::ExternalNew
+        | FormatterEventKind::ExternalRecord
+        | FormatterEventKind::ExternalLink => true,
 
         FormatterEventKind::NestedExit
         | FormatterEventKind::DetachedExit
-        | FormatterEventKind::ForeignClose
+        | FormatterEventKind::ExternalClose
         | FormatterEventKind::TaskPoll
         | FormatterEventKind::TaskPending
         | FormatterEventKind::TaskReady => false,

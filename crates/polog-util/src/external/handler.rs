@@ -87,8 +87,8 @@ where
     /// - `context`: The enriched context returned by `try_enable_external`.
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: Option<SpanId>,
         context: Self::EnrichedContext,
     ) where
@@ -116,8 +116,8 @@ where
     /// `Some`; implementations must not re-check enablement.
     fn new_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
@@ -145,7 +145,7 @@ where
     ///
     /// - [`new_span_external`](Self::new_span_external) created one `polog`
     ///   span for the span object, on a stable [`SpanId`] (`span_object`). That
-    ///   span carries the `ForeignNew` / `ForeignClose` lifecycle and is the
+    ///   span carries the `ExternalNew` / `ExternalClose` lifecycle and is the
     ///   parent of every entry region.
     /// - `enter_span_external` creates a **new** `polog` span for each entry,
     ///   on a fresh [`SpanId`] (`span_enter_k` for the k-th entry). Its parent
@@ -188,8 +188,8 @@ where
     /// `Some`; implementations must not re-check enablement.
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
@@ -209,7 +209,7 @@ where
     /// Middleware may enrich it again.
     /// Because the span has already been created, this call is not a filter
     /// point.
-    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor;
 
@@ -223,7 +223,7 @@ where
     ///
     /// `context` is a fresh [`Context`]. Because the span is being
     /// destroyed, this call is not a filter point.
-    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor;
 
@@ -253,8 +253,8 @@ where
     /// track span state can override it to update the stored span.
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: SpanId,
         context: Context,
     ) where
@@ -279,7 +279,7 @@ where
     /// graph can override it.
     fn link_span_external<Desc>(
         &mut self,
-        descriptor: Desc,
+        descriptor: &Desc,
         followed_span_id: SpanId,
         follower_span_id: SpanId,
         context: Context,
@@ -307,8 +307,8 @@ where
     #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: Option<SpanId>,
         context: Self::EnrichedContext,
     ) where
@@ -321,8 +321,8 @@ where
     #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
@@ -343,8 +343,8 @@ where
     #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
@@ -363,7 +363,7 @@ where
     }
 
     #[inline]
-    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor,
     {
@@ -371,7 +371,7 @@ where
     }
 
     #[inline]
-    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor,
     {
@@ -381,8 +381,8 @@ where
     #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: SpanId,
         context: Context,
     ) where
@@ -392,11 +392,11 @@ where
         H::record_span_external(&mut **self, descriptor, args, span_id, context);
     }
 
-    #[expect(clippy::similar_names, reason = "no better alternatives")]
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
     #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        descriptor: Desc,
+        descriptor: &Desc,
         followed_span_id: SpanId,
         follower_span_id: SpanId,
         context: Context,
@@ -432,8 +432,8 @@ where
     #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _span_id: Option<SpanId>,
         _context: Self::EnrichedContext,
     ) where
@@ -445,8 +445,8 @@ where
     #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -459,8 +459,8 @@ where
     #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -471,14 +471,14 @@ where
     }
 
     #[inline]
-    fn exit_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn exit_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
     }
 
     #[inline]
-    fn close_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn close_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
@@ -487,8 +487,8 @@ where
     #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _span_id: SpanId,
         _context: Context,
     ) where
@@ -500,12 +500,200 @@ where
     #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        _descriptor: Desc,
-        _span_id: SpanId,
-        _follows_from_span_id: SpanId,
+        _descriptor: &Desc,
+        _followed_span_id: SpanId,
+        _follower_span_id: SpanId,
         _context: Context,
     ) where
         Desc: ExternalDescriptor,
     {
+    }
+}
+
+#[cfg(feature = "either-1")]
+impl<H1, H2, Context, EnrichedContext> ExternalHandler<Context> for either_1::Either<H1, H2>
+where
+    H1: ExternalHandler<Context, EnrichedContext = EnrichedContext>,
+    H2: ExternalHandler<Context, EnrichedContext = EnrichedContext>,
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        match self {
+            Self::Left(handler) => H1::try_enable_external(handler, descriptor, context),
+            Self::Right(handler) => H2::try_enable_external(handler, descriptor, context),
+        }
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        match self {
+            Self::Left(handler) => {
+                H1::log_external(&mut *handler, descriptor, args, span_id, context);
+            }
+            Self::Right(handler) => {
+                H2::log_external(&mut *handler, descriptor, args, span_id, context);
+            }
+        }
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        match self {
+            Self::Left(handler) => H1::new_span_external(
+                &mut *handler,
+                descriptor,
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            ),
+            Self::Right(handler) => H2::new_span_external(
+                &mut *handler,
+                descriptor,
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            ),
+        }
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        match self {
+            Self::Left(handler) => H1::enter_span_external(
+                &mut *handler,
+                descriptor,
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            ),
+            Self::Right(handler) => H2::enter_span_external(
+                &mut *handler,
+                descriptor,
+                args,
+                parent_span_id,
+                span_id,
+                context,
+            ),
+        }
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        match self {
+            Self::Left(handler) => {
+                H1::exit_span_external(&mut *handler, descriptor, span_id, context);
+            }
+            Self::Right(handler) => {
+                H2::exit_span_external(&mut *handler, descriptor, span_id, context);
+            }
+        }
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        match self {
+            Self::Left(handler) => {
+                H1::close_span_external(&mut *handler, descriptor, span_id, context);
+            }
+            Self::Right(handler) => {
+                H2::close_span_external(&mut *handler, descriptor, span_id, context);
+            }
+        }
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        match self {
+            Self::Left(handler) => {
+                H1::record_span_external(&mut *handler, descriptor, args, span_id, context);
+            }
+            Self::Right(handler) => {
+                H2::record_span_external(&mut *handler, descriptor, args, span_id, context);
+            }
+        }
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        match self {
+            Self::Left(handler) => H1::link_span_external(
+                &mut *handler,
+                descriptor,
+                followed_span_id,
+                follower_span_id,
+                context,
+            ),
+            Self::Right(handler) => H2::link_span_external(
+                &mut *handler,
+                descriptor,
+                followed_span_id,
+                follower_span_id,
+                context,
+            ),
+        }
     }
 }

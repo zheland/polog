@@ -3,7 +3,7 @@ use polog::{
     LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::{ExternalDescriptor, ExternalHandler};
+use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// Handler middleware that filters events and spans by a [`FilterFn`].
 ///
@@ -84,7 +84,7 @@ pub trait FilterFn {
 /// [`FilterFn`]: crate::FilterFn
 pub trait ExternalFilterFn: FilterFn {
     /// Returns `true` if the descriptor passes the filter.
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor;
 }
@@ -343,9 +343,10 @@ where
 impl<H, F, Context> ExternalHandler<Context> for Filter<H, F>
 where
     H: ExternalHandler<Context>,
-    F: FilterFn,
+    F: ExternalFilterFn,
     Context: ContextArgs,
 {
+    #[inline]
     fn try_enable_external<Desc>(
         &self,
         descriptor: &Desc,
@@ -354,87 +355,119 @@ where
     where
         Desc: ExternalDescriptor,
     {
-        todo!()
+        if self.filter.is_enabled_external(&descriptor) {
+            H::try_enable_external(&self.handler, &descriptor, context)
+        } else {
+            None
+        }
     }
 
+    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: Option<SpanId>,
         context: Self::EnrichedContext,
     ) where
         Desc: ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::log_external(&mut self.handler, descriptor, args, span_id, context);
     }
 
+    #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
     ) where
         Desc: ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::new_span_external(
+            &mut self.handler,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
+    #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
     ) where
         Desc: ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::enter_span_external(
+            &mut self.handler,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
-    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor,
     {
-        todo!()
+        H::exit_span_external(&mut self.handler, descriptor, span_id, context);
     }
 
-    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
         Desc: ExternalDescriptor,
     {
-        todo!()
+        H::close_span_external(&mut self.handler, descriptor, span_id, context);
     }
 
+    #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: SpanId,
         context: Context,
     ) where
         Desc: ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::record_span_external(&mut self.handler, descriptor, args, span_id, context);
     }
 
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        descriptor: Desc,
+        descriptor: &Desc,
         followed_span_id: SpanId,
         follower_span_id: SpanId,
         context: Context,
     ) where
         Desc: ExternalDescriptor,
     {
-        todo!()
+        H::link_span_external(
+            &mut self.handler,
+            descriptor,
+            followed_span_id,
+            follower_span_id,
+            context,
+        );
     }
 }
 
@@ -462,11 +495,11 @@ where
     T: ExternalFilterFn,
 {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
-        T::is_external_enabled(&*self.read(), descriptor)
+        T::is_enabled_external(&*self.read(), descriptor)
     }
 }
 
@@ -629,35 +662,36 @@ mod tests {
     #[cfg(feature = "shared-filter")]
     #[test]
     fn test_shared_external_filter() {
+        use alloc::borrow::Cow;
         use alloc::sync::Arc;
 
         use parking_lot::RwLock;
 
+        use crate::TypeErasedExternalDescriptor;
         use crate::filters::MaxLevel;
-        use crate::test_util::SimpleBorrowingExternalDescriptor;
 
         let inner = Arc::new(RwLock::new(MaxLevel(LevelFilter::Info)));
         let filter = Arc::clone(&inner);
 
-        let desc = |level| SimpleBorrowingExternalDescriptor {
-            name: Some("name"),
+        let desc = |level| TypeErasedExternalDescriptor {
+            message: Some(Cow::Borrowed("name")),
             level,
-            target: Some("target"),
+            target: Some(Cow::Borrowed("target")),
             module_path: None,
             file: None,
             line: None,
             column: None,
         };
 
-        assert!(!ExternalFilterFn::is_external_enabled(
+        assert!(!ExternalFilterFn::is_enabled_external(
             &filter,
             &desc(Level::Warn)
         ));
-        assert!(ExternalFilterFn::is_external_enabled(
+        assert!(ExternalFilterFn::is_enabled_external(
             &filter,
             &desc(Level::Info)
         ));
-        assert!(!ExternalFilterFn::is_external_enabled(
+        assert!(!ExternalFilterFn::is_enabled_external(
             &filter,
             &desc(Level::Debug)
         ));

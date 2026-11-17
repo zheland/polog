@@ -9,7 +9,7 @@ use polog::{
 use crate::conv::log_0_4::level_into_foreign_approx;
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArg, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
     ExternalMessage,
 };
 
@@ -28,15 +28,13 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 ///
 /// `ViaLog` serves both directions of the `log ↔ polog` bridge:
 ///
-/// - As a native `polog` handler, `ViaLog` accepts events produced by
-///   `polog` call sites (through [`Handler::log`],
-///   [`Handler::log_static`], and
-///   [`BorrowingHandler::log_borrowed`]) and renders them into a
-///   `log::Record`.
+/// - As a native `polog` handler, `ViaLog` accepts events produced by `polog`
+///   call sites (through [`Handler::log`], [`Handler::log_static`], and
+///   [`BorrowingHandler::log_borrowed`]) and renders them into a `log::Record`.
 /// - As an [`ExternalHandler`], `ViaLog` accepts events that originated in
-///   `tracing`, `slog`, or a reverse-bridged `log` source and forwards
-///   them to the same `log` backend. See [Argument rendering] below for
-///   the difference in behavior between the two paths.
+///   `tracing`, `slog`, or a reverse-bridged `log` source and forwards them to
+///   the same `log` backend. See [Argument rendering] below for the difference
+///   in behavior between the two paths.
 ///
 /// # Span handling
 ///
@@ -384,8 +382,8 @@ where
     #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _span_id: Option<SpanId>,
         _context: Self::EnrichedContext,
     ) where
@@ -398,8 +396,8 @@ where
     #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -412,8 +410,8 @@ where
     #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -430,14 +428,14 @@ where
     }
 
     #[inline]
-    fn exit_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn exit_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
     }
 
     #[inline]
-    fn close_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn close_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
@@ -446,8 +444,8 @@ where
     #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _span_id: SpanId,
         _context: Context,
     ) where
@@ -465,7 +463,7 @@ where
     #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        _descriptor: Desc,
+        _descriptor: &Desc,
         _span_id: SpanId,
         _follows_from_span_id: SpanId,
         _context: Context,
@@ -712,7 +710,7 @@ struct ExternalLogMessageArgsVisitor<'a, 'b> {
 
 impl ExternalArgsVisitor for ExternalLogMessageArgsVisitor<'_, '_> {
     #[inline]
-    fn visit_message(&mut self, value: ExternalArg<'_>) {
+    fn visit_message(&mut self, value: ExternalArgValue<'_>) {
         // `visit_message` is called only when the source distinguishes a
         // message field from the argument list (`tracing` events with a
         // `message = ...` field).
@@ -722,14 +720,14 @@ impl ExternalArgsVisitor for ExternalLogMessageArgsVisitor<'_, '_> {
     }
 
     #[inline]
-    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArg<'_>) {
+    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>) {
         let _ = self.try_write_arg_value(key, &value);
     }
 }
 
 impl ExternalLogMessageArgsVisitor<'_, '_> {
     #[inline]
-    fn try_write_message(&mut self, value: &ExternalArg<'_>) -> core::fmt::Result {
+    fn try_write_message(&mut self, value: &ExternalArgValue<'_>) -> core::fmt::Result {
         if self.has_any {
             core::fmt::Write::write_str(self.f, " ")?;
         }
@@ -742,7 +740,7 @@ impl ExternalLogMessageArgsVisitor<'_, '_> {
     fn try_write_arg_value(
         &mut self,
         key: MaybeStaticStr<'_>,
-        value: &ExternalArg<'_>,
+        value: &ExternalArgValue<'_>,
     ) -> core::fmt::Result {
         if self.has_any {
             core::fmt::Write::write_str(self.f, ", ")?;

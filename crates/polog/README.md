@@ -1866,6 +1866,7 @@ Workloads with more variety will be higher.
 - `std` (enabled by default): enables `alloc` feature and implementations
   for `std` types, like `OsStr`, `Path`, `PathBuf`, `Instant`, `HashMap`
   etc.
+- `either-1` (disabled by default): Enables integrations for `either = "1"` crate types, including `either::Either` implementations.
 - `test-util` (disabled by default): exposes helpers that let downstream
   test suites set up specific internal states, for example to place the
   `SpanIdGenerator` counter at a specific value. Intended for tests only.

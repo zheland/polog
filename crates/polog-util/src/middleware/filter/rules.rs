@@ -389,7 +389,7 @@ where
     U: AsRef<str>,
 {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -457,7 +457,7 @@ const fn parse_level(s: &str) -> Result<LevelFilter, ParseFilterRulesError> {
 #[expect(clippy::unwrap_used, reason = "okay in tests")]
 #[cfg(test)]
 mod tests {
-    use alloc::borrow::ToOwned;
+    use alloc::borrow::{Cow, ToOwned};
     use alloc::string::String;
     use alloc::vec::Vec;
     use alloc::{format, vec};
@@ -466,10 +466,9 @@ mod tests {
     use polog::{Descriptor, DescriptorKind, Level, LevelFilter};
     use polog_test_helpers::tracker::Tracker;
 
-    use crate::test_util::SimpleBorrowingExternalDescriptor;
     use crate::{
         ExternalFilterFn, Filter, FilterFn, FilterRule, FilterRules, FilterRulesBuilder,
-        ParseFilterRulesError,
+        ParseFilterRulesError, TypeErasedExternalDescriptor,
     };
 
     const fn descriptor(
@@ -718,17 +717,17 @@ mod tests {
     fn test_rules_external_filter() {
         let rules = FilterRules::parse("info,module=debug").unwrap().to_owning();
 
-        let desc = |level| SimpleBorrowingExternalDescriptor {
-            name: None,
+        let desc = |level| TypeErasedExternalDescriptor {
+            message: None,
             level,
-            target: Some("other"),
+            target: Some(Cow::Borrowed("other")),
             module_path: None,
             file: None,
             line: None,
             column: None,
         };
-        assert!(rules.is_external_enabled(&desc(Level::Info)));
-        assert!(!rules.is_external_enabled(&desc(Level::Debug)));
-        assert!(!rules.is_external_enabled(&desc(Level::Trace)));
+        assert!(rules.is_enabled_external(&desc(Level::Info)));
+        assert!(!rules.is_enabled_external(&desc(Level::Debug)));
+        assert!(!rules.is_enabled_external(&desc(Level::Trace)));
     }
 }

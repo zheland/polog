@@ -11,7 +11,9 @@ use slog_2 as slog;
 
 use crate::conv::slog_2::level_into_foreign_approx;
 use crate::util::MaybeStaticStr;
-use crate::{ExternalArg, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler};
+use crate::{
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+};
 
 static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 
@@ -345,8 +347,8 @@ where
     #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _span_id: Option<SpanId>,
         _context: Self::EnrichedContext,
     ) where
@@ -359,8 +361,8 @@ where
     #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        _descriptor: Desc,
-        _args: Args,
+        _descriptor: &Desc,
+        _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -373,8 +375,8 @@ where
     #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
         _context: Self::EnrichedContext,
@@ -386,19 +388,19 @@ where
             // `log` has no span lifecycle.
             // Log the span entry as a regular record so the span's message and
             // args are at least visible.
-            log_external(&self.handler, &descriptor, &args);
+            log_external(&self.handler, &descriptor, args);
         }
     }
 
     #[inline]
-    fn exit_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn exit_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
     }
 
     #[inline]
-    fn close_span_external<Desc>(&mut self, _descriptor: Desc, _span_id: SpanId, _context: Context)
+    fn close_span_external<Desc>(&mut self, _descriptor: &Desc, _span_id: SpanId, _context: Context)
     where
         Desc: ExternalDescriptor,
     {
@@ -407,8 +409,8 @@ where
     #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         _span_id: SpanId,
         _context: Context,
     ) where
@@ -419,14 +421,14 @@ where
             // `log` has no span lifecycle.
             // Log the span entry as a regular record so the span's message and
             // args are at least visible.
-            log_external(&self.handler, &descriptor, &args);
+            log_external(&self.handler, &descriptor, args);
         }
     }
 
     #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        _descriptor: Desc,
+        _descriptor: &Desc,
         _followed_span_id: SpanId,
         _follower_span_id: SpanId,
         _context: Context,
@@ -529,7 +531,7 @@ where
 ///   to get the correct data, and it is fenced off behind a feature flag
 ///   because a minor slog release may break it.
 #[inline]
-fn log_external<D, Desc, Args>(logger: &slog::Logger<D>, descriptor: Desc, args: Args)
+fn log_external<D, Desc, Args>(logger: &slog::Logger<D>, descriptor: &Desc, args: Args)
 where
     D: Send + Sync + slog::Drain<Ok = (), Err = !>,
     Desc: ExternalDescriptor,
@@ -648,43 +650,42 @@ struct ExternalArgsSerializerVisitor<'a>(&'a mut dyn slog::Serializer);
 
 impl ExternalArgsVisitor for ExternalArgsSerializerVisitor<'_> {
     #[inline]
-    fn visit_message(&mut self, _value: ExternalArg<'_>) {}
+    fn visit_message(&mut self, _value: ExternalArgValue<'_>) {}
 
     #[inline]
-    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArg<'_>) {
+    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>) {
         let key = str_to_key(key);
 
         // `polog` does not support argument visitor failures.
         // Silently ignore errors.
         let _result = match value {
-            ExternalArg::Unit => self.0.emit_unit(key),
-            ExternalArg::None => self.0.emit_none(key),
-            ExternalArg::Bool(value) => self.0.emit_bool(key, value),
-            ExternalArg::Char(value) => self.0.emit_char(key, value),
-            ExternalArg::U8(value) => self.0.emit_u8(key, value),
-            ExternalArg::I8(value) => self.0.emit_i8(key, value),
-            ExternalArg::U16(value) => self.0.emit_u16(key, value),
-            ExternalArg::I16(value) => self.0.emit_i16(key, value),
-            ExternalArg::U32(value) => self.0.emit_u32(key, value),
-            ExternalArg::I32(value) => self.0.emit_i32(key, value),
-            ExternalArg::U64(value) => self.0.emit_u64(key, value),
-            ExternalArg::I64(value) => self.0.emit_i64(key, value),
-            ExternalArg::U128(value) => self.0.emit_u128(key, value),
-            ExternalArg::I128(value) => self.0.emit_i128(key, value),
-            ExternalArg::Usize(value) => self.0.emit_usize(key, value),
-            ExternalArg::Isize(value) => self.0.emit_isize(key, value),
-            ExternalArg::F32(value) => self.0.emit_f32(key, value),
-            ExternalArg::F64(value) => self.0.emit_f64(key, value),
-            ExternalArg::Str(value) => self.0.emit_str(key, value),
-            ExternalArg::Display(display) => self.0.emit_arguments(key, &format_args!("{display}")),
-            ExternalArg::Debug(debug) => self.0.emit_arguments(key, &format_args!("{debug:?}")),
-            ExternalArg::Error(error) => self.0.emit_arguments(key, &format_args!("{error}")),
-            ExternalArg::Fmt(arguments) => self.0.emit_arguments(key, arguments),
-            ExternalArg::StringifiedStr(value)
-            | ExternalArg::StringifiedDisplay(value)
-            | ExternalArg::StringifiedDebug(value)
-            | ExternalArg::StringifiedError(value)
-            | ExternalArg::StringifiedFmt(value) => self.0.emit_str(key, value.as_str()),
+            ExternalArgValue::Unit => self.0.emit_unit(key),
+            ExternalArgValue::None => self.0.emit_none(key),
+            ExternalArgValue::Bool(value) => self.0.emit_bool(key, value),
+            ExternalArgValue::Char(value) => self.0.emit_char(key, value),
+            ExternalArgValue::U8(value) => self.0.emit_u8(key, value),
+            ExternalArgValue::I8(value) => self.0.emit_i8(key, value),
+            ExternalArgValue::U16(value) => self.0.emit_u16(key, value),
+            ExternalArgValue::I16(value) => self.0.emit_i16(key, value),
+            ExternalArgValue::U32(value) => self.0.emit_u32(key, value),
+            ExternalArgValue::I32(value) => self.0.emit_i32(key, value),
+            ExternalArgValue::U64(value) => self.0.emit_u64(key, value),
+            ExternalArgValue::I64(value) => self.0.emit_i64(key, value),
+            ExternalArgValue::U128(value) => self.0.emit_u128(key, value),
+            ExternalArgValue::I128(value) => self.0.emit_i128(key, value),
+            ExternalArgValue::Usize(value) => self.0.emit_usize(key, value),
+            ExternalArgValue::Isize(value) => self.0.emit_isize(key, value),
+            ExternalArgValue::F32(value) => self.0.emit_f32(key, value),
+            ExternalArgValue::F64(value) => self.0.emit_f64(key, value),
+            ExternalArgValue::Str(value) => self.0.emit_str(key, value),
+            ExternalArgValue::Display(display) => {
+                self.0.emit_arguments(key, &format_args!("{display}"))
+            }
+            ExternalArgValue::Debug(debug) => {
+                self.0.emit_arguments(key, &format_args!("{debug:?}"))
+            }
+            ExternalArgValue::Error(error) => self.0.emit_arguments(key, &format_args!("{error}")),
+            ExternalArgValue::Fmt(arguments) => self.0.emit_arguments(key, arguments),
         };
     }
 }

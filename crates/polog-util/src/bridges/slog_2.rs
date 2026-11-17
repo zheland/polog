@@ -7,7 +7,7 @@ use slog_2::KV;
 
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArg, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
     ExternalMessage, conv,
 };
 
@@ -50,6 +50,18 @@ impl<H> BridgeSlog<H> {
     pub fn into_handler(self) -> H {
         self.handler
     }
+
+    /// Creates a `slog` logger that drains into this `SharedPologger`.
+    ///
+    /// The returned `slog::Logger` can be passed to any code that expects a
+    /// `slog::Logger`.
+    #[inline]
+    pub fn into_slog_logger(self) -> slog_2::Logger
+    where
+        H: SharedHandler<()> + ExternalHandler<()>,
+    {
+        slog_2::Logger::root(self, slog_2::o!())
+    }
 }
 
 impl<H> slog_2::Drain for BridgeSlog<H>
@@ -69,7 +81,7 @@ where
             H::log_external(
                 &mut self.handler.clone(),
                 record,
-                (record, values),
+                &(record, values),
                 None,
                 context,
             );
@@ -129,7 +141,7 @@ impl ExternalDescriptor for slog_2::Level {
 impl ExternalDescriptor for slog_2::Record<'_> {
     #[inline]
     fn message(&self) -> Option<ExternalMessage<'_>> {
-        None
+        Some(ExternalMessage::Fmt(slog_2::Record::msg(self)))
     }
 
     #[inline]
@@ -139,7 +151,12 @@ impl ExternalDescriptor for slog_2::Record<'_> {
 
     #[inline]
     fn target(&self) -> Option<MaybeStaticStr<'_>> {
-        None
+        let tag = slog_2::Record::tag(self);
+        if tag.is_empty() {
+            self.module_path()
+        } else {
+            Some(MaybeStaticStr::Borrowed(tag))
+        }
     }
 
     #[inline]
@@ -149,17 +166,17 @@ impl ExternalDescriptor for slog_2::Record<'_> {
 
     #[inline]
     fn file(&self) -> Option<MaybeStaticStr<'_>> {
-        None
+        Some(MaybeStaticStr::Static(slog_2::Record::file(self)))
     }
 
     #[inline]
     fn line(&self) -> Option<u32> {
-        None
+        Some(slog_2::Record::line(self))
     }
 
     #[inline]
     fn column(&self) -> Option<u32> {
-        None
+        Some(slog_2::Record::column(self))
     }
 }
 
@@ -189,124 +206,139 @@ where
         key: slog_2::Key,
         value: &core::fmt::Arguments<'_>,
     ) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::Fmt(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::Fmt(value));
         Ok(())
     }
 
     #[inline]
     fn emit_unit(&mut self, key: slog_2::Key) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::Unit);
+        self.0.visit_arg(key_as_str(&key), ExternalArgValue::Unit);
         Ok(())
     }
 
     #[inline]
     fn emit_none(&mut self, key: slog_2::Key) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::None);
+        self.0.visit_arg(key_as_str(&key), ExternalArgValue::None);
         Ok(())
     }
 
     #[inline]
     fn emit_char(&mut self, key: slog_2::Key, ch: char) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::Char(ch));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::Char(ch));
         Ok(())
     }
 
     #[inline]
     fn emit_str(&mut self, key: slog_2::Key, value: &str) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::Str(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::Str(value));
         Ok(())
     }
 
     #[inline]
     fn emit_u8(&mut self, key: slog_2::Key, value: u8) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::U8(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::U8(value));
         Ok(())
     }
 
     #[inline]
     fn emit_i8(&mut self, key: slog_2::Key, value: i8) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::I8(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::I8(value));
         Ok(())
     }
 
     #[inline]
     fn emit_u16(&mut self, key: slog_2::Key, value: u16) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::U16(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::U16(value));
         Ok(())
     }
 
     #[inline]
     fn emit_i16(&mut self, key: slog_2::Key, value: i16) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::I16(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::I16(value));
         Ok(())
     }
 
     #[inline]
     fn emit_u32(&mut self, key: slog_2::Key, value: u32) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::U32(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::U32(value));
         Ok(())
     }
 
     #[inline]
     fn emit_i32(&mut self, key: slog_2::Key, value: i32) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::I32(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::I32(value));
         Ok(())
     }
 
     #[inline]
     fn emit_u64(&mut self, key: slog_2::Key, value: u64) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::U64(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::U64(value));
         Ok(())
     }
 
     #[inline]
     fn emit_i64(&mut self, key: slog_2::Key, value: i64) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::I64(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::I64(value));
         Ok(())
     }
 
     #[inline]
     fn emit_u128(&mut self, key: slog_2::Key, value: u128) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::U128(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::U128(value));
         Ok(())
     }
 
     #[inline]
     fn emit_i128(&mut self, key: slog_2::Key, value: i128) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::I128(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::I128(value));
         Ok(())
     }
 
     #[inline]
     fn emit_usize(&mut self, key: slog_2::Key, value: usize) -> slog_2::Result {
         self.0
-            .visit_arg(key_as_str(&key), ExternalArg::Usize(value));
+            .visit_arg(key_as_str(&key), ExternalArgValue::Usize(value));
         Ok(())
     }
 
     #[inline]
     fn emit_isize(&mut self, key: slog_2::Key, value: isize) -> slog_2::Result {
         self.0
-            .visit_arg(key_as_str(&key), ExternalArg::Isize(value));
+            .visit_arg(key_as_str(&key), ExternalArgValue::Isize(value));
         Ok(())
     }
 
     #[inline]
     fn emit_f32(&mut self, key: slog_2::Key, value: f32) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::F32(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::F32(value));
         Ok(())
     }
 
     #[inline]
     fn emit_f64(&mut self, key: slog_2::Key, value: f64) -> slog_2::Result {
-        self.0.visit_arg(key_as_str(&key), ExternalArg::F64(value));
+        self.0
+            .visit_arg(key_as_str(&key), ExternalArgValue::F64(value));
         Ok(())
     }
 
     #[inline]
     fn emit_error(&mut self, key: slog_2::Key, value: &(dyn Error + 'static)) -> slog_2::Result {
         self.0
-            .visit_arg(key_as_str(&key), ExternalArg::Error(value));
+            .visit_arg(key_as_str(&key), ExternalArgValue::Error(value));
         Ok(())
     }
 }

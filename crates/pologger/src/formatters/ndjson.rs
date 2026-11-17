@@ -362,11 +362,13 @@ const fn kind_text(kind: FormatterEventKind) -> &'static str {
         FormatterEventKind::NestedExit => "nested_exit",
         FormatterEventKind::DetachedEnter => "detached_enter",
         FormatterEventKind::DetachedExit => "detached_exit",
-        FormatterEventKind::ForeignNew => "foreign_new",
-        FormatterEventKind::ForeignClose => "foreign_close",
         FormatterEventKind::TaskPoll => "task_poll",
         FormatterEventKind::TaskPending => "task_pending",
         FormatterEventKind::TaskReady => "task_ready",
+        FormatterEventKind::ExternalNew => "external_new",
+        FormatterEventKind::ExternalClose => "external_close",
+        FormatterEventKind::ExternalRecord => "external_record",
+        FormatterEventKind::ExternalLink => "external_link",
     }
 }
 

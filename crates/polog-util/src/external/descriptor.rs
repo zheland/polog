@@ -50,31 +50,6 @@ pub trait ExternalDescriptor {
     fn column(&self) -> Option<u32>;
 }
 
-/// Converts a foreign descriptor into a sendable, `'static` form.
-///
-/// Off-thread backends need an owned descriptor that can be enqueued and
-/// rendered on a worker thread.
-/// The `Send + 'static` bounds on [`Self::OwningExternalDescriptor`] are
-/// what make the queue message acceptable to any runtime's `spawn`.
-///
-/// Available only with the `alloc` feature: the owned form carries at
-/// least one heap allocation per string field.
-#[cfg(feature = "alloc")]
-pub trait ExternalDescriptorIntoOwning: ExternalDescriptor {
-    /// The `'static + Send` counterpart of `Self`.
-    ///
-    /// Implements [`ExternalDescriptor`] so the worker can render it
-    /// through the same code path as the borrowed form.
-    type OwningExternalDescriptor: 'static + Send + ExternalDescriptor;
-
-    /// Consumes `self` and produces an owned form.
-    ///
-    /// Every `Option<&str>` field becomes its owned counterpart in the
-    /// resulting type, so any borrowed string is copied. `level`, `line`,
-    /// and `column` are `Copy` and pass through unchanged.
-    fn into_owning(self) -> Self::OwningExternalDescriptor;
-}
-
 /// The message of a foreign event, as returned by
 /// [`ExternalDescriptor::message`].
 ///

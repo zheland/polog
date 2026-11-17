@@ -8,8 +8,8 @@ use polog::ContextArgs;
 
 use crate::{
     ColorizePreset, Formatter, LoggerConfig, NdJsonFormatter, OffThreadLogger,
-    OffThreadLoggerConfig, Pologger, SharedPologger, TextFormatter, TextFormatterColorMode,
-    TextFormatterConfig, TextFormatterFlags,
+    OffThreadLoggerConfig, Pologger, TextFormatter, TextFormatterColorMode, TextFormatterConfig,
+    TextFormatterFlags,
 };
 
 /// Configures and builds an [`OffThreadLogger`].
@@ -36,10 +36,6 @@ pub struct OffThreadLoggerBuilder<'a, Fmt, FmtCfg> {
     formatter: Fmt,
     formatter_config: FmtCfg,
     log_filter: &'a str,
-    #[cfg(feature = "log-0-4")]
-    register_as_global_log_logger: bool,
-    #[cfg(feature = "tracing-0-1")]
-    register_as_global_tracing_subscriber: bool,
 }
 
 impl<'a>
@@ -59,10 +55,6 @@ impl<'a>
             formatter,
             formatter_config,
             log_filter,
-            #[cfg(feature = "log-0-4")]
-            register_as_global_log_logger: false,
-            #[cfg(feature = "tracing-0-1")]
-            register_as_global_tracing_subscriber: false,
         }
     }
 }
@@ -84,10 +76,6 @@ impl<'a>
             formatter,
             formatter_config,
             log_filter,
-            #[cfg(feature = "log-0-4")]
-            register_as_global_log_logger: false,
-            #[cfg(feature = "tracing-0-1")]
-            register_as_global_tracing_subscriber: false,
         }
     }
 }
@@ -116,10 +104,6 @@ where
             formatter,
             formatter_config,
             log_filter,
-            #[cfg(feature = "log-0-4")]
-            register_as_global_log_logger: false,
-            #[cfg(feature = "tracing-0-1")]
-            register_as_global_tracing_subscriber: false,
         }
     }
 }
@@ -148,10 +132,6 @@ where
             formatter,
             formatter_config: (),
             log_filter,
-            #[cfg(feature = "log-0-4")]
-            register_as_global_log_logger: false,
-            #[cfg(feature = "tracing-0-1")]
-            register_as_global_tracing_subscriber: false,
         }
     }
 }
@@ -186,46 +166,11 @@ impl<'a, Fmt> OffThreadLoggerBuilder<'a, Fmt, ()> {
             formatter,
             formatter_config: (),
             log_filter,
-            #[cfg(feature = "log-0-4")]
-            register_as_global_log_logger: false,
-            #[cfg(feature = "tracing-0-1")]
-            register_as_global_tracing_subscriber: false,
         }
     }
 }
 
 impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
-    /// Also registers the built logger as the process-wide `log` backend.
-    ///
-    /// Requires the `log-0-4` feature.
-    /// Registration happens during [`build`].
-    ///
-    /// [`build`]: Self::build
-    #[cfg(feature = "log-0-4")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "log-0-4")))]
-    #[inline]
-    #[must_use]
-    pub const fn register_as_global_log_logger(mut self, value: bool) -> Self {
-        self.register_as_global_log_logger = value;
-        self
-    }
-
-    /// Also registers the built logger as the process-wide `tracing`
-    /// subscriber.
-    ///
-    /// Requires the `tracing-0-1` feature.
-    /// Registration happens during [`build`].
-    ///
-    /// [`build`]: Self::build
-    #[cfg(feature = "tracing-0-1")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tracing-0-1")))]
-    #[inline]
-    #[must_use]
-    pub const fn register_as_global_tracing_subscriber(mut self, value: bool) -> Self {
-        self.register_as_global_tracing_subscriber = value;
-        self
-    }
-
     /// Builds the logger.
     ///
     /// # Steps
@@ -294,7 +239,10 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
         self,
     ) -> Result<
         (
-            OffThreadLogger<impl 'static + fmt::Debug + polog::SharedHandler<()>, impl ContextArgs>,
+            OffThreadLogger<
+                impl 'static + fmt::Debug + polog::SharedHandler<()> + polog_util::ExternalHandler<()>,
+                impl ContextArgs,
+            >,
             OffThreadLoggerConfig<FmtCfg>,
         ),
         BuildOffThreadLoggerError,
@@ -320,10 +268,8 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
             Arc::clone(&logger_config),
         );
 
-        let backend = SharedPologger::new(backend, Arc::clone(&filter));
-
         let (offloader, service) = polog_util::new_offloader(
-            backend.clone(),
+            backend,
             Arc::clone(&span_id_generator),
             polog_util::OffloaderCapacity::Bounded(8192),
             polog_util::OffloaderBackpressurePolicy::DROP_NEWEST,
@@ -343,20 +289,6 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
         let logger = OffThreadLogger::new(handler, offloader, worker);
         let config = OffThreadLoggerConfig::new(filter, logger_config, self.formatter_config);
 
-        #[cfg(feature = "log-0-4")]
-        if self.register_as_global_log_logger {
-            backend
-                .register_as_global_log_logger()
-                .map_err(|_| BuildOffThreadLoggerError::GlobalLogAlreadySet)?;
-        }
-
-        #[cfg(feature = "tracing-0-1")]
-        if self.register_as_global_tracing_subscriber {
-            backend
-                .register_as_global_tracing_subscriber()
-                .map_err(|_| BuildOffThreadLoggerError::GlobalTracingAlreadySet)?;
-        }
-
         Ok((logger, config))
     }
 }
@@ -369,23 +301,6 @@ pub enum BuildOffThreadLoggerError {
     /// The wrapped error is [`polog_util::ParseFilterRulesError`].
     /// It describes which item in the specification was not a valid level name.
     ParseFilter(polog_util::ParseFilterRulesError),
-
-    /// The global `log` logger was already set by another crate.
-    ///
-    /// Returned only when
-    /// [`register_as_global_log_logger(true)`] was called on the builder.
-    ///
-    /// [`register_as_global_log_logger(true)`]: OffThreadLoggerBuilder::register_as_global_log_logger
-    GlobalLogAlreadySet,
-
-    /// The global `tracing` subscriber was already set by another crate.
-    ///
-    /// Returned only when
-    /// [`register_as_global_tracing_subscriber(true)`] was called on the
-    /// builder.
-    ///
-    /// [`register_as_global_tracing_subscriber(true)`]: OffThreadLoggerBuilder::register_as_global_tracing_subscriber
-    GlobalTracingAlreadySet,
 
     /// The offloader worker thread could not be spawned.
     ///
@@ -402,10 +317,6 @@ impl fmt::Display for BuildOffThreadLoggerError {
         match self {
             Self::ParseFilter(err) => {
                 write!(f, "Failed to parse logger filter: {err:?}")?;
-            }
-            Self::GlobalLogAlreadySet => write!(f, "Global `log` logger is already set")?,
-            Self::GlobalTracingAlreadySet => {
-                write!(f, "Global `tracing` subscriber is already set")?;
             }
             Self::SpawnLogger(err) => {
                 write!(f, "Failed to spawn logger service: {err:?}")?;
@@ -517,6 +428,7 @@ mod tests {
 
         use parking_lot::Mutex;
         use polog::LoggerExt;
+        use polog_util::FilterFn;
 
         use crate::OffThreadLoggerBuilder;
         use crate::test_util::assert_eq_with_wildcards;
@@ -524,10 +436,12 @@ mod tests {
         let writer = Writer(Arc::new(Mutex::new(Vec::new())));
         let (mut logger, config) =
             OffThreadLoggerBuilder::custom_text(writer.clone(), "warn,foo=debug")
-                .register_as_global_log_logger(true)
-                .register_as_global_tracing_subscriber(true)
                 .build()
                 .unwrap();
+
+        let max_level = config.filter.read().max_level();
+        logger.register_as_global_log_logger(max_level).unwrap();
+        logger.register_as_global_tracing_subscriber().unwrap();
 
         polog::warn!(&mut logger, "Message 1");
         polog::info!(&mut logger, "Message 2");
@@ -755,6 +669,83 @@ mod tests {
             str::from_utf8(&written).unwrap(),
             "????-??-??T??:??:??.??????Z root    root INFO  target Message: bool = true, u64 = \
              123, i64 = -123, u128 = 123, i128 = -123, f64 = 123.456, error = missing, fmt = abc\n",
+        );
+    }
+
+    #[cfg(feature = "slog-2")]
+    #[test]
+    fn test_off_thread_pologger_slog() {
+        use core::error::Error;
+        use core::mem;
+        use std::io;
+
+        use polog_util::Mutex;
+        use slog_2::Drain;
+
+        use crate::test_util::assert_eq_with_wildcards;
+
+        let writer = Writer(Arc::new(Mutex::new(Vec::new())));
+        let (mut logger, _config) =
+            OffThreadLoggerBuilder::custom_text(writer.clone(), "warn,foo=debug")
+                .build()
+                .unwrap();
+
+        let slog = logger.to_slog_logger();
+
+        slog_2::info!(slog, "slog::info!"; "a" => 1, "b" => 2);
+        {
+            let slog = slog.new(slog_2::o!("c" => 3, "d" => 4));
+            slog_2::info!(slog, "slog::info!"; "e" => 5, "f" => 6);
+        }
+        logger.flush_blocking();
+        logger.flush_on_panic();
+        let written = mem::take(&mut *writer.0.lock());
+        assert_eq_with_wildcards(
+            str::from_utf8(&written).unwrap(),
+            "\
+????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests slog::info!: b = 2, \
+             a = 1
+????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests slog::info!: f = 6, \
+             e = 5, d = 4, c = 3\n",
+        );
+
+        let error: &dyn Error = &io::Error::new(io::ErrorKind::NotFound, "missing");
+
+        slog_2::info!(
+            slog,
+            "slog::info!";
+            "unit" => (),
+            "none" => Option::<()>::None,
+            "char" => 'a',
+            "str" => "abc",
+            "u8" => 123_u8,
+            "i8" => -123_i8,
+            "u16" => 123_u16,
+            "i16" => -123_i16,
+            "u32" => 123_u32,
+            "i32" => -123_i32,
+            "u64" => 123_u64,
+            "i64" => -123_i64,
+            "u128" => 123_u128,
+            "i128" => -123_i128,
+            "usize" => 123_usize,
+            "isize" => -123_isize,
+            "f32" => 123_f32,
+            "f64" => -123_f64,
+            "error" => error,
+            "fmt" => format_args!("abc"),
+        );
+        assert!(slog.is_enabled(slog_2::Level::Info));
+        slog.flush().unwrap();
+        logger.flush_blocking();
+        logger.flush_on_panic();
+        let written = mem::take(&mut *writer.0.lock());
+        assert_eq_with_wildcards(
+            str::from_utf8(&written).unwrap(),
+            "????-??-??T??:??:??.??????Z root    root INFO  pologger::shared::logger::tests \
+             slog::info!: fmt = abc, error = missing, f64 = -123, f32 = 123, isize = -123, usize \
+             = 123, i128 = -123, u128 = 123, i64 = -123, u64 = 123, i32 = -123, u32 = 123, i16 = \
+             -123, u16 = 123, i8 = -123, u8 = 123, str = abc, char = a, none = None, unit = ()\n",
         );
     }
 }

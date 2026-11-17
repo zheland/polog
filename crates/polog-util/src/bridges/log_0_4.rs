@@ -1,10 +1,12 @@
 //! Bridge from `log` 0.4.x to `polog`.
 
+#[cfg(feature = "alloc")]
+use polog::LevelFilter;
 use polog::SharedHandler;
 
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArg, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
     ExternalMessage, conv,
 };
 
@@ -49,6 +51,28 @@ impl<H> BridgeLog<H> {
     #[must_use]
     pub fn into_handler(self) -> H {
         self.handler
+    }
+
+    /// Consumes and registers this `BridgeLog` as the process-wide `log`
+    /// backend.
+    ///
+    /// This method does not update `log` max-level filter.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same error as `log::set_boxed_logger`: the global
+    /// logger has already been set.
+    #[cfg(feature = "alloc")]
+    #[inline]
+    pub fn try_install_global(self, max_level: LevelFilter) -> Result<(), log_0_4::SetLoggerError>
+    where
+        H: SharedHandler<()> + ExternalHandler<()>,
+    {
+        use alloc::boxed::Box;
+
+        let max_level = conv::log_0_4::level_filter_into_foreign_approx(max_level);
+        log_0_4::set_max_level(max_level);
+        log_0_4::set_boxed_logger(Box::new(self))
     }
 }
 
@@ -211,67 +235,67 @@ where
 {
     #[inline]
     fn visit_any(&mut self, value: log_0_4::kv::Value<'_>) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::Display(&value));
+        self.1.visit_arg(self.0, ExternalArgValue::Display(&value));
         Ok(())
     }
 
     #[inline]
     fn visit_null(&mut self) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::None);
+        self.1.visit_arg(self.0, ExternalArgValue::None);
         Ok(())
     }
 
     #[inline]
     fn visit_u64(&mut self, value: u64) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::U64(value));
+        self.1.visit_arg(self.0, ExternalArgValue::U64(value));
         Ok(())
     }
 
     #[inline]
     fn visit_i64(&mut self, value: i64) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::I64(value));
+        self.1.visit_arg(self.0, ExternalArgValue::I64(value));
         Ok(())
     }
 
     #[inline]
     fn visit_u128(&mut self, value: u128) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::U128(value));
+        self.1.visit_arg(self.0, ExternalArgValue::U128(value));
         Ok(())
     }
 
     #[inline]
     fn visit_i128(&mut self, value: i128) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::I128(value));
+        self.1.visit_arg(self.0, ExternalArgValue::I128(value));
         Ok(())
     }
 
     #[inline]
     fn visit_f64(&mut self, value: f64) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::F64(value));
+        self.1.visit_arg(self.0, ExternalArgValue::F64(value));
         Ok(())
     }
 
     #[inline]
     fn visit_bool(&mut self, value: bool) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::Bool(value));
+        self.1.visit_arg(self.0, ExternalArgValue::Bool(value));
         Ok(())
     }
 
     #[inline]
     fn visit_str(&mut self, value: &str) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::Str(value));
+        self.1.visit_arg(self.0, ExternalArgValue::Str(value));
         Ok(())
     }
 
     #[inline]
     fn visit_borrowed_str(&mut self, value: &'a str) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::Str(value));
+        self.1.visit_arg(self.0, ExternalArgValue::Str(value));
         Ok(())
     }
 
     #[inline]
     fn visit_char(&mut self, value: char) -> Result<(), log_0_4::kv::Error> {
-        self.1.visit_arg(self.0, ExternalArg::Char(value));
+        self.1.visit_arg(self.0, ExternalArgValue::Char(value));
         Ok(())
     }
 }

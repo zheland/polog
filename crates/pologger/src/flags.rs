@@ -44,28 +44,36 @@ bitflags::bitflags! {
         /// Detached span exit.
         const DETACHED_EXIT = 1 << 4;
 
-        /// Foreign span creation.
-        ///
-        /// Emitted by `SharedPologger` when it receives a
-        /// `tracing::Subscriber::new_span` call.
-        const FOREIGN_NEW = 1 << 5;
-
-        /// Foreign span close.
-        ///
-        /// Emitted by `SharedPologger` when it receives a
-        /// `tracing::Subscriber::try_close` call.
-        const FOREIGN_CLOSE = 1 << 6;
-
         /// Instrumented future poll started.
         ///
         /// Emitted by `PollInstrumented` before the inner future is polled.
-        const TASK_POLL = 1 << 7;
+        const TASK_POLL = 1 << 5;
 
         /// Instrumented future returned `Poll::Pending`.
-        const TASK_PENDING = 1 << 8;
+        const TASK_PENDING = 1 << 6;
 
         /// Instrumented future returned `Poll::Ready`.
-        const TASK_READY = 1 << 9;
+        const TASK_READY = 1 << 7;
+
+        /// External span creation.
+        ///
+        /// Emitted by the `tracing::Subscriber::new_span`.
+        const EXTERNAL_NEW = 1 << 8;
+
+        /// External span close.
+        ///
+        /// Emitted by the `tracing::Subscriber::try_close`.
+        const EXTERNAL_CLOSE = 1 << 9;
+
+        /// External span record event.
+        ///
+        /// Emitted by the `tracing::Subscriber::record`.
+        const EXTERNAL_RECORD = 1 << 10;
+
+        /// External span link event.
+        ///
+        /// Emitted by the `tracing::Subscriber::record_follows_from`.
+        const EXTERNAL_LINK = 1 << 11;
     }
 }
 
@@ -77,8 +85,10 @@ impl EventKinds {
         .union(Self::NESTED_EXIT)
         .union(Self::DETACHED_ENTER)
         .union(Self::DETACHED_EXIT)
-        .union(Self::FOREIGN_NEW)
-        .union(Self::FOREIGN_CLOSE);
+        .union(Self::EXTERNAL_NEW)
+        .union(Self::EXTERNAL_CLOSE)
+        .union(Self::EXTERNAL_RECORD)
+        .union(Self::EXTERNAL_LINK);
 
     /// Every event kind, including per-poll signals.
     ///
@@ -94,11 +104,13 @@ impl EventKinds {
         .union(Self::NESTED_EXIT)
         .union(Self::DETACHED_ENTER)
         .union(Self::DETACHED_EXIT)
-        .union(Self::FOREIGN_NEW)
-        .union(Self::FOREIGN_CLOSE)
         .union(Self::TASK_POLL)
         .union(Self::TASK_PENDING)
-        .union(Self::TASK_READY);
+        .union(Self::TASK_READY)
+        .union(Self::EXTERNAL_NEW)
+        .union(Self::EXTERNAL_CLOSE)
+        .union(Self::EXTERNAL_RECORD)
+        .union(Self::EXTERNAL_LINK);
 
     /// Every declared event-kind bit set.
     pub const ALL: Self = Self::TRACING;

@@ -1,8 +1,7 @@
 use alloc::borrow::Cow;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::error::Error;
-use core::fmt::{Debug, Display};
+use core::fmt::Debug;
 use core::hint::cold_path;
 use core::panic::Location;
 use core::time::Duration;
@@ -17,11 +16,13 @@ use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
     Handler, Level, LogArgs, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
-use polog_util::{ExternalDescriptor, MixedArgsExt, context};
+use polog_util::{
+    ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler, MixedArgsExt, context,
+};
 
 use crate::{
     Formatter, FormatterDurationKind, FormatterEventKind, FormatterIdKind, FormatterSpanIdKind,
-    FormatterStrKind, FormatterTimeKind, KnownSpanId, MaybeKnownSpanId, TimePrecision, flags, util,
+    FormatterStrKind, FormatterTimeKind, KnownSpanId, MaybeKnownSpanId, TimePrecision, flags,
 };
 
 /// The core logging backend.
@@ -82,139 +83,14 @@ struct Entry<'a, Args, Context> {
     context: &'a Context,
 }
 
-/// A foreign event staged for rendering.
-///
-/// Borrows everything: the descriptor, the optional `format_args!` message,
-/// the argument visitor, and the resolved span IDs. Nothing here is owned,
-/// so the entire structure lives only for the duration of one
-/// `Pologger::log_external_entry` call.
-///
-/// # Message source priority
-///
-/// When the backend renders the `message` field, it chooses the source in
-/// this order:
-/// 1. `args_visitor.visit_msg()` — a structured `message` field supplied by the
-///    visitor. This is the most specific source: the caller explicitly named a
-///    field `message`, and the visitor distinguished it from the rest of the
-///    argument list.
-/// 2. `message_fmt` — the facade's pre-formatted human-readable message. For
-///    events, this is the text the user supplied to the facade's macro.
-/// 3. `descriptor.name` — the metadata name. For spans, this is the span's
-///    identity and is the intended value. For events without a formatted
-///    message, this falls back to the facade's auto-generated event name, which
-///    is the only remaining source.
-///
-/// [`Pologger::log_external_entry`]: crate::Pologger::log_external_entry
 #[derive(Clone, Debug)]
-pub struct ExternalEntry<'a, Args> {
-    /// Descriptor for the foreign event.
-    pub descriptor: &'a ExternalDescriptor<'a>,
-
-    /// Pre-formatted message, if the foreign facade supplies one.
-    ///
-    /// `tracing` sets this for `message = ...` fields on `event!` calls.
-    /// `log` sets it for the primary record message.
-    /// `slog` sets it for the primary `msg` argument.
-    pub message_fmt: Option<&'a fmt::Arguments<'a>>,
-
-    /// Argument visitor for the foreign event.
-    pub args_visitor: &'a Args,
-
-    /// Parent span ID, if known.
-    pub parent_span_id: MaybeKnownSpanId,
-
-    /// The event's own span ID, or `Root` for events not associated with
-    /// any span.
-    pub span_id: KnownSpanId,
-
-    /// Event kind.
-    pub kind: FormatterEventKind,
-}
-
-/// A visitor that walks the fields of a foreign event.
-///
-/// Each foreign facade supplies its own implementation of this trait to
-/// expose its fields to `Pologger`. `pologger` itself implements it for
-/// `log::kv::Source`, for `slog::Drain` records, and for
-/// `tracing::Subscriber` events.
-pub trait ExternalArguments {
-    /// Visits the message value, if the foreign facade distinguishes it from
-    /// the argument list.
-    ///
-    /// The callback receives a single [`ExternalArg`].
-    /// When the visitor emits a value through this method, the backend uses it
-    /// as the entry's `message` and does not consult `descriptor.name` or
-    /// `message_fmt`.
-    /// Facades that embed the message in the argument list leave this
-    /// implementation empty.
-    /// The message then reaches the backend through `visit_args` under the
-    /// `"message"` key or through `message_fmt`, depending on how the adapter
-    /// is structured.
-    ///
-    /// The tracing events adapter uses this method for the `message` field
-    /// that `event!` macros populate when the macro takes a format string.
-    /// The tracing span adapter leaves it empty so that span attributes
-    /// named `message` reach the backend through `visit_args` and do not
-    /// displace the span's `name`.
-    fn visit_msg<F>(&self, cb: F)
-    where
-        F: FnOnce(ExternalArg<'_>);
-
-    /// Visits each argument in order.
-    ///
-    /// The callback receives the argument's key and value. Order is preserved
-    /// so that structured key-value output matches the order the foreign
-    /// facade chose.
-    fn visit_args<F>(&self, cb: F)
-    where
-        F: FnMut(&str, ExternalArg<'_>);
-}
-
-/// A borrowed value from a foreign event.
-#[derive(Clone, Debug)]
-pub enum ExternalArg<'a> {
-    /// A boolean.
-    Bool(bool),
-    /// A Unicode scalar value.
-    Char(char),
-    /// An unsigned 8-bit integer.
-    U8(u8),
-    /// A signed 8-bit integer.
-    I8(i8),
-    /// An unsigned 16-bit integer.
-    U16(u16),
-    /// A signed 16-bit integer.
-    I16(i16),
-    /// An unsigned 32-bit integer.
-    U32(u32),
-    /// A signed 32-bit integer.
-    I32(i32),
-    /// An unsigned 64-bit integer.
-    U64(u64),
-    /// A signed 64-bit integer.
-    I64(i64),
-    /// An unsigned 128-bit integer.
-    U128(u128),
-    /// A signed 128-bit integer.
-    I128(i128),
-    /// An unsigned pointer-sized integer.
-    Usize(usize),
-    /// A signed pointer-sized integer.
-    Isize(isize),
-    /// A single-precision float.
-    F32(f32),
-    /// A double-precision float.
-    F64(f64),
-    /// A borrowed string.
-    Str(&'a str),
-    /// A value that implements both `Display` and `Debug`.
-    Display(&'a dyn util::DisplayAndDebug),
-    /// A value that implements only `Debug`.
-    Debug(&'a dyn Debug),
-    /// An error value.
-    Error(&'a dyn Error),
-    /// A pre-formatted `format_args!` value.
-    Fmt(&'a fmt::Arguments<'a>),
+struct ExternalEntry<'a, Desc, Args, Context> {
+    descriptor: &'a Desc,
+    args: &'a Args,
+    parent_span_id: MaybeKnownSpanId,
+    span_id: KnownSpanId,
+    kind: FormatterEventKind,
+    context: &'a Context,
 }
 
 #[derive(Clone, Eq, PartialEq, Default, Debug)]
@@ -236,7 +112,7 @@ struct SpanPathCacheEntry {
 enum SpanPathSpanKind {
     Nested,
     Detached,
-    Foreign,
+    External,
 }
 
 #[derive(Default, Debug)]
@@ -392,9 +268,10 @@ impl<F> Pologger<F> {
         fmt.update_config();
         fmt.start_entry()?;
 
-        write_time(fmt, Some(entry), &flags)?;
-        write_durations(fmt, entry, &flags)?;
-        write_context_units(fmt, entry, &flags)?;
+        write_time(fmt, entry.context, &flags)?;
+        write_durations(fmt, entry.context, &flags)?;
+        write_context_units(fmt, entry.context, &flags)?;
+
         write_parent_span_id(
             fmt,
             entry.parent_span_id,
@@ -441,57 +318,32 @@ impl<F> Pologger<F> {
     /// The event's fields are visited in order and formatted exactly as a
     /// native `polog` event would be.
     #[inline]
-    pub fn log_external_entry<Args>(&mut self, entry: &ExternalEntry<'_, Args>)
-    where
+    fn log_external_entry<Desc, Args, Context>(
+        &mut self,
+        entry: &ExternalEntry<'_, Desc, Args, Context>,
+        flags: LoggerConfig,
+    ) where
         F: Formatter,
-        Args: ExternalArguments,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+        Context: ContextArgs,
     {
         // Silently ignore errors.
-        let _result = self.try_log_external_entry(entry);
+        let _result = self.try_log_external_entry(entry, flags);
     }
 
     #[inline]
-    fn try_log_external_entry<Args>(
+    fn try_log_external_entry<Desc, Args, Context>(
         &mut self,
-        entry: &ExternalEntry<'_, Args>,
+        entry: &ExternalEntry<'_, Desc, Args, Context>,
+        flags: LoggerConfig,
     ) -> Result<(), io::Error>
     where
         F: Formatter,
-        Args: ExternalArguments,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+        Context: ContextArgs,
     {
-        let flags = *self.config.read();
-
-        let enter_span_kind = match entry.kind {
-            FormatterEventKind::NestedEnter => Some(SpanPathSpanKind::Nested),
-            FormatterEventKind::DetachedEnter => Some(SpanPathSpanKind::Detached),
-            FormatterEventKind::ForeignNew => Some(SpanPathSpanKind::Foreign),
-            FormatterEventKind::Log
-            | FormatterEventKind::NestedExit
-            | FormatterEventKind::DetachedExit
-            | FormatterEventKind::ForeignClose
-            | FormatterEventKind::TaskPoll
-            | FormatterEventKind::TaskPending
-            | FormatterEventKind::TaskReady => None,
-        };
-
-        if let Some(enter_span_kind) = enter_span_kind
-            && flags.derived_fields.intersects(
-                flags::DerivedFields::SPAN_PATH_KIND | flags::DerivedFields::SPAN_PATH_ID,
-            )
-            && let KnownSpanId::SpanId(span_id) = entry.span_id
-        {
-            let parent_span_id = match entry.parent_span_id {
-                MaybeKnownSpanId::Unknown | MaybeKnownSpanId::Root => None,
-                MaybeKnownSpanId::SpanId(span_id) => Some(span_id),
-            };
-            self.cache.cache_parent_span_path_on_span_enter(
-                None,
-                parent_span_id,
-                span_id,
-                enter_span_kind,
-            );
-        }
-
         if !is_event_enabled(entry.kind, flags) {
             return Ok(());
         }
@@ -500,7 +352,10 @@ impl<F> Pologger<F> {
         self.formatter.start_entry()?;
         let fmt = &mut self.formatter;
 
-        write_time::<_, (), ()>(fmt, None, &flags)?;
+        write_time(fmt, entry.context, &flags)?;
+        write_durations(fmt, entry.context, &flags)?;
+        write_context_units(fmt, entry.context, &flags)?;
+
         write_parent_span_id(
             fmt,
             entry.parent_span_id,
@@ -510,7 +365,7 @@ impl<F> Pologger<F> {
         )?;
         write_kind(fmt, entry.kind, &flags)?;
         write_span_id(fmt, entry.span_id, &flags)?;
-        write_level(fmt, entry.descriptor.level, &flags)?;
+        write_level(fmt, entry.descriptor.level(), &flags)?;
         write_span_path(
             fmt,
             entry.span_id,
@@ -521,46 +376,22 @@ impl<F> Pologger<F> {
         )?;
         write_target(
             fmt,
-            entry.descriptor.target,
-            entry.descriptor.module_path,
+            entry.descriptor.target().map(|value| value.as_str()),
+            entry.descriptor.module_path().map(|value| value.as_str()),
             entry.kind,
             &flags,
         )?;
         write_location(
             fmt,
-            entry.descriptor.file,
-            entry.descriptor.line,
-            entry.descriptor.column,
+            entry.descriptor.file().map(|value| value.as_str()),
+            entry.descriptor.line(),
+            entry.descriptor.column(),
             &flags,
         )?;
         write_external_message_fmt(fmt, entry, &flags)?;
-        write_external_args(fmt, entry.args_visitor, &flags)?;
+        write_external_args(fmt, entry.args, &flags)?;
+
         fmt.end_entry()?;
-
-        let is_exit = match entry.kind {
-            FormatterEventKind::NestedExit
-            | FormatterEventKind::DetachedExit
-            | FormatterEventKind::ForeignClose => true,
-            FormatterEventKind::Log
-            | FormatterEventKind::NestedEnter
-            | FormatterEventKind::DetachedEnter
-            | FormatterEventKind::ForeignNew
-            | FormatterEventKind::TaskPoll
-            | FormatterEventKind::TaskPending
-            | FormatterEventKind::TaskReady => false,
-        };
-
-        if is_exit
-            && flags.derived_fields.intersects(
-                flags::DerivedFields::SPAN_PATH_KIND
-                    | flags::DerivedFields::SPAN_PATH_ID
-                    | flags::DerivedFields::SPAN_PATH_NAME,
-            )
-            && let KnownSpanId::SpanId(span_id) = entry.span_id
-        {
-            self.cache.remove_parent_span_path_on_span_exit(span_id);
-        }
-
         Ok(())
     }
 
@@ -1060,6 +891,232 @@ where
     }
 }
 
+impl<F, Context> ExternalHandler<Context> for Pologger<F>
+where
+    F: Formatter,
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        _descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        Some(context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args,
+                parent_span_id: MaybeKnownSpanId::Unknown,
+                span_id: span_id.map_or(KnownSpanId::Root, KnownSpanId::SpanId),
+                kind: FormatterEventKind::Log,
+                context: &context,
+            },
+            flags,
+        );
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args,
+                parent_span_id: parent_span_id
+                    .map_or(MaybeKnownSpanId::Root, MaybeKnownSpanId::SpanId),
+                span_id: KnownSpanId::SpanId(span_id),
+                kind: FormatterEventKind::ExternalNew,
+                context: &context,
+            },
+            flags,
+        );
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let flags = *self.config.read();
+
+        if flags
+            .behavior_flags
+            .contains(flags::BehaviorFlags::CACHED_PARENT_SPAN_IDS)
+        {
+            self.cache
+                .cache_parent_span_id_on_span_enter(parent_span_id, span_id);
+        }
+
+        if flags
+            .derived_fields
+            .intersects(flags::DerivedFields::SPAN_PATH_KIND | flags::DerivedFields::SPAN_PATH_ID)
+        {
+            self.cache.cache_parent_span_path_on_span_enter(
+                None,
+                parent_span_id,
+                span_id,
+                SpanPathSpanKind::External,
+            );
+        }
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args,
+                parent_span_id: parent_span_id
+                    .map_or(MaybeKnownSpanId::Root, MaybeKnownSpanId::SpanId),
+                span_id: KnownSpanId::SpanId(span_id),
+                kind: FormatterEventKind::DetachedEnter,
+                context: &context,
+            },
+            flags,
+        );
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args: &(),
+                parent_span_id: MaybeKnownSpanId::Unknown,
+                span_id: KnownSpanId::SpanId(span_id),
+                kind: FormatterEventKind::DetachedExit,
+                context: &context,
+            },
+            flags,
+        );
+
+        if flags
+            .behavior_flags
+            .contains(flags::BehaviorFlags::CACHED_PARENT_SPAN_IDS)
+        {
+            self.cache.remove_parent_span_id_on_span_exit(span_id);
+        }
+
+        if flags
+            .derived_fields
+            .intersects(flags::DerivedFields::SPAN_PATH_KIND | flags::DerivedFields::SPAN_PATH_ID)
+        {
+            self.cache.remove_parent_span_path_on_span_exit(span_id);
+        }
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args: &(),
+                parent_span_id: MaybeKnownSpanId::Unknown,
+                span_id: KnownSpanId::SpanId(span_id),
+                kind: FormatterEventKind::ExternalClose,
+                context: &context,
+            },
+            flags,
+        );
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args: &args,
+                parent_span_id: MaybeKnownSpanId::Unknown,
+                span_id: KnownSpanId::SpanId(span_id),
+                kind: FormatterEventKind::ExternalRecord,
+                context: &context,
+            },
+            flags,
+        );
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        let flags = *self.config.read();
+
+        self.log_external_entry(
+            &ExternalEntry {
+                descriptor,
+                args: &(),
+                parent_span_id: MaybeKnownSpanId::SpanId(followed_span_id),
+                span_id: KnownSpanId::SpanId(follower_span_id),
+                kind: FormatterEventKind::ExternalLink,
+                context: &context,
+            },
+            flags,
+        );
+    }
+}
+
 impl Cache {
     #[inline]
     pub fn cache_parent_span_id_on_span_enter(
@@ -1142,14 +1199,13 @@ impl Cache {
 }
 
 #[inline]
-fn write_time<'a, F, Args, Context>(
+fn write_time<F, Context>(
     fmt: &mut F,
-    entry: Option<&Entry<'_, Args, Context>>,
+    context: &Context,
     flags: &LoggerConfig,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
 {
     let print_utc_time = flags
@@ -1166,7 +1222,7 @@ where
         return Ok(());
     }
 
-    let time = entry.and_then(|entry| entry.context.type_filtered_nth_arg(0).copied());
+    let time: Option<SystemTime> = context.type_filtered_nth_arg(0).copied();
     let time = time.or_else(|| {
         let is_auto = flags
             .behavior_flags
@@ -1264,29 +1320,30 @@ fn is_event_enabled(kind: FormatterEventKind, flags: LoggerConfig) -> bool {
         FormatterEventKind::NestedExit => flags::EventKinds::NESTED_EXIT,
         FormatterEventKind::DetachedEnter => flags::EventKinds::DETACHED_ENTER,
         FormatterEventKind::DetachedExit => flags::EventKinds::DETACHED_EXIT,
-        FormatterEventKind::ForeignNew => flags::EventKinds::FOREIGN_NEW,
-        FormatterEventKind::ForeignClose => flags::EventKinds::FOREIGN_CLOSE,
         FormatterEventKind::TaskPoll => flags::EventKinds::TASK_POLL,
         FormatterEventKind::TaskPending => flags::EventKinds::TASK_PENDING,
         FormatterEventKind::TaskReady => flags::EventKinds::TASK_READY,
+        FormatterEventKind::ExternalNew => flags::EventKinds::EXTERNAL_NEW,
+        FormatterEventKind::ExternalClose => flags::EventKinds::EXTERNAL_CLOSE,
+        FormatterEventKind::ExternalRecord => flags::EventKinds::EXTERNAL_RECORD,
+        FormatterEventKind::ExternalLink => flags::EventKinds::EXTERNAL_LINK,
     };
     flags.event_kinds.contains(flag)
 }
 
 #[inline]
-fn write_durations<'a, F, Args, Context>(
+fn write_durations<F, Context>(
     fmt: &mut F,
-    entry: &Entry<'_, Args, Context>,
+    context: &Context,
     flags: &LoggerConfig,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
 {
     write_context_duration(
         fmt,
-        entry,
+        context,
         flags,
         FormatterDurationKind::Monotonic,
         |duration: context::MonotonicTime| duration.0,
@@ -1294,7 +1351,7 @@ where
 
     write_context_duration(
         fmt,
-        entry,
+        context,
         flags,
         FormatterDurationKind::ProcessCpu,
         |duration: context::ProcessCpuTime| duration.0,
@@ -1302,7 +1359,7 @@ where
 
     write_context_duration(
         fmt,
-        entry,
+        context,
         flags,
         FormatterDurationKind::ThreadCpu,
         |duration: context::ThreadCpuTime| duration.0,
@@ -1312,16 +1369,15 @@ where
 }
 
 #[inline]
-fn write_context_duration<'a, Args, Context, F, T, G>(
+fn write_context_duration<Context, F, T, G>(
     fmt: &mut F,
-    entry: &Entry<'_, Args, Context>,
+    context: &Context,
     flags: &LoggerConfig,
     kind: FormatterDurationKind,
     getter_fn: G,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
     T: 'static + Copy,
     G: FnOnce(T) -> Duration,
@@ -1338,7 +1394,7 @@ where
 
     cold_path(); // Unlikely in default config.
 
-    let duration: Option<T> = entry.context.type_filtered_nth_arg(0).copied();
+    let duration: Option<T> = context.type_filtered_nth_arg(0).copied();
     let Some(duration) = duration else {
         return Ok(());
     };
@@ -1375,26 +1431,25 @@ where
 }
 
 #[inline]
-fn write_context_units<'a, F, Args, Context>(
+fn write_context_units<F, Context>(
     fmt: &mut F,
-    entry: &Entry<'_, Args, Context>,
+    context: &Context,
     flags: &LoggerConfig,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
 {
     write_context_id(
         fmt,
-        entry,
+        context,
         flags,
         FormatterIdKind::ProcessId,
         |id: context::ProcessId| id.0,
     )?;
     write_context_str(
         fmt,
-        entry,
+        context,
         flags,
         FormatterStrKind::ProcessName,
         |name: &context::ProcessName| &name.0,
@@ -1402,14 +1457,14 @@ where
 
     write_context_id(
         fmt,
-        entry,
+        context,
         flags,
         FormatterIdKind::ThreadId,
         |id: context::ThreadId| id.0,
     )?;
     write_context_str(
         fmt,
-        entry,
+        context,
         flags,
         FormatterStrKind::ThreadName,
         |name: &context::ThreadName| &name.0,
@@ -1417,14 +1472,14 @@ where
 
     write_context_id(
         fmt,
-        entry,
+        context,
         flags,
         FormatterIdKind::TaskId,
         |id: context::TaskId| id.0,
     )?;
     write_context_str(
         fmt,
-        entry,
+        context,
         flags,
         FormatterStrKind::TaskName,
         |name: &context::TaskName| &name.0,
@@ -1432,7 +1487,7 @@ where
 
     write_context_id(
         fmt,
-        entry,
+        context,
         flags,
         FormatterIdKind::CpuId,
         |id: context::CpuId| u64::from(id.0),
@@ -1442,16 +1497,15 @@ where
 }
 
 #[inline]
-fn write_context_id<'a, Args, Context, F, T, G>(
+fn write_context_id<Context, F, T, G>(
     fmt: &mut F,
-    entry: &Entry<'_, Args, Context>,
+    context: &Context,
     flags: &LoggerConfig,
     kind: FormatterIdKind,
     getter_fn: G,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
     T: 'static + Copy,
     G: FnOnce(T) -> u64,
@@ -1469,7 +1523,7 @@ where
 
     cold_path(); // Unlikely in default config.
 
-    let id: Option<T> = entry.context.type_filtered_nth_arg(0).copied();
+    let id: Option<T> = context.type_filtered_nth_arg(0).copied();
     let Some(id) = id else {
         return Ok(());
     };
@@ -1487,16 +1541,15 @@ where
 }
 
 #[inline]
-fn write_context_str<'a, Args, Context, F, T, G>(
+fn write_context_str<Context, F, T, G>(
     fmt: &mut F,
-    entry: &Entry<'_, Args, Context>,
+    context: &Context,
     flags: &LoggerConfig,
     kind: FormatterStrKind,
     getter_fn: G,
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: DisplayableMixedArgs<'a>,
     Context: ContextArgs,
     T: 'static,
     G: FnOnce(&T) -> &str,
@@ -1513,7 +1566,7 @@ where
 
     cold_path(); // Unlikely in default config.
 
-    let value: Option<&T> = entry.context.type_filtered_nth_arg(0);
+    let value: Option<&T> = context.type_filtered_nth_arg(0);
     let Some(value) = value else {
         return Ok(());
     };
@@ -1682,11 +1735,13 @@ where
                         | FormatterEventKind::NestedExit
                         | FormatterEventKind::DetachedEnter
                         | FormatterEventKind::DetachedExit
-                        | FormatterEventKind::ForeignNew
-                        | FormatterEventKind::ForeignClose
                         | FormatterEventKind::TaskPoll
                         | FormatterEventKind::TaskPending
-                        | FormatterEventKind::TaskReady => Some(event_kind),
+                        | FormatterEventKind::TaskReady
+                        | FormatterEventKind::ExternalNew
+                        | FormatterEventKind::ExternalClose
+                        | FormatterEventKind::ExternalRecord
+                        | FormatterEventKind::ExternalLink => Some(event_kind),
                     }
                 } else {
                     None
@@ -1694,7 +1749,7 @@ where
                 let kind = last_kind.unwrap_or(match kind {
                     SpanPathSpanKind::Nested => FormatterEventKind::NestedEnter,
                     SpanPathSpanKind::Detached => FormatterEventKind::DetachedEnter,
-                    SpanPathSpanKind::Foreign => FormatterEventKind::ForeignNew,
+                    SpanPathSpanKind::External => FormatterEventKind::ExternalNew,
                 });
 
                 fmt.write_key("kind")?;
@@ -1842,15 +1897,47 @@ where
 }
 
 #[inline]
-fn write_external_message_fmt<F, Args>(
+fn write_external_message_fmt<F, Desc, Args, Context>(
     fmt: &mut F,
-    external_entry: &ExternalEntry<'_, Args>,
+    external_entry: &ExternalEntry<'_, Desc, Args, Context>,
     flags: &LoggerConfig,
 ) -> Result<(), io::Error>
 where
-    Args: ExternalArguments,
     F: Formatter,
+    Desc: ExternalDescriptor,
+    Args: ExternalArgs,
+    Context: ContextArgs,
 {
+    struct MessageVisitor<F> {
+        result: Option<Result<(), io::Error>>,
+        fmt: F,
+        kind: FormatterEventKind,
+    }
+
+    impl<F> ExternalArgsVisitor for MessageVisitor<&mut F>
+    where
+        F: Formatter,
+    {
+        fn visit_message(&mut self, value: polog_util::ExternalArgValue<'_>) {
+            if self.result.is_some() {
+                return;
+            }
+
+            self.result = Some((|| {
+                self.fmt.write_key("message")?;
+                self.fmt.write_message(&value, self.kind)?;
+                Ok(())
+            })());
+        }
+
+        fn visit_arg(
+            &mut self,
+            _key: polog_util::util::MaybeStaticStr<'_>,
+            _value: polog_util::ExternalArgValue<'_>,
+        ) {
+        }
+    }
+
     if !flags
         .descriptor_fields
         .contains(flags::DescriptorFields::MESSAGE)
@@ -1858,28 +1945,19 @@ where
         return Ok(());
     }
 
-    let mut is_message_visited = false;
-    let mut result: io::Result<()> = Ok(());
-    external_entry.args_visitor.visit_msg(|value| {
-        result = (|| {
-            is_message_visited = true;
-            fmt.write_key("message")?;
-            fmt.write_message(&value, external_entry.kind)?;
-            Ok(())
-        })();
-    });
-    let () = result?;
-
-    if is_message_visited {
-        return Ok(());
+    let mut visitor = MessageVisitor {
+        result: None,
+        fmt: &mut *fmt,
+        kind: external_entry.kind,
+    };
+    external_entry.args.visit(&mut visitor);
+    if let Some(result) = visitor.result {
+        return result;
     }
 
-    if let Some(name) = external_entry.message_fmt {
+    if let Some(message) = external_entry.descriptor.message() {
         fmt.write_key("message")?;
-        fmt.write_message(&name, external_entry.kind)?;
-    } else if let Some(message_fmt) = external_entry.descriptor.message {
-        fmt.write_key("message")?;
-        fmt.write_message(&message_fmt, external_entry.kind)?;
+        fmt.write_message(&message, external_entry.kind)?;
     }
     Ok(())
 }
@@ -1934,8 +2012,36 @@ fn write_external_args<F, Args>(
 ) -> Result<(), io::Error>
 where
     F: Formatter,
-    Args: ExternalArguments,
+    Args: ExternalArgs,
 {
+    struct ArgsVisitor<F> {
+        result: Result<(), io::Error>,
+        fmt: F,
+    }
+
+    impl<F> ExternalArgsVisitor for ArgsVisitor<&mut F>
+    where
+        F: Formatter,
+    {
+        fn visit_message(&mut self, _value: polog_util::ExternalArgValue<'_>) {}
+
+        fn visit_arg(
+            &mut self,
+            key: polog_util::util::MaybeStaticStr<'_>,
+            value: polog_util::ExternalArgValue<'_>,
+        ) {
+            if self.result.is_ok() {
+                self.result = (|| {
+                    self.fmt.begin_array()?;
+                    self.fmt.write_argument_key(key.as_str())?;
+                    self.fmt.write_argument_value(&value)?;
+                    self.fmt.end_array()?;
+                    Ok(())
+                })();
+            }
+        }
+    }
+
     if !flags.site_fields.contains(flags::SiteFields::ARGUMENTS) {
         return Ok(());
     }
@@ -1943,19 +2049,13 @@ where
     fmt.write_key("args")?;
     fmt.begin_array()?;
 
-    let mut result: io::Result<()> = Ok(());
-    args.visit_args(|key, value| {
-        if result.is_ok() {
-            result = (|| {
-                fmt.begin_array()?;
-                fmt.write_argument_key(key)?;
-                fmt.write_argument_value(&value)?;
-                fmt.end_array()?;
-                Ok(())
-            })();
-        }
-    });
-    let () = result?;
+    let mut visitor = ArgsVisitor {
+        result: Ok(()),
+        fmt: &mut *fmt,
+    };
+    args.visit(&mut visitor);
+
+    let () = visitor.result?;
 
     fmt.end_array()?;
     Ok(())
@@ -2016,35 +2116,6 @@ const fn time_precision_from_flags(
     }
 }
 
-impl Display for ExternalArg<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ExternalArg::Bool(value) => Display::fmt(value, f),
-            ExternalArg::U8(value) => Display::fmt(value, f),
-            ExternalArg::I8(value) => Display::fmt(value, f),
-            ExternalArg::U16(value) => Display::fmt(value, f),
-            ExternalArg::I16(value) => Display::fmt(value, f),
-            ExternalArg::U32(value) => Display::fmt(value, f),
-            ExternalArg::I32(value) => Display::fmt(value, f),
-            ExternalArg::U64(value) => Display::fmt(value, f),
-            ExternalArg::I64(value) => Display::fmt(value, f),
-            ExternalArg::U128(value) => Display::fmt(value, f),
-            ExternalArg::I128(value) => Display::fmt(value, f),
-            ExternalArg::Usize(value) => Display::fmt(value, f),
-            ExternalArg::Isize(value) => Display::fmt(value, f),
-            ExternalArg::F32(value) => Display::fmt(value, f),
-            ExternalArg::F64(value) => Display::fmt(value, f),
-            ExternalArg::Char(value) => Display::fmt(value, f),
-            ExternalArg::Str(value) => Display::fmt(value, f),
-            ExternalArg::Display(value) => Display::fmt(value, f),
-            ExternalArg::Debug(value) => Debug::fmt(value, f),
-            ExternalArg::Error(value) => Display::fmt(value, f),
-            ExternalArg::Fmt(value) => Display::fmt(value, f),
-        }
-    }
-}
-
 impl From<SpanKind> for SpanPathSpanKind {
     #[inline]
     fn from(span_kind: SpanKind) -> Self {
@@ -2059,56 +2130,19 @@ impl From<SpanKind> for SpanPathSpanKind {
 #[cfg(test)]
 mod tests {
     use alloc::sync::Arc;
-    use core::{fmt, mem};
+    use core::mem;
     use std::io;
     use std::time::SystemTime;
 
     use parking_lot::RwLock;
     use polog::{Descriptor, Handler, Level, SpanId, SpanIdGenerator, log_descriptor_ref};
-    use polog_util::ExternalDescriptor;
 
     use crate::logger::Entry;
     use crate::test_util::{assert_eq_with_wildcards, emit_handler_events};
     use crate::{
-        ExternalArg, ExternalArguments, ExternalEntry, FormatterEventKind, KnownSpanId,
-        LoggerConfig, MaybeKnownSpanId, Pologger, TextFormatter, TextFormatterColorMode,
-        TextFormatterConfig, TextFormatterFlags, flags, non_zero, util,
+        FormatterEventKind, KnownSpanId, LoggerConfig, MaybeKnownSpanId, Pologger, TextFormatter,
+        TextFormatterColorMode, TextFormatterConfig, TextFormatterFlags, flags, non_zero,
     };
-
-    struct NoExternalArgs;
-    struct ExternalArgs(&'static [(&'static str, &'static str)]);
-
-    impl ExternalArguments for NoExternalArgs {
-        fn visit_msg<F>(&self, _cb: F)
-        where
-            F: FnOnce(ExternalArg<'_>),
-        {
-        }
-
-        fn visit_args<F>(&self, _cb: F)
-        where
-            F: FnMut(&str, ExternalArg<'_>),
-        {
-        }
-    }
-
-    impl ExternalArguments for ExternalArgs {
-        fn visit_msg<F>(&self, cb: F)
-        where
-            F: FnOnce(ExternalArg<'_>),
-        {
-            cb(ExternalArg::Str("ArgsMessage"));
-        }
-
-        fn visit_args<F>(&self, mut cb: F)
-        where
-            F: FnMut(&str, ExternalArg<'_>),
-        {
-            for (key, value) in self.0 {
-                cb(key, ExternalArg::Str(value));
-            }
-        }
-    }
 
     #[inline]
     fn new_pologger(config: Arc<RwLock<LoggerConfig>>) -> Pologger<TextFormatter<Vec<u8>>> {
@@ -2286,94 +2320,6 @@ mod tests {
     }
 
     #[test]
-    fn test_logger_external() {
-        assert_eq!(LoggerConfig::new(), LoggerConfig::compact());
-        assert_eq!(LoggerConfig::default(), LoggerConfig::compact());
-
-        let config = Arc::new(RwLock::new(LoggerConfig::compact()));
-        let mut logger = new_pologger(Arc::clone(&config));
-
-        let empty_descriptor = ExternalDescriptor {
-            name: None,
-            level: Level::Info,
-            target: None,
-            module_path: None,
-            file: None,
-            line: None,
-            column: None,
-        };
-        let filled_entry = ExternalEntry {
-            descriptor: &empty_descriptor,
-            message_fmt: None,
-            args_visitor: &NoExternalArgs,
-            parent_span_id: MaybeKnownSpanId::Unknown,
-            span_id: KnownSpanId::SpanId(SpanId(non_zero!(1))),
-            kind: FormatterEventKind::NestedEnter,
-        };
-
-        logger.log_external_entry(&filled_entry);
-        let written = mem::take(logger.formatter_mut().writer_mut());
-        assert_eq_with_wildcards(
-            str::from_utf8(&written).unwrap(),
-            "????-??-??T??:??:??.??????Z unkn >> #1   INFO \n",
-        );
-
-        let filled_descriptor = ExternalDescriptor {
-            name: Some("Name"),
-            level: Level::Info,
-            target: Some("target"),
-            module_path: Some("module_path"),
-            file: Some("src/main.rs"),
-            line: Some(12),
-            column: Some(23),
-        };
-        let filled_entry = ExternalEntry {
-            descriptor: &filled_descriptor,
-            message_fmt: Some(&format_args!("Message")),
-            args_visitor: &ExternalArgs(&[("key1", "value1"), ("key2", "value2")]),
-            parent_span_id: MaybeKnownSpanId::SpanId(SpanId(non_zero!(1))),
-            span_id: KnownSpanId::SpanId(SpanId(non_zero!(2))),
-            kind: FormatterEventKind::NestedEnter,
-        };
-
-        logger.log_external_entry(&filled_entry);
-        let written = mem::take(logger.formatter_mut().writer_mut());
-        assert_eq_with_wildcards(
-            str::from_utf8(&written).unwrap(),
-            "????-??-??T??:??:??.??????Z   #1 >> #2   INFO  target ArgsMessage: key1 = value1, \
-             key2 = value2\n",
-        );
-
-        let entry = ExternalEntry {
-            descriptor: &filled_descriptor,
-            message_fmt: Some(&format_args!("Message")),
-            args_visitor: &NoExternalArgs,
-            parent_span_id: MaybeKnownSpanId::SpanId(SpanId(non_zero!(1))),
-            span_id: KnownSpanId::SpanId(SpanId(non_zero!(2))),
-            kind: FormatterEventKind::NestedEnter,
-        };
-
-        logger.log_external_entry(&entry);
-        let written = mem::take(logger.formatter_mut().writer_mut());
-        assert_eq_with_wildcards(
-            str::from_utf8(&written).unwrap(),
-            "????-??-??T??:??:??.??????Z   #1 >> #2   INFO  target Message\n",
-        );
-
-        let entry = ExternalEntry {
-            message_fmt: None,
-            ..entry
-        };
-
-        logger.log_external_entry(&entry);
-        let written = mem::take(logger.formatter_mut().writer_mut());
-        assert_eq_with_wildcards(
-            str::from_utf8(&written).unwrap(),
-            "????-??-??T??:??:??.??????Z   #1 >> #2   INFO  target Name\n",
-        );
-    }
-
-    #[test]
     fn test_logger_context() {
         const INFO_DESC: &Descriptor = log_descriptor_ref!(Level::Info, "Message");
 
@@ -2424,24 +2370,6 @@ mod tests {
             context: &(),
         };
 
-        let external_descriptor = ExternalDescriptor {
-            name: Some("Name"),
-            level: Level::Info,
-            target: Some("target"),
-            module_path: Some("module_path"),
-            file: Some("src/main.rs"),
-            line: Some(12),
-            column: Some(23),
-        };
-        let external_entry = ExternalEntry {
-            descriptor: &external_descriptor,
-            message_fmt: Some(&format_args!("Message")),
-            args_visitor: &ExternalArgs(&[("key1", "value1"), ("key2", "value2")]),
-            parent_span_id: MaybeKnownSpanId::SpanId(SpanId(non_zero!(1))),
-            span_id: KnownSpanId::SpanId(SpanId(non_zero!(2))),
-            kind: FormatterEventKind::NestedEnter,
-        };
-
         let config = Arc::new(RwLock::new(LoggerConfig::compact()));
         let mut logger = new_pologger(Arc::clone(&config));
         let flags = *logger.config.read();
@@ -2449,9 +2377,6 @@ mod tests {
         logger.try_log_entry(&entry, flags).unwrap();
         let written = mem::take(logger.formatter_mut().writer_mut());
         let internal_len = written.len();
-        logger.try_log_external_entry(&external_entry).unwrap();
-        let written = mem::take(logger.formatter_mut().writer_mut());
-        let external_len = written.len();
 
         #[cfg(not(miri))]
         let step = 1;
@@ -2478,55 +2403,5 @@ mod tests {
                 assert!(result.is_ok());
             }
         }
-
-        for len in (0..external_len.saturating_add(step)).step_by(step) {
-            let formatter_config = TextFormatterConfig::new(
-                TextFormatterFlags::default(),
-                TextFormatterColorMode::Off,
-            );
-            let formatter_config = Arc::new(RwLock::new(formatter_config));
-            let formatter = TextFormatter::new(SmallWriter(len), formatter_config);
-
-            let span_id_generator = Arc::new(SpanIdGenerator::new());
-            let config = Arc::new(RwLock::new(LoggerConfig::compact()));
-            let mut logger = Pologger::new(span_id_generator, formatter, config);
-
-            let result = logger.try_log_external_entry(&external_entry);
-            if len < external_len {
-                assert!(result.is_err());
-            } else {
-                assert!(result.is_ok());
-            }
-        }
-    }
-
-    #[test]
-    fn external_arg_fmt() {
-        let error = io::Error::new(io::ErrorKind::NotFound, "missing");
-        let display: &dyn util::DisplayAndDebug = &123_i32;
-        let debug: &dyn fmt::Debug = &"debug";
-        let fmt_args = format_args!("-{}-", 123);
-
-        assert_eq!(format!("{}", ExternalArg::Bool(true)), "true");
-        assert_eq!(format!("{}", ExternalArg::Char('a')), "a");
-        assert_eq!(format!("{}", ExternalArg::U8(1)), "1");
-        assert_eq!(format!("{}", ExternalArg::I8(-1)), "-1");
-        assert_eq!(format!("{}", ExternalArg::U16(2)), "2");
-        assert_eq!(format!("{}", ExternalArg::I16(-2)), "-2");
-        assert_eq!(format!("{}", ExternalArg::U32(3)), "3");
-        assert_eq!(format!("{}", ExternalArg::I32(-3)), "-3");
-        assert_eq!(format!("{}", ExternalArg::U64(4)), "4");
-        assert_eq!(format!("{}", ExternalArg::I64(-4)), "-4");
-        assert_eq!(format!("{}", ExternalArg::U128(5)), "5");
-        assert_eq!(format!("{}", ExternalArg::I128(-5)), "-5");
-        assert_eq!(format!("{}", ExternalArg::Usize(6)), "6");
-        assert_eq!(format!("{}", ExternalArg::Isize(-6)), "-6");
-        assert_eq!(format!("{}", ExternalArg::F32(1.5)), "1.5");
-        assert_eq!(format!("{}", ExternalArg::F64(2.5)), "2.5");
-        assert_eq!(format!("{}", ExternalArg::Str("str")), "str");
-        assert_eq!(format!("{}", ExternalArg::Display(display)), "123");
-        assert_eq!(format!("{}", ExternalArg::Debug(debug)), "\"debug\"");
-        assert_eq!(format!("{}", ExternalArg::Error(&error)), "missing");
-        assert_eq!(format!("{}", ExternalArg::Fmt(&fmt_args)), "-123-");
     }
 }

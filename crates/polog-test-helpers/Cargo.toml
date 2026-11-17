@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 polog = { workspace = true, default-features = false, features = [ "alloc" ] }
+polog-util = { workspace = true, default-features = false, features = [ "alloc" ] }
 
 [badges.maintenance]
 status = "passively-maintained"

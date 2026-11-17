@@ -20,13 +20,13 @@ pub trait ExternalArgsVisitor {
     /// If the source does not distinguish a message, this method is
     /// never called, and any `message`-named field arrives through
     /// [`visit_arg`](Self::visit_arg).
-    fn visit_message(&mut self, value: ExternalArg<'_>);
+    fn visit_message(&mut self, value: ExternalArgValue<'_>);
 
     /// Called once per key-value argument, in source order.
     ///
     /// The pair is skipped if it was already reported through
     /// [`visit_message`](Self::visit_message).
-    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArg<'_>);
+    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>);
 }
 
 /// A borrowed view of the arguments of a foreign event.
@@ -82,7 +82,7 @@ pub trait ExternalArgsIntoOwning: ExternalArgs {
 /// They exist so that [`ExternalArgsIntoOwning`] can convert any borrowed value
 /// into a `'static + Send` form without a separate enum.
 #[derive(Clone, Debug)]
-pub enum ExternalArg<'a> {
+pub enum ExternalArgValue<'a> {
     /// A unit value.
     Unit,
     /// A `Option::None` value from the foreign facade.
@@ -133,26 +133,6 @@ pub enum ExternalArg<'a> {
     Error(&'a dyn Error),
     /// A pre-formatted `format_args!` value.
     Fmt(&'a fmt::Arguments<'a>),
-
-    /// A stringified [`Str`](Self::Str), produced by
-    /// [`ExternalArgsIntoOwning`].
-    StringifiedStr(MaybeString),
-
-    /// A stringified [`Display`](Self::Display), produced by
-    /// [`ExternalArgsIntoOwning`].
-    StringifiedDisplay(MaybeString),
-
-    /// A stringified [`Debug`](Self::Debug), produced by
-    /// [`ExternalArgsIntoOwning`].
-    StringifiedDebug(MaybeString),
-
-    /// A stringified [`Error`](Self::Error), produced by
-    /// [`ExternalArgsIntoOwning`].
-    StringifiedError(MaybeString),
-
-    /// A stringified [`Fmt`](Self::Fmt), produced by
-    /// [`ExternalArgsIntoOwning`].
-    StringifiedFmt(MaybeString),
 }
 
 /// A string that exists only when the `alloc` feature is enabled.
@@ -175,12 +155,12 @@ where
     Visitor: ExternalArgsVisitor,
 {
     #[inline]
-    fn visit_message(&mut self, value: ExternalArg<'_>) {
+    fn visit_message(&mut self, value: ExternalArgValue<'_>) {
         Visitor::visit_message(&mut **self, value);
     }
 
     #[inline]
-    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArg<'_>) {
+    fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>) {
         Visitor::visit_arg(&mut **self, key, value);
     }
 }
@@ -211,38 +191,33 @@ where
     }
 }
 
-impl fmt::Display for ExternalArg<'_> {
+impl fmt::Display for ExternalArgValue<'_> {
     #[expect(clippy::missing_inline_in_public_items, reason = "bloats binary size")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExternalArg::Unit => fmt::Write::write_str(f, "()"),
-            ExternalArg::None => fmt::Write::write_str(f, "None"),
-            ExternalArg::Bool(value) => write!(f, "{value}"),
-            ExternalArg::Char(value) => write!(f, "{value}"),
-            ExternalArg::U8(value) => write!(f, "{value}"),
-            ExternalArg::I8(value) => write!(f, "{value}"),
-            ExternalArg::U16(value) => write!(f, "{value}"),
-            ExternalArg::I16(value) => write!(f, "{value}"),
-            ExternalArg::U32(value) => write!(f, "{value}"),
-            ExternalArg::I32(value) => write!(f, "{value}"),
-            ExternalArg::U64(value) => write!(f, "{value}"),
-            ExternalArg::I64(value) => write!(f, "{value}"),
-            ExternalArg::U128(value) => write!(f, "{value}"),
-            ExternalArg::I128(value) => write!(f, "{value}"),
-            ExternalArg::Usize(value) => write!(f, "{value}"),
-            ExternalArg::Isize(value) => write!(f, "{value}"),
-            ExternalArg::F32(value) => write!(f, "{value}"),
-            ExternalArg::F64(value) => write!(f, "{value}"),
-            ExternalArg::Str(value) => fmt::Write::write_str(f, value),
-            ExternalArg::Display(display) => write!(f, "{display}"),
-            ExternalArg::Debug(debug) => write!(f, "{debug:?}"),
-            ExternalArg::Error(error) => write!(f, "{error}"),
-            ExternalArg::Fmt(args) => write!(f, "{args}"),
-            ExternalArg::StringifiedStr(value)
-            | ExternalArg::StringifiedDisplay(value)
-            | ExternalArg::StringifiedDebug(value)
-            | ExternalArg::StringifiedError(value)
-            | ExternalArg::StringifiedFmt(value) => fmt::Write::write_str(f, value),
+            ExternalArgValue::Unit => fmt::Write::write_str(f, "()"),
+            ExternalArgValue::None => fmt::Write::write_str(f, "None"),
+            ExternalArgValue::Bool(value) => write!(f, "{value}"),
+            ExternalArgValue::Char(value) => write!(f, "{value}"),
+            ExternalArgValue::U8(value) => write!(f, "{value}"),
+            ExternalArgValue::I8(value) => write!(f, "{value}"),
+            ExternalArgValue::U16(value) => write!(f, "{value}"),
+            ExternalArgValue::I16(value) => write!(f, "{value}"),
+            ExternalArgValue::U32(value) => write!(f, "{value}"),
+            ExternalArgValue::I32(value) => write!(f, "{value}"),
+            ExternalArgValue::U64(value) => write!(f, "{value}"),
+            ExternalArgValue::I64(value) => write!(f, "{value}"),
+            ExternalArgValue::U128(value) => write!(f, "{value}"),
+            ExternalArgValue::I128(value) => write!(f, "{value}"),
+            ExternalArgValue::Usize(value) => write!(f, "{value}"),
+            ExternalArgValue::Isize(value) => write!(f, "{value}"),
+            ExternalArgValue::F32(value) => write!(f, "{value}"),
+            ExternalArgValue::F64(value) => write!(f, "{value}"),
+            ExternalArgValue::Str(value) => fmt::Write::write_str(f, value),
+            ExternalArgValue::Display(display) => write!(f, "{display}"),
+            ExternalArgValue::Debug(debug) => write!(f, "{debug:?}"),
+            ExternalArgValue::Error(error) => write!(f, "{error}"),
+            ExternalArgValue::Fmt(args) => write!(f, "{args}"),
         }
     }
 }
@@ -320,5 +295,54 @@ impl From<alloc::string::String> for MaybeString {
     #[inline]
     fn from(value: alloc::string::String) -> Self {
         Self(value)
+    }
+}
+
+impl ExternalArgs for () {
+    #[inline]
+    fn visit<Visitor>(&self, _visitor: &mut Visitor)
+    where
+        Visitor: ExternalArgsVisitor,
+    {
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::format;
+    use core::fmt;
+    use std::io;
+
+    use crate::ExternalArgValue;
+    use crate::util::DisplayAndDebug;
+
+    #[test]
+    fn external_arg_fmt() {
+        let error = io::Error::new(io::ErrorKind::NotFound, "missing");
+        let display: &dyn DisplayAndDebug = &123_i32;
+        let debug: &dyn fmt::Debug = &"debug";
+        let fmt_args = format_args!("-{}-", 123);
+
+        assert_eq!(format!("{}", ExternalArgValue::Bool(true)), "true");
+        assert_eq!(format!("{}", ExternalArgValue::Char('a')), "a");
+        assert_eq!(format!("{}", ExternalArgValue::U8(1)), "1");
+        assert_eq!(format!("{}", ExternalArgValue::I8(-1)), "-1");
+        assert_eq!(format!("{}", ExternalArgValue::U16(2)), "2");
+        assert_eq!(format!("{}", ExternalArgValue::I16(-2)), "-2");
+        assert_eq!(format!("{}", ExternalArgValue::U32(3)), "3");
+        assert_eq!(format!("{}", ExternalArgValue::I32(-3)), "-3");
+        assert_eq!(format!("{}", ExternalArgValue::U64(4)), "4");
+        assert_eq!(format!("{}", ExternalArgValue::I64(-4)), "-4");
+        assert_eq!(format!("{}", ExternalArgValue::U128(5)), "5");
+        assert_eq!(format!("{}", ExternalArgValue::I128(-5)), "-5");
+        assert_eq!(format!("{}", ExternalArgValue::Usize(6)), "6");
+        assert_eq!(format!("{}", ExternalArgValue::Isize(-6)), "-6");
+        assert_eq!(format!("{}", ExternalArgValue::F32(1.5)), "1.5");
+        assert_eq!(format!("{}", ExternalArgValue::F64(2.5)), "2.5");
+        assert_eq!(format!("{}", ExternalArgValue::Str("str")), "str");
+        assert_eq!(format!("{}", ExternalArgValue::Display(display)), "123");
+        assert_eq!(format!("{}", ExternalArgValue::Debug(debug)), "\"debug\"");
+        assert_eq!(format!("{}", ExternalArgValue::Error(&error)), "missing");
+        assert_eq!(format!("{}", ExternalArgValue::Fmt(&fmt_args)), "-123-");
     }
 }

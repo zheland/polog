@@ -5,12 +5,13 @@ use core::cell::RefCell;
 use core::fmt;
 use std::thread_local;
 
+use polog::{SharedHandler, SpanId};
+
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArg, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
     ExternalMessage, conv,
 };
-use polog::{SharedHandler, SpanId};
 
 thread_local! {
     /// Per-thread stack of entered foreign spans.
@@ -70,6 +71,23 @@ impl<H> BridgeTracing<H> {
     #[must_use]
     pub fn into_handler(self) -> H {
         self.handler
+    }
+
+    /// Consumes and registers this `SharedPologger` as the process-wide
+    /// `tracing` subscriber.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same error as `tracing::subscriber::set_global_default`:
+    /// the global subscriber has already been set.
+    #[cfg(feature = "tracing-0-1")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tracing-0-1")))]
+    #[inline]
+    pub fn try_install_global(self) -> Result<(), tracing_0_1::subscriber::SetGlobalDefaultError>
+    where
+        H: SharedHandler<()> + ExternalHandler<()>,
+    {
+        tracing_0_1::subscriber::set_global_default(self)
     }
 }
 
@@ -254,7 +272,7 @@ where
             H::enter_span_external(
                 &mut self.handler.clone(),
                 metadata,
-                EmptyArgs,
+                &(),
                 Some(parent_span_id),
                 span_id,
                 context,
@@ -325,7 +343,7 @@ where
         H::record_span_external(&mut self.handler.clone(), metadata, values, span_id, ());
     }
 
-    #[expect(clippy::similar_names, reason = "no better alternatives")]
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
     #[inline]
     fn record_follows_from(&self, span: &tracing_0_1::span::Id, follows: &tracing_0_1::span::Id) {
         let follower_span_id = SpanId(span.into_non_zero_u64());
@@ -459,17 +477,6 @@ impl ExternalDescriptor for tracing_0_1::Metadata<'_> {
     }
 }
 
-struct EmptyArgs;
-
-impl ExternalArgs for EmptyArgs {
-    #[inline]
-    fn visit<Visitor>(&self, _visitor: &mut Visitor)
-    where
-        Visitor: ExternalArgsVisitor,
-    {
-    }
-}
-
 impl ExternalArgs for tracing_0_1::span::Attributes<'_> {
     #[inline]
     fn visit<Visitor>(&self, visitor: &mut Visitor)
@@ -509,39 +516,43 @@ where
     #[inline]
     fn record_bool(&mut self, field: &tracing_0_1::field::Field, value: bool) {
         self.0
-            .visit_arg(field_name(field), ExternalArg::Bool(value));
+            .visit_arg(field_name(field), ExternalArgValue::Bool(value));
     }
 
     #[inline]
     fn record_i64(&mut self, field: &tracing_0_1::field::Field, value: i64) {
-        self.0.visit_arg(field_name(field), ExternalArg::I64(value));
+        self.0
+            .visit_arg(field_name(field), ExternalArgValue::I64(value));
     }
 
     #[inline]
     fn record_u64(&mut self, field: &tracing_0_1::field::Field, value: u64) {
-        self.0.visit_arg(field_name(field), ExternalArg::U64(value));
+        self.0
+            .visit_arg(field_name(field), ExternalArgValue::U64(value));
     }
 
     #[inline]
     fn record_i128(&mut self, field: &tracing_0_1::field::Field, value: i128) {
         self.0
-            .visit_arg(field_name(field), ExternalArg::I128(value));
+            .visit_arg(field_name(field), ExternalArgValue::I128(value));
     }
 
     #[inline]
     fn record_u128(&mut self, field: &tracing_0_1::field::Field, value: u128) {
         self.0
-            .visit_arg(field_name(field), ExternalArg::U128(value));
+            .visit_arg(field_name(field), ExternalArgValue::U128(value));
     }
 
     #[inline]
     fn record_f64(&mut self, field: &tracing_0_1::field::Field, value: f64) {
-        self.0.visit_arg(field_name(field), ExternalArg::F64(value));
+        self.0
+            .visit_arg(field_name(field), ExternalArgValue::F64(value));
     }
 
     #[inline]
     fn record_str(&mut self, field: &tracing_0_1::field::Field, value: &str) {
-        self.0.visit_arg(field_name(field), ExternalArg::Str(value));
+        self.0
+            .visit_arg(field_name(field), ExternalArgValue::Str(value));
     }
 
     #[inline]
@@ -551,13 +562,13 @@ where
         value: &(dyn core::error::Error + 'static),
     ) {
         self.0
-            .visit_arg(field_name(field), ExternalArg::Error(value));
+            .visit_arg(field_name(field), ExternalArgValue::Error(value));
     }
 
     #[inline]
     fn record_debug(&mut self, field: &tracing_0_1::field::Field, value: &dyn fmt::Debug) {
         self.0
-            .visit_arg(field_name(field), ExternalArg::Debug(value));
+            .visit_arg(field_name(field), ExternalArgValue::Debug(value));
     }
 }
 
@@ -584,66 +595,70 @@ where
     #[inline]
     fn record_bool(&mut self, field: &tracing_0_1::field::Field, value: bool) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::Bool(value));
+            self.0.visit_message(ExternalArgValue::Bool(value));
         } else {
             self.0
-                .visit_arg(field_name(field), ExternalArg::Bool(value));
+                .visit_arg(field_name(field), ExternalArgValue::Bool(value));
         }
     }
 
     #[inline]
     fn record_i64(&mut self, field: &tracing_0_1::field::Field, value: i64) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::I64(value));
+            self.0.visit_message(ExternalArgValue::I64(value));
         } else {
-            self.0.visit_arg(field_name(field), ExternalArg::I64(value));
+            self.0
+                .visit_arg(field_name(field), ExternalArgValue::I64(value));
         }
     }
 
     #[inline]
     fn record_u64(&mut self, field: &tracing_0_1::field::Field, value: u64) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::U64(value));
+            self.0.visit_message(ExternalArgValue::U64(value));
         } else {
-            self.0.visit_arg(field_name(field), ExternalArg::U64(value));
+            self.0
+                .visit_arg(field_name(field), ExternalArgValue::U64(value));
         }
     }
 
     #[inline]
     fn record_i128(&mut self, field: &tracing_0_1::field::Field, value: i128) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::I128(value));
+            self.0.visit_message(ExternalArgValue::I128(value));
         } else {
             self.0
-                .visit_arg(field_name(field), ExternalArg::I128(value));
+                .visit_arg(field_name(field), ExternalArgValue::I128(value));
         }
     }
 
     #[inline]
     fn record_u128(&mut self, field: &tracing_0_1::field::Field, value: u128) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::U128(value));
+            self.0.visit_message(ExternalArgValue::U128(value));
         } else {
             self.0
-                .visit_arg(field_name(field), ExternalArg::U128(value));
+                .visit_arg(field_name(field), ExternalArgValue::U128(value));
         }
     }
 
     #[inline]
     fn record_f64(&mut self, field: &tracing_0_1::field::Field, value: f64) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::F64(value));
+            self.0.visit_message(ExternalArgValue::F64(value));
         } else {
-            self.0.visit_arg(field_name(field), ExternalArg::F64(value));
+            self.0
+                .visit_arg(field_name(field), ExternalArgValue::F64(value));
         }
     }
 
     #[inline]
     fn record_str(&mut self, field: &tracing_0_1::field::Field, value: &str) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::Str(value));
+            self.0.visit_message(ExternalArgValue::Str(value));
         } else {
-            self.0.visit_arg(field_name(field), ExternalArg::Str(value));
+            self.0
+                .visit_arg(field_name(field), ExternalArgValue::Str(value));
         }
     }
 
@@ -654,20 +669,20 @@ where
         value: &(dyn core::error::Error + 'static),
     ) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::Error(value));
+            self.0.visit_message(ExternalArgValue::Error(value));
         } else {
             self.0
-                .visit_arg(field_name(field), ExternalArg::Error(value));
+                .visit_arg(field_name(field), ExternalArgValue::Error(value));
         }
     }
 
     #[inline]
     fn record_debug(&mut self, field: &tracing_0_1::field::Field, value: &dyn fmt::Debug) {
         if self.is_first_message(field.name()) {
-            self.0.visit_message(ExternalArg::Debug(value));
+            self.0.visit_message(ExternalArgValue::Debug(value));
         } else {
             self.0
-                .visit_arg(field_name(field), ExternalArg::Debug(value));
+                .visit_arg(field_name(field), ExternalArgValue::Debug(value));
         }
     }
 }

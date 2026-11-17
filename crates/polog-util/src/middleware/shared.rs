@@ -6,7 +6,7 @@ use polog::{
     SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::ExternalHandler;
+use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// Wraps a non‑shared [`Handler`] so it can be cloned and shared across
 /// threads.
@@ -308,95 +308,124 @@ where
     H: ExternalHandler<Context>,
     Context: ContextArgs,
 {
+    #[inline]
     fn try_enable_external<Desc>(
         &self,
         descriptor: &Desc,
         context: Context,
     ) -> Option<Self::EnrichedContext>
     where
-        Desc: crate::ExternalDescriptor,
+        Desc: ExternalDescriptor,
     {
-        todo!()
+        H::try_enable_external(&*self.0.lock(), descriptor, context)
     }
 
+    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: Option<SpanId>,
         context: Self::EnrichedContext,
     ) where
-        Desc: crate::ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::log_external(&mut *self.0.lock(), descriptor, args, span_id, context);
     }
 
+    #[inline]
     fn new_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
     ) where
-        Desc: crate::ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::new_span_external(
+            &mut *self.0.lock(),
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
+    #[inline]
     fn enter_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
         context: Self::EnrichedContext,
     ) where
-        Desc: crate::ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::new_span_external(
+            &mut *self.0.lock(),
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
-    fn exit_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
-        Desc: crate::ExternalDescriptor,
+        Desc: ExternalDescriptor,
     {
-        todo!()
+        H::exit_span_external(&mut *self.0.lock(), descriptor, span_id, context);
     }
 
-    fn close_span_external<Desc>(&mut self, descriptor: Desc, span_id: SpanId, context: Context)
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
     where
-        Desc: crate::ExternalDescriptor,
+        Desc: ExternalDescriptor,
     {
-        todo!()
+        H::close_span_external(&mut *self.0.lock(), descriptor, span_id, context);
     }
 
+    #[inline]
     fn record_span_external<Desc, Args>(
         &mut self,
-        descriptor: Desc,
-        args: Args,
+        descriptor: &Desc,
+        args: &Args,
         span_id: SpanId,
         context: Context,
     ) where
-        Desc: crate::ExternalDescriptor,
-        Args: crate::ExternalArgs,
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
     {
-        todo!()
+        H::record_span_external(&mut *self.0.lock(), descriptor, args, span_id, context);
     }
 
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
     fn link_span_external<Desc>(
         &mut self,
-        descriptor: Desc,
+        descriptor: &Desc,
         followed_span_id: SpanId,
         follower_span_id: SpanId,
         context: Context,
     ) where
-        Desc: crate::ExternalDescriptor,
+        Desc: ExternalDescriptor,
     {
-        todo!()
+        H::link_span_external(
+            &mut *self.0.lock(),
+            descriptor,
+            followed_span_id,
+            follower_span_id,
+            context,
+        );
     }
 }
 

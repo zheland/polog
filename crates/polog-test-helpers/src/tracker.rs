@@ -7,6 +7,7 @@ use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
     Handler, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
+use polog_util::{ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler};
 
 #[doc(hidden)]
 #[derive(Clone, Default, Debug)]
@@ -358,6 +359,180 @@ where
 
 impl<Context> SharedHandler<Context> for Tracker where Context: ContextArgs {}
 
+impl<Context> ExternalHandler<Context> for Tracker
+where
+    Context: ContextArgs,
+{
+    #[inline]
+    fn try_enable_external<Desc>(
+        &self,
+        descriptor: &Desc,
+        context: Context,
+    ) -> Option<Self::EnrichedContext>
+    where
+        Desc: ExternalDescriptor,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("try_enable_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "try_enable_external({:?}, {})",
+                descriptor.message(),
+                fmt_context(&context)
+            ));
+        }
+        Some(context)
+    }
+
+    #[inline]
+    fn log_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: Option<SpanId>,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("log_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "log_external({:?}, {}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_external_args(&args),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[inline]
+    fn new_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("new_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "new_span_external({:?}, {}, {parent_span_id:?}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_external_args(&args),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[inline]
+    fn enter_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        parent_span_id: Option<SpanId>,
+        span_id: SpanId,
+        context: Self::EnrichedContext,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("enter_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "enter_span_external({:?}, {}, {parent_span_id:?}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_external_args(&args),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[inline]
+    fn exit_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("exit_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "exit_span_external({:?}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[inline]
+    fn close_span_external<Desc>(&mut self, descriptor: &Desc, span_id: SpanId, context: Context)
+    where
+        Desc: ExternalDescriptor,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("close_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "close_span_external({:?}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[inline]
+    fn record_span_external<Desc, Args>(
+        &mut self,
+        descriptor: &Desc,
+        args: &Args,
+        span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+        Args: ExternalArgs,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("record_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "record_span_external({:?}, {}, {span_id:?}, {})",
+                descriptor.message(),
+                fmt_external_args(&args),
+                fmt_context(&context)
+            ));
+        }
+    }
+
+    #[expect(clippy::similar_names, reason = "better than alternatives")]
+    #[inline]
+    fn link_span_external<Desc>(
+        &mut self,
+        descriptor: &Desc,
+        followed_span_id: SpanId,
+        follower_span_id: SpanId,
+        context: Context,
+    ) where
+        Desc: ExternalDescriptor,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("link_span_external");
+        if this.details_enabled {
+            this.details.push(format!(
+                "link_span_external({:?}, {followed_span_id:?}, {follower_span_id:?}, {})",
+                descriptor.message(),
+                fmt_context(&context)
+            ));
+        }
+    }
+}
+
 #[inline]
 fn fmt_context<Context>(context: &Context) -> impl fmt::Display
 where
@@ -393,6 +568,43 @@ where
                 args.display_fmt_nth(f, i).unwrap()?;
             }
         }
+        write!(f, ")")?;
+        Ok(())
+    })
+}
+
+#[inline]
+fn fmt_external_args<Args>(args: &Args) -> impl fmt::Display
+where
+    Args: ExternalArgs,
+{
+    struct Visitor<'a, 'b>(&'b mut fmt::Formatter<'a>, bool);
+
+    impl ExternalArgsVisitor for Visitor<'_, '_> {
+        fn visit_message(&mut self, value: polog_util::ExternalArgValue<'_>) {
+            if self.1 {
+                let _ = write!(self.0, ", ");
+                self.1 = true;
+            }
+            let _ = write!(self.0, "{value}");
+        }
+
+        fn visit_arg(
+            &mut self,
+            key: polog_util::util::MaybeStaticStr<'_>,
+            value: polog_util::ExternalArgValue<'_>,
+        ) {
+            if self.1 {
+                let _ = write!(self.0, ", ");
+                self.1 = true;
+            }
+            let _ = write!(self.0, "{key} = {value}");
+        }
+    }
+
+    fmt::from_fn(|f| {
+        write!(f, "(")?;
+        args.visit(&mut Visitor(f, false));
         write!(f, ")")?;
         Ok(())
     })

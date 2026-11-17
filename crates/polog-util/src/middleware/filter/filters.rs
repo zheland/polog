@@ -25,7 +25,7 @@ impl FilterFn for Always {
 
 impl ExternalFilterFn for Always {
     #[inline]
-    fn is_external_enabled<Desc>(&self, _descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, _descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -53,7 +53,7 @@ impl FilterFn for Never {
 
 impl ExternalFilterFn for Never {
     #[inline]
-    fn is_external_enabled<Desc>(&self, _descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, _descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -96,7 +96,7 @@ impl FilterFn for MaxLevel {
 
 impl ExternalFilterFn for MaxLevel {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -146,7 +146,7 @@ impl<const MAX_LEVEL: u8> FilterFn for ConstMaxLevel<MAX_LEVEL> {
 
 impl<const MAX_LEVEL: u8> ExternalFilterFn for ConstMaxLevel<MAX_LEVEL> {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -209,7 +209,7 @@ impl FilterFn for Target {
 
 impl ExternalFilterFn for Target {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -239,7 +239,7 @@ impl FilterFn for TargetPrefix {
 
 impl ExternalFilterFn for TargetPrefix {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
@@ -271,11 +271,11 @@ where
     F: ExternalFilterFn,
 {
     #[inline]
-    fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
     where
         Desc: ExternalDescriptor,
     {
-        !self.0.is_external_enabled(descriptor)
+        !self.0.is_enabled_external(descriptor)
     }
 }
 
@@ -318,11 +318,11 @@ macro_rules! impl_variadic {
             $( $type: ExternalFilterFn, )*
         {
             #[inline]
-            fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+            fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
             where
                 Desc: ExternalDescriptor,
             {
-                true $( && self.0.$field.is_external_enabled(descriptor) )*
+                true $( && self.0.$field.is_enabled_external(descriptor) )*
             }
         }
 
@@ -347,11 +347,11 @@ macro_rules! impl_variadic {
             $( $type: ExternalFilterFn, )*
         {
             #[inline]
-            fn is_external_enabled<Desc>(&self, descriptor: &Desc) -> bool
+            fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
             where
                 Desc: ExternalDescriptor,
             {
-                false $( || self.0.$field.is_external_enabled(descriptor) )*
+                false $( || self.0.$field.is_enabled_external(descriptor) )*
             }
         }
     };
@@ -400,6 +400,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::borrow::Cow;
     use core::panic::Location;
 
     use polog::{Descriptor, DescriptorKind, Level, LevelFilter};
@@ -408,8 +409,7 @@ mod tests {
     use crate::filters::{
         All, Always, Any, ConstMaxLevel, MaxLevel, Never, Not, Target, TargetPrefix,
     };
-    use crate::test_util::SimpleBorrowingExternalDescriptor;
-    use crate::{ExternalFilterFn, Filter, FilterFn};
+    use crate::{ExternalFilterFn, Filter, FilterFn, TypeErasedExternalDescriptor};
 
     #[inline]
     const fn descriptor(
@@ -713,50 +713,50 @@ mod tests {
 
     #[test]
     fn test_filters_external_filter() {
-        let desc = |level| SimpleBorrowingExternalDescriptor {
-            name: Some("name"),
+        let desc = |level| TypeErasedExternalDescriptor {
+            message: Some(Cow::Borrowed("name")),
             level,
-            target: Some("target::path"),
-            module_path: Some("module"),
-            file: Some("file"),
+            target: Some(Cow::Borrowed("target::path")),
+            module_path: Some(Cow::Borrowed("module")),
+            file: Some(Cow::Borrowed("file")),
             line: Some(1),
             column: Some(1),
         };
 
-        assert!(Always.is_external_enabled(&desc(Level::Debug)));
-        assert!(!Never.is_external_enabled(&desc(Level::Debug)));
+        assert!(Always.is_enabled_external(&desc(Level::Debug)));
+        assert!(!Never.is_enabled_external(&desc(Level::Debug)));
 
-        assert!(MaxLevel(LevelFilter::Info).is_external_enabled(&desc(Level::Info)));
-        assert!(!MaxLevel(LevelFilter::Info).is_external_enabled(&desc(Level::Debug)));
+        assert!(MaxLevel(LevelFilter::Info).is_enabled_external(&desc(Level::Info)));
+        assert!(!MaxLevel(LevelFilter::Info).is_enabled_external(&desc(Level::Debug)));
 
         assert!(
             ConstMaxLevel::<{ LevelFilter::Info.into_u8() }>
-                .is_external_enabled(&desc(Level::Info))
+                .is_enabled_external(&desc(Level::Info))
         );
         assert!(
             !ConstMaxLevel::<{ LevelFilter::Info.into_u8() }>
-                .is_external_enabled(&desc(Level::Debug))
+                .is_enabled_external(&desc(Level::Debug))
         );
 
-        assert!(!Target("target").is_external_enabled(&desc(Level::Info)));
-        assert!(Target("target::path").is_external_enabled(&desc(Level::Info)));
-        assert!(!Target("other").is_external_enabled(&desc(Level::Info)));
+        assert!(!Target("target").is_enabled_external(&desc(Level::Info)));
+        assert!(Target("target::path").is_enabled_external(&desc(Level::Info)));
+        assert!(!Target("other").is_enabled_external(&desc(Level::Info)));
 
-        assert!(TargetPrefix("target").is_external_enabled(&desc(Level::Info)));
-        assert!(!TargetPrefix("tar").is_external_enabled(&desc(Level::Info)));
+        assert!(TargetPrefix("target").is_enabled_external(&desc(Level::Info)));
+        assert!(!TargetPrefix("tar").is_enabled_external(&desc(Level::Info)));
 
-        assert!(Not(MaxLevel(LevelFilter::Info)).is_external_enabled(&desc(Level::Debug)));
+        assert!(Not(MaxLevel(LevelFilter::Info)).is_enabled_external(&desc(Level::Debug)));
         assert!(
             !All((MaxLevel(LevelFilter::Info), TargetPrefix("target")))
-                .is_external_enabled(&desc(Level::Debug))
+                .is_enabled_external(&desc(Level::Debug))
         );
         assert!(
             All((MaxLevel(LevelFilter::Info), TargetPrefix("target")))
-                .is_external_enabled(&desc(Level::Info))
+                .is_enabled_external(&desc(Level::Info))
         );
         assert!(
             Any((MaxLevel(LevelFilter::Info), TargetPrefix("target")))
-                .is_external_enabled(&desc(Level::Debug))
+                .is_enabled_external(&desc(Level::Debug))
         );
     }
 }

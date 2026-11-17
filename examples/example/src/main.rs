@@ -4,13 +4,25 @@
 use core::time::Duration;
 use std::sync::Arc;
 
+use either::Either;
 use parking_lot::RwLock;
 use polog::{Logger, LoggerExt, PollInstrument};
+use polog_util::bridges::log_0_4::BridgeLog;
+use polog_util::bridges::slog_2::BridgeSlog;
+use polog_util::bridges::tracing_0_1::BridgeTracing;
 
 fn main() {
     let preset = std::env::args().nth(1);
     let filter = std::env::args().nth(2);
-    let (mut logger, slog) = new_logger_handler(preset.as_deref(), filter.as_deref());
+    let mut logger = new_logger_handler(preset.as_deref(), filter.as_deref());
+
+    BridgeLog::new(logger.clone())
+        .try_install_global(polog::LevelFilter::Trace)
+        .unwrap();
+    BridgeTracing::new(logger.clone())
+        .try_install_global()
+        .unwrap();
+    let slog = BridgeSlog::new(logger.clone()).into_slog_logger();
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -189,16 +201,14 @@ where
 fn new_logger_handler(
     preset: Option<&str>,
     filter: Option<&str>,
-) -> (impl polog::SharedHandler<()>, slog::Logger) {
+) -> impl polog::SharedHandler<()> + polog_util::ExternalHandler<()> {
     let span_id_generator = Arc::new(polog::SpanIdGenerator::new());
 
     let filter = polog_util::FilterRules::parse(filter.unwrap_or("trace"))
         .unwrap()
         .to_owning();
-    let external_filter = filter.clone();
 
-    let (backend, slog) =
-        new_logger_backend(Arc::clone(&span_id_generator), preset, external_filter);
+    let backend = new_logger_backend(Arc::clone(&span_id_generator), preset);
 
     let (handler, service) = polog_util::new_offloader(
         backend,
@@ -216,23 +226,14 @@ fn new_logger_handler(
     // Optionally use can wrap handler into enrichers.
     // If wrapped, the log events would enriched by the time on caller side.
     // If not wrapped, the time would be captured by the backend handler.
-    let handler = polog_util::Enricher::new(handler, polog_util::SystemTimeEnricherFn);
-
-    (handler, slog)
+    polog_util::Enricher::new(handler, polog_util::SystemTimeEnricherFn)
 }
 
 #[inline]
 fn new_logger_backend(
     span_id_generator: Arc<polog::SpanIdGenerator>,
     preset: Option<&str>,
-    external_filter: impl 'static + Send + Sync + polog_util::ExternalFilterFn,
-) -> (
-    pologger::SharedPologger<
-        impl 'static + pologger::Formatter,
-        impl 'static + polog_util::ExternalFilterFn,
-    >,
-    slog::Logger,
-) {
+) -> pologger::Pologger<impl 'static + pologger::Formatter> {
     enum Formatter {
         Text,
         Json,
@@ -260,14 +261,14 @@ fn new_logger_backend(
     };
 
     let formatter = match formatter {
-        Formatter::Text => polog_util::Either::V1(pologger::TextFormatter::stderr(
+        Formatter::Text => Either::Left(pologger::TextFormatter::stderr(
             pologger::TextFormatterFlags::default(),
             pologger::ColorizePreset::Auto,
         )),
-        Formatter::Json => polog_util::Either::V2(pologger::NdJsonFormatter::stderr()),
+        Formatter::Json => Either::Right(pologger::NdJsonFormatter::stderr()),
     };
 
-    let flags = match format {
+    let config = match format {
         Format::Compact => pologger::LoggerConfig::compact(),
         Format::SpanPath => pologger::LoggerConfig::compact_span_path(),
         Format::CompactAndPoll => pologger::LoggerConfig::compact().with_task_poll_events(),
@@ -276,16 +277,5 @@ fn new_logger_backend(
         }
     };
 
-    let pologger =
-        pologger::Pologger::new(span_id_generator, formatter, Arc::new(RwLock::new(flags)));
-
-    // Necessary to make it available for other logger facades like `log`,
-    // `slog`, and `tracing`.
-    let pologger = pologger::SharedPologger::new(pologger, external_filter);
-
-    pologger.register_as_global_log_logger().unwrap();
-    pologger.register_as_global_tracing_subscriber().unwrap();
-    let slog = pologger.make_slog_logger();
-
-    (pologger, slog)
+    pologger::Pologger::new(span_id_generator, formatter, Arc::new(RwLock::new(config)))
 }

@@ -3,7 +3,6 @@ use core::time::Duration;
 use std::io;
 
 use polog::{Level, SpanId};
-use polog_util::Either;
 
 /// Rendering backend for a [`Pologger`](crate::Pologger).
 ///
@@ -293,16 +292,20 @@ pub enum FormatterEventKind {
     DetachedEnter,
     /// A detached span exit.
     DetachedExit,
-    /// A foreign span creation.
-    ForeignNew,
-    /// A foreign span close.
-    ForeignClose,
     /// An instrumented future poll started.
     TaskPoll,
     /// An instrumented future returned `Pending`.
     TaskPending,
     /// An instrumented future returned `Ready`.
     TaskReady,
+    /// An external span creation.
+    ExternalNew,
+    /// An external span close.
+    ExternalClose,
+    /// An external span record.
+    ExternalRecord,
+    /// An external span link.
+    ExternalLink,
 }
 
 /// Which kind of wall-clock time a `Formatter` is writing.
@@ -409,7 +412,8 @@ pub enum MaybeKnownSpanId {
 }
 
 /// Forwards every `Formatter` method to the active variant.
-impl<H1, H2> Formatter for Either<H1, H2>
+#[cfg(feature = "either-1")]
+impl<H1, H2> Formatter for either_1::Either<H1, H2>
 where
     H1: Formatter,
     H2: Formatter,
@@ -417,80 +421,80 @@ where
     #[inline]
     fn flush_blocking(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::flush_blocking(fmt),
-            Self::V2(fmt) => H2::flush_blocking(fmt),
+            Self::Left(fmt) => H1::flush_blocking(fmt),
+            Self::Right(fmt) => H2::flush_blocking(fmt),
         }
     }
 
     #[inline]
     fn flush_on_panic(&mut self) {
         match self {
-            Self::V1(fmt) => H1::flush_on_panic(fmt),
-            Self::V2(fmt) => H2::flush_on_panic(fmt),
+            Self::Left(fmt) => H1::flush_on_panic(fmt),
+            Self::Right(fmt) => H2::flush_on_panic(fmt),
         }
     }
 
     #[inline]
     fn update_config(&mut self) {
         match self {
-            Self::V1(fmt) => H1::update_config(fmt),
-            Self::V2(fmt) => H2::update_config(fmt),
+            Self::Left(fmt) => H1::update_config(fmt),
+            Self::Right(fmt) => H2::update_config(fmt),
         }
     }
 
     #[inline]
     fn start_entry(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::start_entry(fmt),
-            Self::V2(fmt) => H2::start_entry(fmt),
+            Self::Left(fmt) => H1::start_entry(fmt),
+            Self::Right(fmt) => H2::start_entry(fmt),
         }
     }
 
     #[inline]
     fn end_entry(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::end_entry(fmt),
-            Self::V2(fmt) => H2::end_entry(fmt),
+            Self::Left(fmt) => H1::end_entry(fmt),
+            Self::Right(fmt) => H2::end_entry(fmt),
         }
     }
 
     #[inline]
     fn write_key(&mut self, key: &'static str) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_key(fmt, key),
-            Self::V2(fmt) => H2::write_key(fmt, key),
+            Self::Left(fmt) => H1::write_key(fmt, key),
+            Self::Right(fmt) => H2::write_key(fmt, key),
         }
     }
 
     #[inline]
     fn begin_array(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::begin_array(fmt),
-            Self::V2(fmt) => H2::begin_array(fmt),
+            Self::Left(fmt) => H1::begin_array(fmt),
+            Self::Right(fmt) => H2::begin_array(fmt),
         }
     }
 
     #[inline]
     fn end_array(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::end_array(fmt),
-            Self::V2(fmt) => H2::end_array(fmt),
+            Self::Left(fmt) => H1::end_array(fmt),
+            Self::Right(fmt) => H2::end_array(fmt),
         }
     }
 
     #[inline]
     fn begin_object(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::begin_object(fmt),
-            Self::V2(fmt) => H2::begin_object(fmt),
+            Self::Left(fmt) => H1::begin_object(fmt),
+            Self::Right(fmt) => H2::begin_object(fmt),
         }
     }
 
     #[inline]
     fn end_object(&mut self) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::end_object(fmt),
-            Self::V2(fmt) => H2::end_object(fmt),
+            Self::Left(fmt) => H1::end_object(fmt),
+            Self::Right(fmt) => H2::end_object(fmt),
         }
     }
 
@@ -504,8 +508,8 @@ where
         T: ?Sized + Display,
     {
         match self {
-            Self::V1(fmt) => H1::write_time_already_sanitized(fmt, value, kind),
-            Self::V2(fmt) => H2::write_time_already_sanitized(fmt, value, kind),
+            Self::Left(fmt) => H1::write_time_already_sanitized(fmt, value, kind),
+            Self::Right(fmt) => H2::write_time_already_sanitized(fmt, value, kind),
         }
     }
 
@@ -517,24 +521,24 @@ where
         kind: FormatterDurationKind,
     ) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_duration(fmt, duration, precision, kind),
-            Self::V2(fmt) => H2::write_duration(fmt, duration, precision, kind),
+            Self::Left(fmt) => H1::write_duration(fmt, duration, precision, kind),
+            Self::Right(fmt) => H2::write_duration(fmt, duration, precision, kind),
         }
     }
 
     #[inline]
     fn write_id(&mut self, id: u64, kind: FormatterIdKind) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_id(fmt, id, kind),
-            Self::V2(fmt) => H2::write_id(fmt, id, kind),
+            Self::Left(fmt) => H1::write_id(fmt, id, kind),
+            Self::Right(fmt) => H2::write_id(fmt, id, kind),
         }
     }
 
     #[inline]
     fn write_str(&mut self, value: &str, kind: FormatterStrKind) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_str(fmt, value, kind),
-            Self::V2(fmt) => H2::write_str(fmt, value, kind),
+            Self::Left(fmt) => H1::write_str(fmt, value, kind),
+            Self::Right(fmt) => H2::write_str(fmt, value, kind),
         }
     }
 
@@ -545,56 +549,56 @@ where
         kind: FormatterSpanIdKind,
     ) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_span_id(fmt, span_id, kind),
-            Self::V2(fmt) => H2::write_span_id(fmt, span_id, kind),
+            Self::Left(fmt) => H1::write_span_id(fmt, span_id, kind),
+            Self::Right(fmt) => H2::write_span_id(fmt, span_id, kind),
         }
     }
 
     #[inline]
     fn write_kind(&mut self, kind: FormatterEventKind) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_kind(fmt, kind),
-            Self::V2(fmt) => H2::write_kind(fmt, kind),
+            Self::Left(fmt) => H1::write_kind(fmt, kind),
+            Self::Right(fmt) => H2::write_kind(fmt, kind),
         }
     }
 
     #[inline]
     fn write_span_path_kind(&mut self, kind: FormatterEventKind) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_span_path_kind(fmt, kind),
-            Self::V2(fmt) => H2::write_span_path_kind(fmt, kind),
+            Self::Left(fmt) => H1::write_span_path_kind(fmt, kind),
+            Self::Right(fmt) => H2::write_span_path_kind(fmt, kind),
         }
     }
 
     #[inline]
     fn write_span_path_span_id(&mut self, span_id: KnownSpanId) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_span_path_span_id(fmt, span_id),
-            Self::V2(fmt) => H2::write_span_path_span_id(fmt, span_id),
+            Self::Left(fmt) => H1::write_span_path_span_id(fmt, span_id),
+            Self::Right(fmt) => H2::write_span_path_span_id(fmt, span_id),
         }
     }
 
     #[inline]
     fn write_span_path_span_name(&mut self, name: &str) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_span_path_span_name(fmt, name),
-            Self::V2(fmt) => H2::write_span_path_span_name(fmt, name),
+            Self::Left(fmt) => H1::write_span_path_span_name(fmt, name),
+            Self::Right(fmt) => H2::write_span_path_span_name(fmt, name),
         }
     }
 
     #[inline]
     fn write_level(&mut self, level: Level) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_level(fmt, level),
-            Self::V2(fmt) => H2::write_level(fmt, level),
+            Self::Left(fmt) => H1::write_level(fmt, level),
+            Self::Right(fmt) => H2::write_level(fmt, level),
         }
     }
 
     #[inline]
     fn write_target(&mut self, target: &str, kind: FormatterEventKind) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_target(fmt, target, kind),
-            Self::V2(fmt) => H2::write_target(fmt, target, kind),
+            Self::Left(fmt) => H1::write_target(fmt, target, kind),
+            Self::Right(fmt) => H2::write_target(fmt, target, kind),
         }
     }
 
@@ -604,16 +608,16 @@ where
         T: ?Sized + Display,
     {
         match self {
-            Self::V1(fmt) => H1::write_message(fmt, message, kind),
-            Self::V2(fmt) => H2::write_message(fmt, message, kind),
+            Self::Left(fmt) => H1::write_message(fmt, message, kind),
+            Self::Right(fmt) => H2::write_message(fmt, message, kind),
         }
     }
 
     #[inline]
     fn write_argument_key(&mut self, key: &str) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_argument_key(fmt, key),
-            Self::V2(fmt) => H2::write_argument_key(fmt, key),
+            Self::Left(fmt) => H1::write_argument_key(fmt, key),
+            Self::Right(fmt) => H2::write_argument_key(fmt, key),
         }
     }
 
@@ -623,8 +627,8 @@ where
         T: ?Sized + Display,
     {
         match self {
-            Self::V1(fmt) => H1::write_argument_value(fmt, value),
-            Self::V2(fmt) => H2::write_argument_value(fmt, value),
+            Self::Left(fmt) => H1::write_argument_value(fmt, value),
+            Self::Right(fmt) => H2::write_argument_value(fmt, value),
         }
     }
 
@@ -636,8 +640,8 @@ where
         column: Option<u32>,
     ) -> io::Result<()> {
         match self {
-            Self::V1(fmt) => H1::write_location_arguments(fmt, filename, line, column),
-            Self::V2(fmt) => H2::write_location_arguments(fmt, filename, line, column),
+            Self::Left(fmt) => H1::write_location_arguments(fmt, filename, line, column),
+            Self::Right(fmt) => H2::write_location_arguments(fmt, filename, line, column),
         }
     }
 }
@@ -1007,7 +1011,6 @@ mod tests {
 
     use parking_lot::RwLock;
     use polog::Level;
-    use polog_util::Either;
 
     use crate::{
         Formatter, FormatterDurationKind, FormatterEventKind, FormatterIdKind, FormatterSpanIdKind,
@@ -1232,8 +1235,8 @@ mod tests {
             Fek::NestedExit,
             Fek::DetachedEnter,
             Fek::DetachedExit,
-            Fek::ForeignNew,
-            Fek::ForeignClose,
+            Fek::ExternalNew,
+            Fek::ExternalClose,
             Fek::TaskPoll,
             Fek::TaskPending,
             Fek::TaskReady,
@@ -1389,24 +1392,27 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "either-1")]
     #[test]
     fn text_formatter_either_forward() {
+        use either_1::Either;
+
         let config =
             TextFormatterConfig::new(TextFormatterFlags::default(), TextFormatterColorMode::Off);
         let config = Arc::new(RwLock::new(config));
 
         for mut fmt in [
-            Either::V1(TextFormatter::new(Vec::<u8>::new(), Arc::clone(&config))),
-            Either::V2(NdJsonFormatter::new(Vec::<u8>::new())),
+            Either::Left(TextFormatter::new(Vec::<u8>::new(), Arc::clone(&config))),
+            Either::Right(NdJsonFormatter::new(Vec::<u8>::new())),
         ] {
             example_entry(&mut fmt).unwrap();
 
             match fmt {
-                Either::V1(fmt) => pretty_assertions::assert_eq!(
+                Either::Left(fmt) => pretty_assertions::assert_eq!(
                     str::from_utf8(fmt.writer()).unwrap(),
                     EXPECTED_EXAMPLE_ENTRY_TEXT_NO_COLOR,
                 ),
-                Either::V2(fmt) => pretty_assertions::assert_eq!(
+                Either::Right(fmt) => pretty_assertions::assert_eq!(
                     str::from_utf8(fmt.writer()).unwrap(),
                     EXPECTED_EXAMPLE_ENTRY_NDJSON,
                 ),
