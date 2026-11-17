@@ -1467,6 +1467,25 @@ mod std_impls {
     );
 }
 
+#[cfg(feature = "either-1")]
+mod either_1_impls {
+    use either_1::Either;
+
+    use crate::{IntoSendable, TemporaryIntoSendable, TemporaryToSendable, ToSendable};
+
+    __impl_sendable!(
+        for (L, R) for Either<L, R> => Either<L::Sendable, R::Sendable>,
+        O |self| { self.map_either(L::into_sendable, R::into_sendable) }
+            where ( L: IntoSendable, R: IntoSendable ),
+        O for<'a> |&'a self| { self.as_ref().map_either(L::to_sendable, R::to_sendable) }
+            where ( L: ToSendable<'a>, R: ToSendable<'a> ),
+        p |self| { self.map_either(L::temp_into_sendable, R::temp_into_sendable) }
+            where ( L: TemporaryIntoSendable, R: TemporaryIntoSendable ),
+        p for<'a> |&'a self| { self.as_ref().map_either(L::temp_to_sendable, R::temp_to_sendable) }
+            where ( L: TemporaryToSendable<'a>, R: TemporaryToSendable<'a> ),
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use core::any::TypeId;
