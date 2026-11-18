@@ -40,6 +40,18 @@ fn test_log_global() {
     drop(span);
     assert_eq!(tracker.take_details(), &[""; 0]);
 
+    log_0_4::info!(a = 1, b = 2; "`log::info!`");
+    log_0_4::info!(c = 3, d = 4; "`log::info!`");
+    assert_eq!(
+        tracker.take_details(),
+        &[
+            "is_enabled_external(Some(Fmt(`log::info!`)))", // `LogBridge::log`.
+            "log_external(Some(Fmt(`log::info!`)), (a = 1, b = 2), None, ())",
+            "is_enabled_external(Some(Fmt(`log::info!`)))", // `LogBridge::log`.
+            "log_external(Some(Fmt(`log::info!`)), (c = 3, d = 4), None, ())"
+        ]
+    );
+
     check_handler::check_basic_dyn_handler_fns(&mut logger);
     check_handler::check_basic_handler_fns(&mut logger, Some(&()));
     check_handler::check_basic_borrowing_handler_fns(&mut logger, Some(&()));

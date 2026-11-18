@@ -54,6 +54,28 @@ fn test_tracing_global() {
         ]
     );
 
+    tracing_0_1::event!(tracing_0_1::Level::INFO, "`tracing::event!`");
+    let span = tracing_0_1::info_span!("`tracing::info_span!` Span A", e = 5, f = 6);
+    {
+        let _guard = span.enter();
+        tracing_0_1::event!(tracing_0_1::Level::INFO, "`tracing::event!` In A");
+    }
+    assert_eq!(
+        tracker.take_details(),
+        &[
+            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))))",
+            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))))",
+            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))), (`tracing::event!`), None, ())",
+            "is_enabled_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))))",
+            "new_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (e = 5, f = 6), None, SpanId(5), ())",
+            "enter_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (), Some(SpanId(5)), SpanId(6), ())",
+            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))))",
+            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))))",
+            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))), (`tracing::event!` In A), Some(SpanId(6)), ())",
+            "exit_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), SpanId(6), ())"
+        ]
+    );
+
     check_handler::check_basic_dyn_handler_fns(&mut logger);
     check_handler::check_basic_handler_fns(&mut logger, Some(&()));
     check_handler::check_basic_borrowing_handler_fns(&mut logger, Some(&()));

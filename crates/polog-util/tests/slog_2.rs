@@ -33,6 +33,21 @@ fn test_slog_global() {
     );
     drop(span);
 
+    slog_2::info!(slog_logger, "slog::info!"; "k" => 11, "l" => 12);
+    {
+        let slog_logger = slog_logger.new(slog_2::o!("m" => 13, "n" => 14));
+        slog_2::info!(slog_logger, "slog::info!"; "o" => 15, "p" => 16);
+    }
+    assert_eq!(
+        tracker.take_details(),
+        &[
+            "is_enabled_external(Some(Fmt(slog::info!)))",
+            "log_external(Some(Fmt(slog::info!)), (l = 12, k = 11), None, ())",
+            "is_enabled_external(Some(Fmt(slog::info!)))",
+            "log_external(Some(Fmt(slog::info!)), (p = 16, o = 15, n = 14, m = 13), None, ())"
+        ]
+    );
+
     check_handler::check_basic_dyn_handler_fns(&mut logger);
     check_handler::check_basic_handler_fns(&mut logger, Some(&()));
     check_handler::check_basic_borrowing_handler_fns(&mut logger, Some(&()));
