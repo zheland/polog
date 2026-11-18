@@ -516,10 +516,10 @@ where
 }
 
 #[cfg(feature = "either-1")]
-impl<H1, H2, Context, EnrichedContext> ExternalHandler<Context> for either_1::Either<H1, H2>
+impl<H1, H2, Context> ExternalHandler<Context> for either_1::Either<H1, H2>
 where
-    H1: ExternalHandler<Context, EnrichedContext = EnrichedContext>,
-    H2: ExternalHandler<Context, EnrichedContext = EnrichedContext>,
+    H1: ExternalHandler<Context>,
+    H2: ExternalHandler<Context>,
     Context: ContextArgs,
 {
     #[inline]
@@ -532,8 +532,12 @@ where
         Desc: ExternalDescriptor,
     {
         match self {
-            Self::Left(handler) => H1::try_enable_external(handler, descriptor, context),
-            Self::Right(handler) => H2::try_enable_external(handler, descriptor, context),
+            Self::Left(handler) => {
+                H1::try_enable_external(handler, descriptor, context).map(either_1::Either::Left)
+            }
+            Self::Right(handler) => {
+                H2::try_enable_external(handler, descriptor, context).map(either_1::Either::Right)
+            }
         }
     }
 
@@ -548,12 +552,17 @@ where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        match self {
-            Self::Left(handler) => {
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => {
                 H1::log_external(&mut *handler, descriptor, args, span_id, context);
             }
-            Self::Right(handler) => {
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
                 H2::log_external(&mut *handler, descriptor, args, span_id, context);
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
             }
         }
     }
@@ -570,8 +579,8 @@ where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        match self {
-            Self::Left(handler) => H1::new_span_external(
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => H1::new_span_external(
                 &mut *handler,
                 descriptor,
                 args,
@@ -579,7 +588,7 @@ where
                 span_id,
                 context,
             ),
-            Self::Right(handler) => H2::new_span_external(
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => H2::new_span_external(
                 &mut *handler,
                 descriptor,
                 args,
@@ -587,6 +596,11 @@ where
                 span_id,
                 context,
             ),
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 
@@ -602,8 +616,8 @@ where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        match self {
-            Self::Left(handler) => H1::enter_span_external(
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => H1::enter_span_external(
                 &mut *handler,
                 descriptor,
                 args,
@@ -611,14 +625,21 @@ where
                 span_id,
                 context,
             ),
-            Self::Right(handler) => H2::enter_span_external(
-                &mut *handler,
-                descriptor,
-                args,
-                parent_span_id,
-                span_id,
-                context,
-            ),
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
+                H2::enter_span_external(
+                    &mut *handler,
+                    descriptor,
+                    args,
+                    parent_span_id,
+                    span_id,
+                    context,
+                );
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 

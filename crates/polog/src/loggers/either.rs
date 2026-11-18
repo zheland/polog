@@ -131,13 +131,13 @@ where
     }
 }
 
-impl<H1, H2, Context, EnrichedContext> Handler<Context> for Either<H1, H2>
+impl<H1, H2, Context> Handler<Context> for Either<H1, H2>
 where
-    H1: Handler<Context, EnrichedContext = EnrichedContext>,
-    H2: Handler<Context, EnrichedContext = EnrichedContext>,
+    H1: Handler<Context>,
+    H2: Handler<Context>,
     Context: ContextArgs,
 {
-    type EnrichedContext = EnrichedContext;
+    type EnrichedContext = Either<H1::EnrichedContext, H2::EnrichedContext>;
 
     #[inline]
     fn try_enable(
@@ -146,8 +146,8 @@ where
         context: Context,
     ) -> Option<Self::EnrichedContext> {
         match self {
-            Self::Left(handler) => H1::try_enable(handler, descriptor, context),
-            Self::Right(handler) => H2::try_enable(handler, descriptor, context),
+            Self::Left(handler) => H1::try_enable(handler, descriptor, context).map(Either::Left),
+            Self::Right(handler) => H2::try_enable(handler, descriptor, context).map(Either::Right),
         }
     }
 
@@ -161,9 +161,18 @@ where
     ) where
         Args: LogArgs<'a>,
     {
-        match self {
-            Self::Left(handler) => H1::log(&mut *handler, descriptor, args, span_id, context),
-            Self::Right(handler) => H2::log(&mut *handler, descriptor, args, span_id, context),
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => {
+                H1::log(&mut *handler, descriptor, args, span_id, context);
+            }
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
+                H2::log(&mut *handler, descriptor, args, span_id, context);
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 
@@ -179,8 +188,8 @@ where
     ) where
         Args: LogArgs<'a>,
     {
-        match self {
-            Self::Left(handler) => H1::enter_span(
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => H1::enter_span(
                 &mut *handler,
                 descriptor,
                 args,
@@ -189,7 +198,7 @@ where
                 span_kind,
                 context,
             ),
-            Self::Right(handler) => H2::enter_span(
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => H2::enter_span(
                 &mut *handler,
                 descriptor,
                 args,
@@ -198,6 +207,11 @@ where
                 span_kind,
                 context,
             ),
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 
@@ -211,12 +225,17 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        match self {
-            Self::Left(handler) => {
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => {
                 H1::log_static(&mut *handler, descriptor, args, span_id, context);
             }
-            Self::Right(handler) => {
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
                 H2::log_static(&mut *handler, descriptor, args, span_id, context);
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
             }
         }
     }
@@ -233,8 +252,8 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        match self {
-            Self::Left(handler) => H1::enter_span_static(
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => H1::enter_span_static(
                 &mut *handler,
                 descriptor,
                 args,
@@ -243,7 +262,7 @@ where
                 span_kind,
                 context,
             ),
-            Self::Right(handler) => H2::enter_span_static(
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => H2::enter_span_static(
                 &mut *handler,
                 descriptor,
                 args,
@@ -252,14 +271,19 @@ where
                 span_kind,
                 context,
             ),
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 }
 
-impl<H1, H2, Context, EnrichedContext> BorrowingHandler<Context> for Either<H1, H2>
+impl<H1, H2, Context> BorrowingHandler<Context> for Either<H1, H2>
 where
-    H1: BorrowingHandler<Context, EnrichedContext = EnrichedContext>,
-    H2: BorrowingHandler<Context, EnrichedContext = EnrichedContext>,
+    H1: BorrowingHandler<Context>,
+    H2: BorrowingHandler<Context>,
     Context: ContextArgs,
 {
     #[inline]
@@ -272,12 +296,17 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        match self {
-            Self::Left(handler) => {
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => {
                 H1::log_borrowed(&mut *handler, descriptor, args, span_id, context);
             }
-            Self::Right(handler) => {
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
                 H2::log_borrowed(&mut *handler, descriptor, args, span_id, context);
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
             }
         }
     }
@@ -294,8 +323,8 @@ where
     ) where
         Args: StaticLogArgs,
     {
-        match self {
-            Self::Left(handler) => H1::enter_span_borrowed(
+        match (self, context) {
+            (Self::Left(handler), Self::EnrichedContext::Left(context)) => H1::enter_span_borrowed(
                 &mut *handler,
                 descriptor,
                 args,
@@ -304,23 +333,30 @@ where
                 span_kind,
                 context,
             ),
-            Self::Right(handler) => H2::enter_span_borrowed(
-                &mut *handler,
-                descriptor,
-                args,
-                parent_span_id,
-                span_id,
-                span_kind,
-                context,
-            ),
+            (Self::Right(handler), Self::EnrichedContext::Right(context)) => {
+                H2::enter_span_borrowed(
+                    &mut *handler,
+                    descriptor,
+                    args,
+                    parent_span_id,
+                    span_id,
+                    span_kind,
+                    context,
+                );
+            }
+            (Self::Left(_), Self::EnrichedContext::Right(_))
+            | (Self::Right(_), Self::EnrichedContext::Left(_)) => {
+                // Silently ignore the wrong combination of handlers and
+                // enriched contexts.
+            }
         }
     }
 }
 
-impl<H1, H2, Context, EnrichedContext> SharedHandler<Context> for Either<H1, H2>
+impl<H1, H2, Context> SharedHandler<Context> for Either<H1, H2>
 where
-    H1: SharedHandler<Context, EnrichedContext = EnrichedContext>,
-    H2: SharedHandler<Context, EnrichedContext = EnrichedContext>,
+    H1: SharedHandler<Context>,
+    H2: SharedHandler<Context>,
     Context: ContextArgs,
 {
 }

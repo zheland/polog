@@ -28,7 +28,7 @@ fn test_either() {
     let span = polog::info_span!(&mut logger, "Span");
     drop(span);
 
-    let mut logger: Either<Tracker, Tracker> = Either::Left(tracker.clone());
+    let mut logger: Either<Tracker, Discard> = Either::Left(tracker.clone());
 
     polog::info!(&mut logger, "Message");
     let span = polog::info_span!(&mut logger, "Span");
@@ -49,19 +49,19 @@ fn test_either_low_level() {
     let logger1: Either<Tracker, Tracker> = Either::Left(tracker.clone());
     let logger2: Either<Tracker, Tracker> = Either::Right(tracker.clone());
 
-    for mut logger in [logger1, logger2] {
+    for (mut logger, context) in [(logger1, Either::Left(())), (logger2, Either::Right(()))] {
         let span_id = logger.generate_span_id();
         assert_eq!(tracker.take_events(), ["generate_span_id"]);
 
-        logger.log(TRACE_DESC, (), None, ());
-        logger.log_static(TRACE_DESC, (), None, ());
-        logger.log_borrowed(TRACE_DESC, &(), None, &());
-        logger.log(TRACE_DESC, (), None, ());
-        logger.enter_span(TRACE_DESC, (), None, span_id, SpanKind::Nested, ());
+        logger.log(TRACE_DESC, (), None, context);
+        logger.log_static(TRACE_DESC, (), None, context);
+        logger.log_borrowed(TRACE_DESC, &(), None, &context);
+        logger.log(TRACE_DESC, (), None, context);
+        logger.enter_span(TRACE_DESC, (), None, span_id, SpanKind::Nested, context);
         logger.exit_span(TRACE_DESC, span_id, SpanKind::Nested, ());
-        logger.enter_span_static(TRACE_DESC, (), None, span_id, SpanKind::Nested, ());
+        logger.enter_span_static(TRACE_DESC, (), None, span_id, SpanKind::Nested, context);
         logger.exit_span(TRACE_DESC, span_id, SpanKind::Nested, ());
-        logger.enter_span_borrowed(TRACE_DESC, &(), None, span_id, SpanKind::Nested, &());
+        logger.enter_span_borrowed(TRACE_DESC, &(), None, span_id, SpanKind::Nested, &context);
         logger.exit_span(TRACE_DESC, span_id, SpanKind::Nested, ());
         assert_eq!(
             tracker.take_events(),
@@ -79,7 +79,7 @@ fn test_either_low_level() {
             ]
         );
 
-        logger.enter_span(TRACE_DESC, (), None, span_id, SpanKind::Nested, ());
+        logger.enter_span(TRACE_DESC, (), None, span_id, SpanKind::Nested, context);
         logger.enter_poll_span(TRACE_DESC, span_id, ());
         logger.pending_poll_span(TRACE_DESC, span_id, ());
         logger.enter_poll_span(TRACE_DESC, span_id, ());
