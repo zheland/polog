@@ -212,10 +212,9 @@ impl<FmtCfg> OffThreadLoggerConfig<FmtCfg> {
     ///
     /// The [`log`] crate caches a process-global max level and every `log!`
     /// call site checks it before the event is constructed.
-    /// A write to     /// [`Self::filter`] is immediately visible to
-    /// [`Pologger`]'s `log::Log::enabled` and `log::Log::log`, but `log!`
-    /// will not reach either method if the cached max level still excludes the
-    /// event's level.
+    /// A write to [`Self::filter`] is immediately visible to [`Pologger`]'s
+    /// `log::Log::enabled` and `log::Log::log`, but `log!` will not reach
+    /// either method if the cached max level still excludes the event's level.
     ///
     /// Calling this method propagates the filter's current
     /// [`FilterFn::max_level`] to `log::max_level()`, so subsequent `log!` call

@@ -127,12 +127,7 @@ where
     #[must_use]
     pub fn custom_ndjson(writer: W, log_filter: &'a str) -> Self {
         let formatter = NdJsonFormatter::new(BufWriter::new(writer));
-
-        Self {
-            formatter,
-            formatter_config: (),
-            log_filter,
-        }
+        Self::with_formatter(formatter, log_filter)
     }
 }
 
@@ -329,15 +324,17 @@ mod tests {
     use core::fmt;
     use std::thread;
 
-    use parking_lot::RwLock;
+    use parking_lot::{Mutex, RwLock};
     use polog::LoggerExt;
     use polog_util::{OffloaderHandle, OwningFilterRules};
 
-    use crate::{LoggerConfig, OffThreadLoggerBuilder, TextFormatterConfig};
+    use crate::{
+        BuildOffThreadLoggerError, LoggerConfig, OffThreadLoggerBuilder, TextFormatterConfig,
+    };
 
     #[cfg(feature = "slog-2")]
     #[derive(Clone, Debug)]
-    struct Writer(Arc<polog_util::Mutex<Vec<u8>>>);
+    struct Writer(Arc<Mutex<Vec<u8>>>);
 
     #[cfg(feature = "slog-2")]
     impl std::io::Write for Writer {
@@ -414,7 +411,7 @@ mod tests {
         use core::mem;
 
         use parking_lot::Mutex;
-        use polog::LoggerExt;
+        use polog::{LevelFilter, LoggerExt};
 
         use crate::OffThreadLoggerBuilder;
         use crate::test_util::assert_eq_with_wildcards;
@@ -424,6 +421,7 @@ mod tests {
             OffThreadLoggerBuilder::custom_text(writer.clone(), "warn,foo=debug")
                 .build()
                 .unwrap();
+        assert_eq!(config.max_level(), LevelFilter::Debug);
 
         logger.register_as_global_log_logger().unwrap();
         logger.register_as_global_tracing_subscriber().unwrap();
@@ -455,6 +453,7 @@ mod tests {
             .unwrap()
             .to_owning();
         *config.filter.write() = filter;
+        assert_eq!(config.max_level(), LevelFilter::Debug);
         config.update_global_log_level();
         config.update_global_tracing_interest_cache();
 
@@ -734,6 +733,20 @@ mod tests {
              slog::info!: fmt = abc, error = missing, f64 = -123, f32 = 123, isize = -123, usize \
              = 123, i128 = -123, u128 = 123, i64 = -123, u64 = 123, i32 = -123, u32 = 123, i16 = \
              -123, u16 = 123, i8 = -123, u8 = 123, str = abc, char = a, none = None, unit = ()\n",
+        );
+    }
+
+    #[test]
+    fn test_build_off_thread_logger_errors() {
+        let writer = Writer(Arc::new(Mutex::new(Vec::new())));
+        let result = OffThreadLoggerBuilder::custom_text(writer.clone(), "no such level").build();
+        assert!(matches!(
+            result,
+            Err(BuildOffThreadLoggerError::ParseFilter { .. })
+        ));
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Failed to parse logger filter: UnknownLevel"
         );
     }
 }

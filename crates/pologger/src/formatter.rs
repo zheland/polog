@@ -1027,8 +1027,8 @@ mod tests {
         100 100.000 100.000000 100.000000000 \
         123 my-app 234 main 345 worker 456 \
         root unkn #123 root unkn #123    \
-        >> << |> |< :> :< ?? ?. ?!    \
-        >> << |> |< :> :< ?? ?. ?! \
+        >> << |> |< ?? ?. ?! :> :< :+ :@    \
+        >> << |> |< ?? ?. ?! :> :< :+ :@ \
         FATAL BUG   ERROR WARN  INFO  DEBUG TRACE \
         >> root mod1 |> #123 mod2 << #123 mod3 \
         my-target my::module::path my-target my::module::path \
@@ -1055,12 +1055,14 @@ mod tests {
         \u{1b}[90mroot\u{1b}[0m \u{1b}[90munkn\u{1b}[0m \u{1b}[32m#123\u{1b}[0m    \
         \u{1b}[32m>>\u{1b}[0m \u{1b}[90m<<\u{1b}[0m \
         \u{1b}[92m|>\u{1b}[0m \u{1b}[90m|<\u{1b}[0m \
+        \u{1b}[90m??\u{1b}[0m \u{1b}[90m?.\u{1b}[0m \u{1b}[90m?!\u{1b}[0m \
         \u{1b}[92m:>\u{1b}[0m \u{1b}[90m:<\u{1b}[0m \
-        \u{1b}[90m??\u{1b}[0m \u{1b}[90m?.\u{1b}[0m \u{1b}[90m?!\u{1b}[0m    \
+        :+ :@    \
         \u{1b}[32m>>\u{1b}[0m \u{1b}[90m<<\u{1b}[0m \
         \u{1b}[92m|>\u{1b}[0m \u{1b}[90m|<\u{1b}[0m \
-        \u{1b}[92m:>\u{1b}[0m \u{1b}[90m:<\u{1b}[0m \
         \u{1b}[90m??\u{1b}[0m \u{1b}[90m?.\u{1b}[0m \u{1b}[90m?!\u{1b}[0m \
+        \u{1b}[92m:>\u{1b}[0m \u{1b}[90m:<\u{1b}[0m \
+        :+ :@ \
         \u{1b}[1;101mFATAL\u{1b}[0m \u{1b}[1;41mBUG\u{1b}[0m   \
         \u{1b}[1;31mERROR\u{1b}[0m \u{1b}[1;33mWARN\u{1b}[0m  \
         \u{1b}[32mINFO\u{1b}[0m  \u{1b}[36mDEBUG\u{1b}[0m \u{1b}[90mTRACE\u{1b}[0m \
@@ -1115,20 +1117,23 @@ mod tests {
         \"kind\":\"log\",\
         \"kind\":\"nested_enter\",\"kind\":\"nested_exit\",\
         \"kind\":\"detached_enter\",\"kind\":\"detached_exit\",\
-        \"kind\":\"external_new\",\"kind\":\"external_close\",\
         \"kind\":\"task_poll\",\
         \"kind\":\"task_pending\",\
         \"kind\":\"task_ready\",\
+        \"kind\":\"external_new\",\"kind\":\"external_close\",\
+        \"kind\":\"external_record\",\"kind\":\"external_link\",\
         \"span_path_kind\":\"log\",\
         \"span_path_kind\":\"nested_enter\",\
         \"span_path_kind\":\"nested_exit\",\
         \"span_path_kind\":\"detached_enter\",\
         \"span_path_kind\":\"detached_exit\",\
-        \"span_path_kind\":\"external_new\",\
-        \"span_path_kind\":\"external_close\",\
         \"span_path_kind\":\"task_poll\",\
         \"span_path_kind\":\"task_pending\",\
         \"span_path_kind\":\"task_ready\",\
+        \"span_path_kind\":\"external_new\",\
+        \"span_path_kind\":\"external_close\",\
+        \"span_path_kind\":\"external_record\",\
+        \"span_path_kind\":\"external_link\",\
         \"level\":\"FATAL\",\"level\":\"BUG\",\
         \"level\":\"ERROR\",\"level\":\"WARN\",\
         \"level\":\"INFO\",\"level\":\"DEBUG\",\"level\":\"TRACE\",\
@@ -1236,11 +1241,13 @@ mod tests {
             Fek::NestedExit,
             Fek::DetachedEnter,
             Fek::DetachedExit,
-            Fek::ExternalNew,
-            Fek::ExternalClose,
             Fek::TaskPoll,
             Fek::TaskPending,
             Fek::TaskReady,
+            Fek::ExternalNew,
+            Fek::ExternalClose,
+            Fek::ExternalRecord,
+            Fek::ExternalLink,
         ];
         for kind in all_kinds {
             fmt.write_key("kind")?;
