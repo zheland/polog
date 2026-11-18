@@ -18,11 +18,11 @@ use crate::{
 /// [`polog::Handler`]: polog::Handler
 /// [`slog::Drain`]: slog_2::Drain
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug)]
-pub struct BridgeSlog<H> {
+pub struct SlogBridge<H> {
     handler: H,
 }
 
-impl<H> BridgeSlog<H> {
+impl<H> SlogBridge<H> {
     /// Creates a new bridge from `slog` 2.x to `polog`.
     #[inline]
     #[must_use]
@@ -64,7 +64,7 @@ impl<H> BridgeSlog<H> {
     }
 }
 
-impl<H> slog_2::Drain for BridgeSlog<H>
+impl<H> slog_2::Drain for SlogBridge<H>
 where
     H: SharedHandler<()> + ExternalHandler<()>,
 {

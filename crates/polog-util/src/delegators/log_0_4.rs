@@ -47,7 +47,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 ///
 /// **External events** ([`ExternalHandler::log_external`]) originate in
 /// `tracing`, `slog`, or `log` and arrive here through a `Bridge*`
-/// adapter (`BridgeLog`, `BridgeSlog`, `BridgeTracing`).
+/// adapter (`LogBridge`, `SlogBridge`, `TracingBridge`).
 /// `log`'s kv protocol requires `Value<'kvs>` where `'kvs` is the borrow
 /// of the record source, and `ExternalArgs` exposes each field with
 /// lifetime `'src` bounded by the foreign facade's borrow.

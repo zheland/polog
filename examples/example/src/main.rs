@@ -7,22 +7,22 @@ use std::sync::Arc;
 use either::Either;
 use parking_lot::RwLock;
 use polog::{Logger, LoggerExt, PollInstrument};
-use polog_util::bridges::log_0_4::BridgeLog;
-use polog_util::bridges::slog_2::BridgeSlog;
-use polog_util::bridges::tracing_0_1::BridgeTracing;
+use polog_util::bridges::log_0_4::LogBridge;
+use polog_util::bridges::slog_2::SlogBridge;
+use polog_util::bridges::tracing_0_1::TracingBridge;
 
 fn main() {
     let preset = std::env::args().nth(1);
     let filter = std::env::args().nth(2);
     let mut logger = new_logger_handler(preset.as_deref(), filter.as_deref());
 
-    BridgeLog::new(logger.clone())
+    LogBridge::new(logger.clone())
         .try_install_global(polog::LevelFilter::Trace)
         .unwrap();
-    BridgeTracing::new(logger.clone())
+    TracingBridge::new(logger.clone())
         .try_install_global()
         .unwrap();
-    let slog = BridgeSlog::new(logger.clone()).into_slog_logger();
+    let slog = SlogBridge::new(logger.clone()).into_slog_logger();
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

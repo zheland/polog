@@ -149,9 +149,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use parking_lot::RwLock;
 
-use polog_util::bridges::log_0_4::BridgeLog;
-use polog_util::bridges::slog_2::BridgeSlog;
-use polog_util::bridges::tracing_0_1::BridgeTracing;
+use polog_util::bridges::log_0_4::LogBridge;
+use polog_util::bridges::slog_2::SlogBridge;
+use polog_util::bridges::tracing_0_1::TracingBridge;
 
 let span_id_generator = Arc::new(polog::SpanIdGenerator::new());
 
@@ -188,13 +188,13 @@ let handler = polog_util::Filter::new(handler, filter);
 
 let mut logger = polog_util::Enricher::new(handler, polog_util::SystemTimeEnricherFn);
 
-BridgeLog::new(logger.clone())
+LogBridge::new(logger.clone())
     .try_install_global(polog::LevelFilter::Trace)
     .unwrap();
-BridgeTracing::new(logger.clone())
+TracingBridge::new(logger.clone())
     .try_install_global()
     .unwrap();
-let slog_logger = BridgeSlog::new(logger.clone()).into_slog_logger();
+let slog_logger = SlogBridge::new(logger.clone()).into_slog_logger();
 
 polog::info!(&mut logger, "Hello from pologger"; key = "value");
 log::info!("Hello from log");

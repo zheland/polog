@@ -27,13 +27,13 @@ thread_local! {
 ///
 /// Forwards `tracing` events into a `polog` handler chain.
 ///
-/// Register a `BridgeLog` as the global `log` logger to receive
+/// Register a `LogBridge` as the global `log` logger to receive
 /// `log!` macros from the whole process into a `polog` backend.
 ///
 /// [`polog::Handler`]: polog::Handler
 /// [`tracing::Dispatch`]: tracing_0_1::Dispatch
 #[derive(Default, Debug)]
-pub struct BridgeTracing<H> {
+pub struct TracingBridge<H> {
     /// The `polog` backend to forward to.
     handler: H,
 
@@ -41,7 +41,7 @@ pub struct BridgeTracing<H> {
     data: Data,
 }
 
-impl<H> BridgeTracing<H> {
+impl<H> TracingBridge<H> {
     /// Creates a new bridge from `tracing` 0.1.x to `polog`.
     #[inline]
     #[must_use]
@@ -145,7 +145,7 @@ struct EnterFrame {
     metadata: &'static tracing_0_1::Metadata<'static>,
 }
 
-impl<H> tracing_0_1::Subscriber for BridgeTracing<H>
+impl<H> tracing_0_1::Subscriber for TracingBridge<H>
 where
     H: SharedHandler<()> + ExternalHandler<()>,
 {

@@ -37,8 +37,8 @@ middleware can inject.
   [`TypeErasedExternalDescriptor`], [`TypeErasedExternalArgs`].
 - Typed argument access and downcasting via [`MixedArgsExt`].
 - Inbound foreign-facade adapters that normalize events from `log`, `slog`,
-  and `tracing` into the `polog` handler chain: [`BridgeLog`],
-  [`BridgeSlog`], [`BridgeTracing`], and the [`ExternalHandler`] family.
+  and `tracing` into the `polog` handler chain: [`LogBridge`],
+  [`SlogBridge`], [`TracingBridge`], and the [`ExternalHandler`] family.
 - Delegators to other ecosystems: [`ViaLog`], [`ViaSlog`], [`ViaTracing`].
 - Conversion functions between `polog::Level`/`LevelFilter` and
   `log`/`slog`/`tracing` types under [`conv`].
@@ -221,9 +221,9 @@ They are the reverse direction of the outbound delegators below.
 
 | Item | Behavior |
 |:--:|:--|
-| `BridgeLog<H>` | `log::Log` adapter over a `polog::Handler` backend. |
-| `BridgeSlog<H>` | `slog::Drain` adapter over a `polog::Handler` backend. |
-| `BridgeTracing<H>` | `tracing::Dispatch`/`tracing::Subscriber` adapter over a `polog::Handler` backend. |
+| `LogBridge<H>` | `log::Log` adapter over a `polog::Handler` backend. |
+| `SlogBridge<H>` | `slog::Drain` adapter over a `polog::Handler` backend. |
+| `TracingBridge<H>` | `tracing::Dispatch`/`tracing::Subscriber` adapter over a `polog::Handler` backend. |
 | `ExternalHandler<Context>` | Backend/middleware trait for foreign-facade events. Extends `Handler<Context>`. |
 | `ExternalDescriptor` | Borrowed description of a foreign event/span: message, level, target, module path, file, line, column. |
 | `TypeErasedExternalDescriptor` | Owned, type-erased `ExternalDescriptor` for storing foreign metadata. |
@@ -351,19 +351,19 @@ A fresh `Arc::new(SpanIdGenerator::new())` is fine.
 ### Ingesting `log` events
 
 ```rust
-use polog_util::bridges::log_0_4::BridgeLog;
+use polog_util::bridges::log_0_4::LogBridge;
 
-BridgeLog::new(handler.clone())
+LogBridge::new(handler.clone())
     .try_install_global(polog::LevelFilter::Info)
     .unwrap();
 ```
 
-`BridgeLog` forwards `log` records into the `polog` handler chain.
+`LogBridge` forwards `log` records into the `polog` handler chain.
 `log` events have no span lifecycle, so only the event path is used.
 
-`BridgeSlog` and `BridgeTracing` are structured the same way under
-`polog_util::bridges::slog_2::BridgeSlog` and
-`polog_util::bridges::tracing_0_1::BridgeTracing`.
+`SlogBridge` and `TracingBridge` are structured the same way under
+`polog_util::bridges::slog_2::SlogBridge` and
+`polog_util::bridges::tracing_0_1::TracingBridge`.
 
 ### Delegating to `log`
 
@@ -427,11 +427,11 @@ allocating.
 | `shared` | no | Enables the sharing middleware. | `alloc`, `dep:parking_lot` (transitive `std`) |
 | `shared-filter` | no | Enables filter implementations for `Arc<RwLock<F>>`. | `alloc`, `dep:parking_lot` (transitive `std`) |
 | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
-| `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4`, `log_0_4::BridgeLog`, and `tracing_0_1::ViaLog`. | `dep:log` (version = 0.4), `log/kv` |
-| `slog-2` | no | Enables integrations for `slog = "2"` crate types, including `slog_2::BridgeSlog` and `slog_2::ViaSlog`. | `dep:slog` (version = 2), `slog-2/dynamic-keys` |
+| `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4`, `log_0_4::LogBridge`, and `tracing_0_1::ViaLog`. | `dep:log` (version = 0.4), `log/kv` |
+| `slog-2` | no | Enables integrations for `slog = "2"` crate types, including `slog_2::SlogBridge` and `slog_2::ViaSlog`. | `dep:slog` (version = 2), `slog-2/dynamic-keys` |
 | `slog-2-semver-unstable` | no | Enables `slog = "2"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions. | `slog-2` |
 | `tracing-core-0-1` | no | Enables integrations for `tracing_core = "0.1"` crate types, including `conv::tracing_core_0_1`. | `dep:tracing-core` (version = 0.1) |
-| `tracing-0-1` | no | Enables integrations for `tracing = "0.1"` crate types, including `tracing_0_1::BridgeTracing`. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
+| `tracing-0-1` | no | Enables integrations for `tracing = "0.1"` crate types, including `tracing_0_1::TracingBridge`. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
 | `tracing-0-1-semver-unstable` | no | Enables `tracing = "0.1"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions, including `tracing_0_1::ViaTracing`. | `tracing-0-1`, `dep:smallvec` |
 
 ### `*-semver-unstable` feature flags
@@ -474,7 +474,7 @@ Forward direction — `polog` events to a foreign facade — is handled by
 the delegators in this crate (`ViaLog`, `ViaSlog`, `ViaTracing`).
 
 Reverse direction — foreign events to a `polog` backend — is handled by
-the bridges in this crate (`BridgeLog`, `BridgeSlog`, `BridgeTracing`).
+the bridges in this crate (`LogBridge`, `SlogBridge`, `TracingBridge`).
 
 Filters implement both `FilterFn` and `ExternalFilterFn`, so a single parsed
 rule set can filter both paths.
@@ -521,9 +521,9 @@ additional terms or conditions.
 [`tracing`]: https://docs.rs/tracing/latest/tracing/
 [`Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
 [`BorrowingHandler`]: https://docs.rs/polog/latest/polog/trait.BorrowingHandler.html
-[`BridgeLog`]: https://docs.rs/polog-util/latest/polog_util/bridges/log_0_4/struct.BridgeLog.html
-[`BridgeSlog`]: https://docs.rs/polog-util/latest/polog_util/bridges/slog_2/struct.BridgeSlog.html
-[`BridgeTracing`]: https://docs.rs/polog-util/latest/polog_util/bridges/tracing_0_1/struct.BridgeTracing.html
+[`LogBridge`]: https://docs.rs/polog-util/latest/polog_util/bridges/log_0_4/struct.LogBridge.html
+[`SlogBridge`]: https://docs.rs/polog-util/latest/polog_util/bridges/slog_2/struct.SlogBridge.html
+[`TracingBridge`]: https://docs.rs/polog-util/latest/polog_util/bridges/tracing_0_1/struct.TracingBridge.html
 [`ViaLog`]: https://docs.rs/polog-util/latest/polog_util/delegators/log_0_4/struct.ViaLog.html
 [`ViaSlog`]: https://docs.rs/polog-util/latest/polog_util/delegators/slog_2/struct.ViaSlog.html
 [`ViaTracing`]: https://docs.rs/polog-util/latest/polog_util/delegators/tracing_0_1/struct.ViaTracing.html

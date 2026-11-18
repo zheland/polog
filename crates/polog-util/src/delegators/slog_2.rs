@@ -17,7 +17,8 @@ use crate::{
 
 static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 
-/// A `polog` [`Handler`] adapter over a [`slog::Logger`].
+/// A `polog` [`Handler`] and [`ExternalHandler`]  adapter over a
+/// [`slog::Logger`].
 ///
 /// Forwards `polog` events to [`slog::Logger::log`] by building a
 /// [`slog::Record`] from the static [`Descriptor`] and the argument tuple.

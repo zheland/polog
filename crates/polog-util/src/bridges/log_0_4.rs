@@ -14,17 +14,17 @@ use crate::{
 ///
 /// Forwards `log` events into a `polog` handler chain.
 ///
-/// Register a `BridgeLog` as the global `log` logger to receive
+/// Register a `LogBridge` as the global `log` logger to receive
 /// `log!` macros from the whole process into a `polog` backend.
 ///
 /// [`polog::Handler`]: polog::Handler
 /// [`log::Log`]: log_0_4::Log
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug)]
-pub struct BridgeLog<H> {
+pub struct LogBridge<H> {
     handler: H,
 }
 
-impl<H> BridgeLog<H> {
+impl<H> LogBridge<H> {
     /// Creates a new bridge from `log` 0.4.x to `polog`.
     #[inline]
     #[must_use]
@@ -53,7 +53,7 @@ impl<H> BridgeLog<H> {
         self.handler
     }
 
-    /// Consumes and registers this `BridgeLog` as the process-wide `log`
+    /// Consumes and registers this `LogBridge` as the process-wide `log`
     /// backend.
     ///
     /// This method does not update `log` max-level filter.
@@ -76,7 +76,7 @@ impl<H> BridgeLog<H> {
     }
 }
 
-impl<H> log_0_4::Log for BridgeLog<H>
+impl<H> log_0_4::Log for LogBridge<H>
 where
     H: SharedHandler<()> + ExternalHandler<()>,
 {

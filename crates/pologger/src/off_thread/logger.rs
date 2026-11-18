@@ -217,8 +217,8 @@ impl<H, C> OffThreadLogger<H, C> {
     where
         H: SharedHandler<()> + polog_util::ExternalHandler<()>,
     {
-        use polog_util::bridges::log_0_4::BridgeLog;
-        BridgeLog::new(self.handler().clone()).try_install_global(max_level)
+        use polog_util::bridges::log_0_4::LogBridge;
+        LogBridge::new(self.handler().clone()).try_install_global(max_level)
     }
 
     /// Registers this logger as the process-wide `tracing` subscriber.
@@ -236,8 +236,8 @@ impl<H, C> OffThreadLogger<H, C> {
     where
         H: SharedHandler<()> + polog_util::ExternalHandler<()>,
     {
-        use polog_util::bridges::tracing_0_1::BridgeTracing;
-        BridgeTracing::new(self.handler().clone()).try_install_global()
+        use polog_util::bridges::tracing_0_1::TracingBridge;
+        TracingBridge::new(self.handler().clone()).try_install_global()
     }
 
     /// Registers this logger as the process-wide `tracing` subscriber.
@@ -253,8 +253,8 @@ impl<H, C> OffThreadLogger<H, C> {
     where
         H: SharedHandler<()> + polog_util::ExternalHandler<()>,
     {
-        use polog_util::bridges::slog_2::BridgeSlog;
-        BridgeSlog::new(self.handler().clone()).into_slog_logger()
+        use polog_util::bridges::slog_2::SlogBridge;
+        SlogBridge::new(self.handler().clone()).into_slog_logger()
     }
 }
 
