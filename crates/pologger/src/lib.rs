@@ -90,8 +90,7 @@
 //!         .build()
 //!         .unwrap();
 //!
-//! let max_level = config.max_level();
-//! logger.register_as_global_log_logger(max_level).unwrap();
+//! logger.register_as_global_log_logger().unwrap();
 //! logger.register_as_global_tracing_subscriber().unwrap();
 //! let slog_logger = logger.to_slog_logger();
 //!
@@ -188,7 +187,7 @@
 //! let mut logger = polog_util::Enricher::new(handler, polog_util::SystemTimeEnricherFn);
 //!
 //! LogBridge::new(logger.clone())
-//!     .try_install_global(polog::LevelFilter::Trace)
+//!     .try_install_global()
 //!     .unwrap();
 //! TracingBridge::new(logger.clone())
 //!     .try_install_global()

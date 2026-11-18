@@ -2,8 +2,8 @@ use alloc::sync::Arc;
 
 use parking_lot::Mutex;
 use polog::{
-    BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DynHandler, Handler, LogArgs,
-    SharedHandler, SpanId, SpanKind, StaticLogArgs,
+    BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DynHandler, Handler, LevelFilter,
+    LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
 use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
@@ -308,6 +308,11 @@ where
     H: ExternalHandler<Context>,
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        H::max_level_external(&*self.0.lock())
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,

@@ -361,7 +361,7 @@
 //!
 //! # let handler = polog::Discard;
 //! LogBridge::new(handler.clone())
-//!     .try_install_global(polog::LevelFilter::Info)
+//!     .try_install_global()
 //!     .unwrap();
 //! # }
 //! ```

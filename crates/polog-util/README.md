@@ -354,7 +354,7 @@ A fresh `Arc::new(SpanIdGenerator::new())` is fine.
 use polog_util::bridges::log_0_4::LogBridge;
 
 LogBridge::new(handler.clone())
-    .try_install_global(polog::LevelFilter::Info)
+    .try_install_global()
     .unwrap();
 ```
 

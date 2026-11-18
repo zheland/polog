@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
-    Handler, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
+    Handler, LevelFilter, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 use polog_util::{ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler};
 
@@ -363,6 +363,13 @@ impl<Context> ExternalHandler<Context> for Tracker
 where
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("max_level_external");
+        LevelFilter::ALL
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,

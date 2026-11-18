@@ -16,9 +16,7 @@ fn main() {
     let filter = std::env::args().nth(2);
     let mut logger = new_logger_handler(preset.as_deref(), filter.as_deref());
 
-    LogBridge::new(logger.clone())
-        .try_install_global(polog::LevelFilter::Trace)
-        .unwrap();
+    LogBridge::new(logger.clone()).try_install_global().unwrap();
     TracingBridge::new(logger.clone())
         .try_install_global()
         .unwrap();

@@ -425,8 +425,7 @@ mod tests {
                 .build()
                 .unwrap();
 
-        let max_level = config.max_level();
-        logger.register_as_global_log_logger(max_level).unwrap();
+        logger.register_as_global_log_logger().unwrap();
         logger.register_as_global_tracing_subscriber().unwrap();
         let slog_logger = logger.to_slog_logger();
 

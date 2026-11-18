@@ -16,7 +16,7 @@ use jiff::tz::TimeZone;
 use parking_lot::RwLock;
 use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
-    Handler, Level, LogArgs, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
+    Handler, Level, LevelFilter, LogArgs, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 use polog_util::{
     ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler, MixedArgsExt, context,
@@ -898,6 +898,11 @@ where
     F: Formatter,
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        LevelFilter::ALL
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,

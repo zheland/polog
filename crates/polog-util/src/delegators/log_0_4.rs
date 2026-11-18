@@ -3,14 +3,14 @@
 use log_0_4 as log;
 use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
-    Handler, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
+    Handler, LevelFilter, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 
 use crate::conv::log_0_4::level_into_foreign_approx;
 use crate::util::MaybeStaticStr;
 use crate::{
     ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
-    ExternalMessage,
+    ExternalMessage, conv,
 };
 
 /// Fallback ID generator used by `ViaLog`.
@@ -356,6 +356,12 @@ where
     L: 'static + Send + Sync + Clone + log::Log,
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        let level = log::max_level();
+        conv::log_0_4::level_filter_from_foreign(level)
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,

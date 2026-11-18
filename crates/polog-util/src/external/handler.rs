@@ -1,4 +1,4 @@
-use polog::{ContextArgs, Discard, Handler, SpanId};
+use polog::{ContextArgs, Discard, Handler, LevelFilter, SpanId};
 
 use crate::{ExternalArgs, ExternalDescriptor};
 
@@ -46,6 +46,15 @@ pub trait ExternalHandler<Context>: Handler<Context>
 where
     Context: ContextArgs,
 {
+    /// The highest‑severity [`LevelFilter`] this handler will accept.
+    ///
+    /// Used by the facade bridges like [`LogBridge`] and
+    /// provided by the facade delegators like [`ViaLog`]
+    ///
+    /// [`LogBridge`]: crate::bridges::log_0_4::LogBridge
+    /// [`ViaLog`]: crate::delegators::log_0_4::ViaLog
+    fn max_level_external(&self) -> LevelFilter;
+
     /// Checks whether the handler accepts the event or span described by
     /// `descriptor`, optionally enriching the incoming `context`.
     ///
@@ -303,6 +312,11 @@ macro_rules! propagate_external_handler_impl {
             $($bounds)*
         {
             #[inline]
+            fn max_level_external(&$self) -> LevelFilter {
+                <$via as ExternalHandler<Context>>::max_level_external(&$expr)
+            }
+
+            #[inline]
             fn try_enable_external<Desc>(
                 &$self,
                 descriptor: &Desc,
@@ -445,6 +459,11 @@ impl<Context> ExternalHandler<Context> for Discard
 where
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        LevelFilter::Off
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -590,6 +609,14 @@ mod either_1_impls {
         H2: ExternalHandler<Context>,
         Context: ContextArgs,
     {
+        #[inline]
+        fn max_level_external(&self) -> LevelFilter {
+            match self {
+                Self::Left(handler) => H1::max_level_external(handler),
+                Self::Right(handler) => H2::max_level_external(handler),
+            }
+        }
+
         #[inline]
         fn try_enable_external<Desc>(
             &self,

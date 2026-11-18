@@ -1,8 +1,8 @@
 use core::array;
 
 use polog::{
-    BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DynHandler, Handler, LogArgs,
-    SharedHandler, SpanId, SpanKind, StaticLogArgs,
+    BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DynHandler, Handler, LevelFilter,
+    LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
 use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
@@ -360,6 +360,11 @@ where
     T1: BorrowingHandler<Context> + ExternalHandler<Context>,
     Context: Clone + ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        T1::max_level_external(&self.handlers.0)
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -1457,6 +1462,13 @@ macro_rules! impl_variadic {
             $type_n: BorrowingHandler<Context> + ExternalHandler<Context>,
             Context: Clone + ContextArgs,
         {
+            #[inline]
+            fn max_level_external(&self) -> LevelFilter {
+                <$type_1>::max_level_external(&self.handlers.$field_1)
+                $( .max(<$type_i>::max_level_external(&self.handlers.$field_i)) )*
+                .max(<$type_n>::max_level_external(&self.handlers.$field_n))
+            }
+
             #[inline]
             fn try_enable_external<Desc>(
                 &self,

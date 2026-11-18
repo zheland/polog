@@ -347,6 +347,13 @@ where
     Context: ContextArgs,
 {
     #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        self.filter
+            .max_level()
+            .min(H::max_level_external(&self.handler))
+    }
+
+    #[inline]
     fn try_enable_external<Desc>(
         &self,
         descriptor: &Desc,

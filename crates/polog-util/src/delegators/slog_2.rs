@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 
 use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
-    Handler, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
+    Handler, LevelFilter, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 use slog_2 as slog;
 
@@ -25,7 +25,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 ///
 /// # Drain requirements
 ///
-/// The wrapped drain must be `Send + Sync + slog::Drain<Ok = (), Err = !>`.
+/// The wrapped drain must be `Send + Sync + Drain<Ok = (), Err = !>`.
 /// The `!` error bound lets `ViaSlog` forward records with `logger.log(..)`
 /// without producing a `Result` that no `polog` caller is prepared to handle.
 ///
@@ -34,7 +34,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 /// - `slog` has no native span concept: [`Handler::enter_span`] logs the span
 ///   descriptor as an ordinary record, and span exit plus all per-poll
 ///   lifecycle events are silently ignored.
-/// - `slog::Drain` has no `is_enabled` hook, so [`Handler::try_enable`] always
+/// - `Drain` has no `is_enabled` hook, so [`Handler::try_enable`] always
 ///   returns `Some`. Per-drain filtering (for example `LevelFilter`) is applied
 ///   inside `Drain::log`.
 /// - `slog::Level` has no equivalent of `polog`'s `Bug` / `Fatal` levels. Both
@@ -150,7 +150,7 @@ where
 
     #[inline]
     fn flush_blocking(&mut self) {
-        // `slog::Drain` has no portable flush hook.
+        // `Drain` has no portable flush hook.
     }
 
     #[inline]
@@ -213,7 +213,7 @@ where
         _descriptor: &'static Descriptor,
         context: Context,
     ) -> Option<Self::EnrichedContext> {
-        // `slog::Drain` has no `is_enabled` hook, so per-drain filtering is
+        // `Drain` has no `is_enabled` hook, so per-drain filtering is
         // applied when the record is actually logged.
         Some(context)
     }
@@ -333,6 +333,26 @@ where
     Context: ContextArgs,
 {
     #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        // Unfortunately `__slog_static_max_level` has no public accessors.
+        if slog::Drain::is_trace_enabled(&self.handler) {
+            LevelFilter::Trace
+        } else if slog::Drain::is_debug_enabled(&self.handler) {
+            LevelFilter::Debug
+        } else if slog::Drain::is_info_enabled(&self.handler) {
+            LevelFilter::Info
+        } else if slog::Drain::is_warning_enabled(&self.handler) {
+            LevelFilter::Warn
+        } else if slog::Drain::is_error_enabled(&self.handler)
+            || slog::Drain::is_critical_enabled(&self.handler)
+        {
+            LevelFilter::Error
+        } else {
+            LevelFilter::Off
+        }
+    }
+
+    #[inline]
     fn try_enable_external<Desc>(
         &self,
         _descriptor: &Desc,
@@ -341,7 +361,7 @@ where
     where
         Desc: ExternalDescriptor,
     {
-        // `slog::Drain` has no `is_enabled` hook, so per-drain filtering is
+        // `Drain` has no `is_enabled` hook, so per-drain filtering is
         // applied when the record is actually logged.
         Some(context)
     }
@@ -756,7 +776,7 @@ mod tests {
         }
     }
 
-    impl slog::Drain for Tracker {
+    impl slog_2::Drain for Tracker {
         type Ok = ();
         type Err = !;
 

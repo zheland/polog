@@ -1,7 +1,5 @@
 use std::thread;
 
-#[cfg(feature = "log-0-4")]
-use polog::LevelFilter;
 use polog::{Logger, SharedHandler, SpanId, SpanKind};
 use polog_util::OffloaderHandle;
 
@@ -210,15 +208,12 @@ impl<H, C> OffThreadLogger<H, C> {
     #[cfg(feature = "log-0-4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "log-0-4")))]
     #[inline]
-    pub fn register_as_global_log_logger(
-        &self,
-        max_level: LevelFilter,
-    ) -> Result<(), log_0_4::SetLoggerError>
+    pub fn register_as_global_log_logger(&self) -> Result<(), log_0_4::SetLoggerError>
     where
         H: SharedHandler<()> + polog_util::ExternalHandler<()>,
     {
         use polog_util::bridges::log_0_4::LogBridge;
-        LogBridge::new(self.handler().clone()).try_install_global(max_level)
+        LogBridge::new(self.handler().clone()).try_install_global()
     }
 
     /// Registers this logger as the process-wide `tracing` subscriber.

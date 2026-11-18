@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use polog::{
-    BaseHandler, ContextArgs, Descriptor, DynHandler, Handler, Level, LogArgs, SharedHandler,
-    SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
+    BaseHandler, ContextArgs, Descriptor, DynHandler, Handler, Level, LevelFilter, LogArgs,
+    SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 
 use crate::args::{TypeErasedArcLogArgs, TypeErasedArgs};
@@ -1400,6 +1400,11 @@ where
     Context: ContextArgs,
 {
     #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        LevelFilter::ALL
+    }
+
+    #[inline]
     fn try_enable_external<Desc>(
         &self,
         _descriptor: &Desc,
@@ -1672,6 +1677,11 @@ impl<Context, CustomEvent> ExternalHandler<Context> for &OffloaderHandle<Context
 where
     Context: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        LevelFilter::ALL
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,

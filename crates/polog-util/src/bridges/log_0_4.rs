@@ -1,7 +1,5 @@
 //! Bridge from `log` 0.4.x to `polog`.
 
-#[cfg(feature = "alloc")]
-use polog::LevelFilter;
 use polog::SharedHandler;
 
 use crate::util::MaybeStaticStr;
@@ -64,12 +62,13 @@ impl<H> LogBridge<H> {
     /// logger has already been set.
     #[cfg(feature = "alloc")]
     #[inline]
-    pub fn try_install_global(self, max_level: LevelFilter) -> Result<(), log_0_4::SetLoggerError>
+    pub fn try_install_global(self) -> Result<(), log_0_4::SetLoggerError>
     where
         H: SharedHandler<()> + ExternalHandler<()>,
     {
         use alloc::boxed::Box;
 
+        let max_level = self.handler.max_level_external();
         let max_level = conv::log_0_4::level_filter_into_foreign_approx(max_level);
         log_0_4::set_max_level(max_level);
         log_0_4::set_boxed_logger(Box::new(self))

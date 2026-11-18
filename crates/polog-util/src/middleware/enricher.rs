@@ -1,8 +1,8 @@
 use core::fmt::Debug;
 
 use polog::{
-    BaseHandler, ContextArgs, Descriptor, DynHandler, Handler, LogArgs, SharedHandler, SpanId,
-    SpanKind, StaticLogArgs,
+    BaseHandler, ContextArgs, Descriptor, DynHandler, Handler, LevelFilter, LogArgs, SharedHandler,
+    SpanId, SpanKind, StaticLogArgs,
 };
 
 use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
@@ -313,6 +313,11 @@ where
     Context: ContextArgs,
     Context::WithDebuggableArg<F::Output>: ContextArgs,
 {
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        H::max_level_external(&self.handler)
+    }
+
     #[inline]
     fn try_enable_external<Desc>(
         &self,
