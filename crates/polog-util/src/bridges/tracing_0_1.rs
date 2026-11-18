@@ -18,7 +18,7 @@ thread_local! {
     ///
     /// The `tracing::Subscriber` trait does not provide a portable way to query
     /// the currently-entered span, so this stack is maintained by
-    /// `SharedPologger` itself.
+    /// `TracingBridge` itself.
     /// It lives only because `tracing` requires it.
     static ENTER_STACK: RefCell<Vec<EnterFrame>> = const { RefCell::new(Vec::new()) };
 }
@@ -73,7 +73,7 @@ impl<H> TracingBridge<H> {
         self.handler
     }
 
-    /// Consumes and registers this `SharedPologger` as the process-wide
+    /// Consumes and registers this `TracingBridge` as the process-wide
     /// `tracing` subscriber.
     ///
     /// # Errors
@@ -93,7 +93,7 @@ impl<H> TracingBridge<H> {
 
 /// Per-subscriber state used by the `tracing::Subscriber` adapter.
 ///
-/// `SharedPologger` can be registered as a global `tracing` subscriber.
+/// `TracingBridge` can be registered as a global `tracing` subscriber.
 /// This struct tracks the foreign span objects that subscriber created and the
 /// frames of the current thread's entered-span stack, keyed by the
 /// subscriber's unique ID.

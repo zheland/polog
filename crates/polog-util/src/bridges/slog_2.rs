@@ -51,7 +51,7 @@ impl<H> SlogBridge<H> {
         self.handler
     }
 
-    /// Creates a `slog` logger that drains into this `SharedPologger`.
+    /// Creates a `slog` logger that drains into this handler.
     ///
     /// The returned `slog::Logger` can be passed to any code that expects a
     /// `slog::Logger`.

@@ -169,8 +169,7 @@ pub enum OffloaderBackpressurePolicy {
 /// backend [`OffloaderService`].
 ///
 /// The `span_id_generator` is shared with the wrapped handler so that span
-/// IDs remain unique across the `polog` chain and any `SharedPologger` that
-/// also uses this generator.
+/// IDs remain unique across the `polog` chain.
 ///
 /// `capacity` and `backpressure_policy` configure the channel.
 /// `flush_interval` controls periodic flushing on the worker.

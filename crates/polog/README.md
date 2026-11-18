@@ -1238,15 +1238,15 @@ async fn async_logger_handler(
 The two interoperability directions are independent, and the workspace
 ships both.
 
-To send polog events to `log`, `slog`, or `tracing`, wrap the target
-backend in `polog_util::log_0_4::ViaLog`, `polog_util::slog_2::ViaSlog`,
-or `polog_util::tracing_0_1::ViaTracing`.
+To receive log events from `log`, `slog`, or `tracing`, wrap the target
+backend in `polog_util::bridges::log_0_4::LogBridge`,
+`polog_util::bridges::slog_2::SlogBridge`, or
+`polog_util::bridges::tracing_0_1::TracingBridge`.
 
-To receive log, slog, or tracing events in a polog backend, wrap
-the backend in `pologger::SharedPologger` and register it as the global
-sink for the chosen facade.
-`SharedPologger` shares the same `SpanIdGenerator` with the backend, so span
-IDs remain consistent across both directions.
+To send polog events to `log`, `slog`, or `tracing`, use
+`polog_util::delegators::log_0_4::ViaLog`,
+`polog_util::delegators::slog_2::ViaSlog`, or
+`polog_util::delegators::tracing_0_1::ViaTracing` as a target backend.
 
 `polog` itself has no knowledge of either direction.
 Both adapters live in the downstream crates so that `polog` stays focused on
@@ -1291,8 +1291,9 @@ it. Contributions are very welcome!
 
 If you need the `log` ecosystem, a global logger, or `max_level_*` Cargo
 features, stay with `log`.
-The two facades are not mutually exclusive: `polog-util::ViaLog` and
-`pologger::SharedPologger` bridge in both directions.
+The two facades are not mutually exclusive:
+`polog_util::bridges::log_0_4::LogBridge` and
+`polog_util::delegators::log_0_4::ViaLog` bridge in both directions.
 
 ### Why choose `polog` over `tracing`?
 
@@ -1315,8 +1316,9 @@ automatic spans via `#[instrument]`.
 
 If you rely on ambient span context, `#[instrument]`, `Span::record`,
 `Span::current()`, or a global subscriber, stay with `tracing`.
-The two are not mutually exclusive: `polog-util::ViaTracing` and
-`pologger::SharedPologger` bridge in both directions.
+The two facades are not mutually exclusive:
+`polog_util::bridges::tracing_0_1::TracingBridge` and
+`polog_util::delegators::tracing_0_1::ViaTracing` bridge in both directions.
 
 ### Why choose `polog` over `slog`?
 
@@ -1344,8 +1346,9 @@ the call graph.
 
 If you need typed structured output via `slog::Serializer`, a mature
 drain ecosystem, or `serde` integration, stay with `slog`.
-The two facades are not mutually exclusive: `polog-util::ViaSlog` and
-`pologger::SharedPologger` bridge in both directions.
+The two facades are not mutually exclusive:
+`polog_util::bridges::slog_2::SlogBridge` and
+`polog_util::delegators::slog_2::ViaSlog` bridge in both directions.
 
 ### Why not standard Rust formatting?
 
@@ -1421,7 +1424,7 @@ So `polog` has no global logger by design.
 
 `polog` call sites are not global.
 If you need a process‑wide sink for `log` / `slog` / `tracing`,
-`pologger::SharedPologger` can be registered as the global default for those
+`polog_util` bridges can be registered as the global default for those
 facades.
 That is a property of the backend, not of the facade.
 
@@ -1633,7 +1636,7 @@ The filtering layer lives in `polog-util`:
   `MaxLevel(..).and(TargetPrefix(..))`.
 
 All three types implement both `FilterFn` (for the `polog` side) and
-`ExternalFilterFn` (for foreign events in `pologger::SharedPologger`), so
+`ExternalFilterFn` (for foreign events from `log` / `slog` / `tracing`), so
 a single parsed rule set filters both paths.
 
 Wrap any handler in `polog_util::Filter` and place the filter on the

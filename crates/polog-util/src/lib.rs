@@ -19,21 +19,20 @@
 //!
 //! `polog-util` provides:
 //! - Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`],
-//!   [`Enricher`], [`OffloaderHandle`].
+//!   [`Enricher`], [`OffloaderHandle`], [`Shared`].
 //! - Middleware that wraps a [`BorrowingHandler`]: [`BorrowingFanout`].
-//! - Middleware that makes a non‑shared handler shareable: [`Shared`].
+//! - Inbound foreign-facade adapters that normalize events from `log`, `slog`,
+//!   and `tracing` into the `polog` handler chain: [`LogBridge`],
+//!   [`SlogBridge`], [`TracingBridge`], and the [`ExternalHandler`] family.
+//! - Delegators to other ecosystems: [`ViaLog`], [`ViaSlog`], [`ViaTracing`].
 //! - Type‑erased argument wrappers: [`TypeErasedArgs`],
 //!   [`TypeErasedArcLogArgs`], [`TypeErasedArcContextArgs`].
 //! - Type-erased foreign-event metadata and arguments:
 //!   [`TypeErasedExternalDescriptor`], [`TypeErasedExternalArgs`].
 //! - Typed argument access and downcasting via [`MixedArgsExt`].
-//! - Inbound foreign-facade adapters that normalize events from `log`, `slog`,
-//!   and `tracing` into the `polog` handler chain: [`LogBridge`],
-//!   [`SlogBridge`], [`TracingBridge`], and the [`ExternalHandler`] family.
-//! - Delegators to other ecosystems: [`ViaLog`], [`ViaSlog`], [`ViaTracing`].
 //! - Conversion functions between `polog::Level`/`LevelFilter` and
-//!   `log`/`slog`/`tracing` types under [`conv`].
-//! - Context wrappers for middleware‑injected values under [`context`]:
+//!   `log`/`slog`/`tracing` types under `conv` module.
+//! - Context wrappers for middleware‑injected values under `Context`:
 //!   `MonotonicTime`, `ProcessCpuTime`, `ThreadCpuTime`, `ProcessId`,
 //!   `ProcessName`, `ThreadId`, `ThreadName`, `TaskId`, `TaskName`, `CpuId`.
 //! - Built‑in enricher functions: `SystemTimeEnricherFn`,
@@ -79,51 +78,77 @@
 //!
 //! # Composition and placement
 //!
-//! ## Placement rules
+//! ## Composition
+//!
+//! The table compares every chain-shaped item in this crate.
+//! - **Accepts from** and **forwards to** place the item on the chain from call
+//!   site to backend.
+//! - **Fanin** means the item implements [`polog::SharedHandler`]: it can be
+//!   cloned, and each clone used as an independent handler by a separate
+//!   producer. Every `SharedHandler` is already a fanin.
+//! - **Fanout** means the item dispatches one event or span to multiple
+//!   handlers.
+//! - "**—**" means not applicable.
+//!
+//! | Item | Kind | Accepts from | Forwards to | Fanin | Fanout | Notes |
+//! |:--|:--|:--|:--|:--:|:--:|:--|
+//! | [`Filter<H, F>`] | Middleware | Chain | Wrapped `H` if accepted | if `H` | no | Runs inside `try_enable`. Place near the call site. |
+//! | [`Enricher<H, F>`] | Middleware | Chain | Wrapped `H`, with one injected context arg | if `H` | no | Placement decides which thread's time/identity is observed. |
+//! | [`Shared<H>`] | Middleware | Chain | Wrapped `H` via `Arc<Mutex<H>>` | **yes** | no | Makes any `Handler` usable by `polog` macros and a fanin. The target need not be `SharedHandler`. |
+//! | [`OffloaderHandle`] | Middleware | Chain | Wrapped `H`, on the worker thread | **yes** | no | Makes any `Handler` usable by `polog` macros and a fanin. The target need not be `SharedHandler`. |
+//! | [`Fanout<Hs, N>`] | Middleware | Chain | Multiple branches | if all `Hs` | **yes** | `Arc`-shares args when more than one branch accepts. Use when at least one branch is not a `BorrowingHandler`. |
+//! | [`BorrowingFanout<Hs, N>`] | Middleware | Chain | Multiple branches | if all `Hs` | **yes** | Avoids the `Arc`. **preferred** when every branch implements `BorrowingHandler`. |
+//! | [`Either<H1, H2>`] | Middleware | Chain | Exactly one branch | if `H1` and `H2` | no | Runtime selection; both arms must agree on `EnrichedContext`. |
+//! | [`LogBridge<H>`] | Bridge | `log` | Wrapped `H` | — | — | Chain input. `log` has no span lifecycle, so only events arrive. |
+//! | [`SlogBridge<H>`] | Bridge | `slog` | Wrapped `H` | — | — | Chain input. |
+//! | [`TracingBridge<H>`] | Bridge | `tracing` | Wrapped `H` | — | — | Chain input, including span lifecycle. |
+//! | [`ViaLog`] | Delegator | Chain | `log::Log` | **yes** | — | Chain output; spans become regular records. |
+//! | [`ViaSlog`] | Delegator | Chain | `slog::Logger` | **yes** | — | Chain output; spans become regular records. |
+//! | [`ViaTracing`] | Delegator | Chain | `tracing::Dispatch` | **yes** | — | Chain output, including span lifecycle. |
+//! | `Pologger` (backend) | Backend | Chain | Formatter & I/O | no | — | Reference backend. Not a `SharedHandler`. Wrap in `Shared` or `OffloaderHandle` to get fanin. |
+//!
+//! Key takeaways:
+//!
+//! - **Prefer `BorrowingFanout` when every branch implements
+//!   `BorrowingHandler`.** It avoids the `Arc` that `Fanout` allocates in the
+//!   multi-accept case. Use `Fanout` when at least one branch is not a
+//!   `BorrowingHandler`.
+//! - **`Shared` and `OffloaderHandle` are the two ways to feed a
+//!   non-`SharedHandler` backend from multiple producers.** `Shared` wraps the
+//!   target in `Arc<Mutex<H>>` and makes it usable by `polog` macros.
+//!   `OffloaderHandle` is itself a `SharedHandler` whose target is owned by
+//!   `OffloaderService` and therefore need not be shared.
+//! - **Bridges are chain inputs. Delegators and `Pologger` are chain outputs.**
+//!   Filters, enrichers, fanouts, offloaders, and `Either` sit in between.
+//!
+//! ## Placement
 //!
 //! Order matters along the chain from call site to backend.
 //!
-//! 1. **`Filter` closer to the call site.** `Filter` runs inside `try_enable`.
+//! 1. **`Filter` closest to the call site.** `Filter` runs inside `try_enable`.
 //!    Placed before [`OffloaderHandle`], filtered events never reach the
 //!    channel and never pay for argument conversion or dispatch. Placed after
 //!    `OffloaderHandle`, the event has already been sent by the time the filter
 //!    runs.
-//!
-//! 2. **`Enricher` placement changes what the context represents.**
-//!    - Before `OffloaderHandle`: `SystemTime::now()`, `Instant::now()`,
-//!      `thread::current().id()` reflect the calling thread's time and
-//!      identity.
-//!    - After `OffloaderHandle`: the same calls reflect the worker thread's
-//!      time and identity, and the context reflects worker processing time, not
-//!      call‑site time.
-//!
-//!    Choose deliberately, and note the choice when interpreting
-//!    `MonotonicTime` or `ThreadId` in the emitted records.
-//!
+//! 2. **`Enricher` placement changes what the context represents.** Before
+//!    [`OffloaderHandle`]: `SystemTime::now()`, `Instant::now()`,
+//!    `thread::current().id()` reflect the calling thread's time and identity.
+//!    After [`OffloaderHandle`]: the same calls reflect the worker thread's
+//!    time and identity, and the context reflects worker processing time, not
+//!    call-site time. Choose deliberately, and note the choice when
+//!    interpreting `MonotonicTime` or `ThreadId` in the emitted records.
 //! 3. **`OffloaderHandle` closest to the backend.** The whole point is to move
 //!    expensive work — formatting, I/O, channel processing — onto a dedicated
 //!    worker that owns the backend. `OffloaderHandle` should wrap the backend
 //!    directly, or wrap only cheap middleware in front of it.
-//!
-//! 4. **`BorrowingFanout` where every branch supports it.** `BorrowingFanout`
-//!    cannot wrap `OffloaderHandle`, `Enricher`, or `Shared`. Two options:
-//!    - Use `Fanout` instead, which accepts any `Handler` branch.
-//!    - Place the `BorrowingFanout` on the worker side of an `OffloaderHandle`:
-//!      the inner handler of the offloader can be a `BorrowingFanout` of two
-//!      `BorrowingHandler` branches.
-//!
-//! 5. **`Fanout` when at least one branch is not a `BorrowingHandler`.**
-//!    `Fanout` allocates an `Arc` only when more than one branch accepts. When
-//!    exactly one branch accepts, no allocation is made. `BorrowingFanout`
-//!    avoids the `Arc` in the multi‑accepted case and is otherwise equivalent.
-//!
-//! 6. **For more than four branches, nest.** `Fanout1`…`Fanout4` and
-//!    `BorrowingFanout1`…`BorrowingFanout4` cover up to four branches without
-//!    nesting. Beyond that, wrap `Fanout` in `Fanout`: each nesting level costs
-//!    one extra `Arc::clone` per fanout call. Both families stop at four
-//!    because the small sizes cover real use, and nesting composes cleanly past
-//!    that. An opt‑in feature that raises the limit can be added later without
-//!    a breaking change.
+//! 4. **Prefer `BorrowingFanout`, fall back to `Fanout`.** Use
+//!    [`BorrowingFanout`] when every branch implements [`BorrowingHandler`]. It
+//!    skips the `Arc` allocation that [`Fanout`] pays in the multi-accept case.
+//!    Use `Fanout` when at least one branch is not a `BorrowingHandler`.
+//!    `BorrowingFanout` cannot wrap [`OffloaderHandle`], [`Enricher`], or
+//!    [`Shared`]. Either use `Fanout`, or place the `BorrowingFanout` on the
+//!    worker side of an `OffloaderHandle` — the offloader's inner handler can
+//!    be a `BorrowingFanout` of two `BorrowingHandler` branches.
 //!
 //!
 //! # API Cheat Sheet
@@ -155,8 +180,8 @@
 //!
 //! - [`FilterFn`] — receives `&'static Descriptor`. Used by `Filter` at `polog`
 //!   call sites.
-//! - [`ExternalFilterFn`] — receives `&ExternalDescriptor<'_>`. Used by
-//!   `pologger::SharedPologger` when it ingests foreign events.
+//! - [`ExternalFilterFn`] — receives `&ExternalDescriptor<'_>`. Used when it
+//!   ingests foreign events from `log` / `slog` / `tracing`.
 //!
 //! Every built‑in filter — `MaxLevel`, `ConstMaxLevel<M>`, `Target`,
 //! `TargetPrefix`, `All`, `Any`, `Not`, `Always`, `Never`, `FilterRules` —
@@ -186,9 +211,6 @@
 //!     formatter,
 //!     pologger::LoggerFlags::compact(),
 //! );
-//!
-//! // Foreign side, inside the backend wiring.
-//! let handler = pologger::SharedPologger::new(handler, filter.clone());
 //!
 //! let (handler, service) = new_offloader(
 //!     handler,
@@ -536,13 +558,39 @@
 //! [`slog`]: https://docs.rs/slog/latest/slog/
 //! [`tracing`]: https://docs.rs/tracing/latest/tracing/
 //! [`Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
+//! [`polog::Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
+//! [`polog::SharedHandler`]: https://docs.rs/polog/latest/polog/trait.SharedHandler.html
 //! [`BorrowingHandler`]: https://docs.rs/polog/latest/polog/trait.BorrowingHandler.html
 //! [`LogBridge`]: bridges::log_0_4::struct.LogBridge.html
+//! [`LogBridge<H>`]: bridges::log_0_4::struct.LogBridge.html
 //! [`SlogBridge`]: bridges::slog_2::struct.SlogBridge.html
+//! [`SlogBridge<H>`]: bridges::slog_2::struct.SlogBridge.html
 //! [`TracingBridge`]: bridges::tracing_0_1::struct.TracingBridge.html
+//! [`TracingBridge<H>`]: bridges::tracing_0_1::struct.TracingBridge.html
 //! [`ViaLog`]: delegators::log_0_4::struct.ViaLog.html
 //! [`ViaSlog`]: delegators::slog_2::struct.ViaSlog.html
 //! [`ViaTracing`]: delegators::tracing_0_1::struct.ViaTracing.html
+//! [`ExternalHandler`]: trait.ExternalHandler.html
+//! [`Filter`]: struct.Filter.html
+//! [`Filter<H, F>`]: struct.Filter.html
+//! [`FilterFn`]: trait.FilterFn.html
+//! [`ExternalFilterFn`]: trait.ExternalFilterFn.html
+//! [`Enricher`]: struct.Enricher.html
+//! [`Enricher<H, F>`]: struct.Enricher.html
+//! [`Fanout`]: struct.Fanout.html
+//! [`Fanout<Hs, N>`]: struct.Fanout.html
+//! [`BorrowingFanout`]: struct.BorrowingFanout.html
+//! [`BorrowingFanout<Hs, N>`]: struct.BorrowingFanout.html
+//! [`Shared`]: struct.Shared.html
+//! [`Shared<H>`]: struct.Shared.html
+//! [`OffloaderHandle`]: struct.OffloaderHandle.html
+//! [`TypeErasedArgs`]: struct.TypeErasedArgs.html
+//! [`TypeErasedArcLogArgs`]: type.TypeErasedArcLogArgs.html
+//! [`TypeErasedArcContextArgs`]: type.TypeErasedArcContextArgs.html
+//! [`TypeErasedExternalDescriptor`]: struct.TypeErasedExternalDescriptor.html
+//! [`TypeErasedExternalArgs`]: struct.TypeErasedExternalArgs.html
+//! [`MixedArgsExt`]: trait.MixedArgsExt.html
+//! [`Either<H1, H2>`]: https://docs.rs/either/latest/either/enum.Either.html
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

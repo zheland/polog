@@ -36,11 +36,6 @@ use crate::{
 /// `polog_util::Shared` for synchronous use, or
 /// `polog_util::OffloaderHandle` for asynchronous use.
 ///
-/// A `Pologger` created with the `shared` feature and wrapped in a
-/// `SharedPologger` additionally implements `log::Log`, `slog::Drain`, and
-/// `tracing::Subscriber`, so the same backend can serve multiple logging
-/// facades.
-///
 /// [`Formatter`]: crate::Formatter
 /// [`SpanIdGenerator`]: polog::SpanIdGenerator
 /// [`LoggerConfig`]: crate::LoggerConfig
@@ -182,8 +177,6 @@ impl<F> Pologger<F> {
     /// Creates a backend that reads its rendering configuration from
     /// `flags`.
     ///
-    /// The generator must be the same `Arc<SpanIdGenerator>` that is passed
-    /// to `polog_util::new_offloader` and to `SharedPologger::new`.
     /// Sharing the generator is what keeps span IDs unique across `polog`
     /// events and foreign-facade events.
     ///
@@ -315,8 +308,6 @@ impl<F> Pologger<F> {
 
     /// Renders a foreign event through this backend.
     ///
-    /// Used by `SharedPologger` and by any other adapter that receives events
-    /// from `log`, `slog`, or `tracing`.
     /// The event's fields are visited in order and formatted exactly as a
     /// native `polog` event would be.
     #[inline]
@@ -478,9 +469,6 @@ impl<F> Pologger<F> {
     }
 
     /// Returns the shared span-ID generator used by this backend.
-    ///
-    /// `SharedPologger` uses this to obtain the same `Arc` when it is
-    /// constructed, so the two instances never allocate conflicting IDs.
     #[inline]
     #[must_use]
     pub const fn span_id_generator(&self) -> &Arc<SpanIdGenerator> {

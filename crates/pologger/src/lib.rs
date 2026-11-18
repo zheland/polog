@@ -43,7 +43,7 @@
 //! Avoid `pologger` if:
 //! - You do not use the `polog` facade at all. `pologger` is a backend for
 //!   `polog`'s handler contract. Using it purely as a `log` / `tracing` /
-//!   `slog` sink is possible via `SharedPologger`, but `pologger` then provides
+//!   `slog` sink is possible via `Pologger`, but `pologger` then provides
 //!   little over a direct facade-specific backend.
 //! - You need a structured‑output backend that preserves typed primitives.
 //!   `NdJsonFormatter` emits every value as a JSON string, including numbers.
@@ -447,10 +447,10 @@
 //!
 //! | Feature | Default | Description | Enables deps and features |
 //! |:--:|:--:|:--:|:--:|
-//! | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
-//! | `log-0-4` | no | Implements `log::Log` for `SharedPologger` and exposes `register_as_global_log_logger()`. | `dep:log` (version = 0.4), `log/alloc`, `log/kv`, `polog-util/log-0-4` |
-//! | `slog-2` | no | Implements `slog::Drain` for `SharedPologger` and exposes `make_slog_logger()`. | `dep:slog`  (version = 2), `polog-util/slog-2` |
-//! | `tracing-0-1` | no | Implements `tracing::Subscriber` for `SharedPologger` and exposes `register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `dep:tracing` (version = 0.1), `dep:dashmap`, `polog-util/tracing-0-1`, `tracing-core/std` |
+//! | `either-1` | no | Enables `either::Either` implementations. | `dep:either` (version = 1) |
+//! | `log-0-4` | no | Provides `OffThreadLogger::register_as_global_log_logger()`. | `dep:log` (version = 0.4), `polog-util/log-0-4` |
+//! | `slog-2` | no | Provides `OffThreadLogger::make_slog_logger()`. | `dep:slog` (version = 2), `polog-util/slog-2` |
+//! | `tracing-0-1` | no | Provides `OffThreadLogger::register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `polog-util/tracing-0-1` |
 //!
 //!
 //! # FAQ
@@ -488,16 +488,12 @@
 //! - **OpenTelemetry.** `polog_util::tracing_0_1::ViaTracing` forwards `polog`
 //!   events to a `tracing::Dispatch`. Build a `tracing` subscriber that
 //!   includes a `tracing-opentelemetry` layer, wrap it in a `Dispatch`, and
-//!   pass it to `ViaTracing::new`: ```rust let subscriber =
-//!   tracing_subscriber::registry()
-//!   .with(tracing_opentelemetry::layer().with_tracer(tracer)); let handler =
-//!   polog_util::tracing_0_1::ViaTracing::new(
-//!   tracing::Dispatch::new(subscriber), ); ``` This path requires
-//!   `polog-util`'s `tracing-0-1-semver-unstable` feature, which depends on
-//!   `#[doc(hidden)]` items of `tracing`. See the feature flags section for the
-//!   semver implications. The reverse direction — capturing `tracing` events in
-//!   a `polog` backend — is `pologger::SharedPologger`. That path does not
-//!   reach `OTel`.
+//!   pass it to `ViaTracing::new`. This path requires `polog-util`'s
+//!   `tracing-0-1-semver-unstable` feature, which depends on `#[doc(hidden)]`
+//!   items of `tracing`. See the feature flags section for the semver
+//!   implications. The reverse direction — capturing `tracing` events in a
+//!   `polog` backend — is `polog_util::bridges::tracing_0_1::BridgeTracing`.
+//!   That path does not reach OpenTelemetry.
 //! - **Custom sinks.** Implement [`Formatter`] directly. The trait describes
 //!   each field individually, so a formatter can emit protobuf, logfmt, or a
 //!   custom wire format without intermediate allocation.
@@ -586,10 +582,6 @@
 //! [`Pologger`]: struct.Pologger.html
 //! [`Pologger::new`]: struct.Pologger.html#method.new
 //! [`Pologger::log_external_entry`]: struct.Pologger.html#method.log_external_entry
-//! [`SharedPologger`]: struct.SharedPologger.html
-//! [`SharedPologger::register_as_global_log_logger`]: struct.SharedPologger.html#method.register_as_global_log_logger
-//! [`SharedPologger::make_slog_logger`]: struct.SharedPologger.html#method.make_slog_logger
-//! [`SharedPologger::register_as_global_tracing_subscriber`]: struct.SharedPologger.html#method.register_as_global_tracing_subscriber
 //! [`RwLock`]: struct.RwLock.html
 //! [`Formatter`]: trait.Formatter.html
 //! [`TextFormatter`]: struct.TextFormatter.html
