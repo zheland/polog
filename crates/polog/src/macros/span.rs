@@ -73,8 +73,9 @@ macro_rules! span {
 /// Constructs a span that owns a cloned handler at the specified level.
 ///
 /// The macro creates an [`OwningSpan`] that emits [`DynHandler::exit_span`] on
-/// drop. Use it when the span must be stored in a struct or moved into another
-/// thread or task.
+/// drop.
+/// Use it when the span must be stored in a struct or moved into another thread
+/// or task.
 ///
 /// The span is always reported as
 /// [`SpanKind::Detached`], because it owns a cloned handler and the original

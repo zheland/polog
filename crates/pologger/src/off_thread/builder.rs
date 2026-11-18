@@ -147,8 +147,9 @@ impl<'a, Fmt> OffThreadLoggerBuilder<'a, Fmt, ()> {
     /// [`build`] returns an [`OffThreadLoggerConfig<()>`] whose
     /// `formatter_config` is `()`. The builder cannot extract a formatter
     /// config from an arbitrary [`Formatter`] because the trait does not expose
-    /// one. To obtain a runtime handle for a custom formatter, hold the
-    /// formatter's own `config()` handle before passing the formatter in.
+    /// one.
+    /// To obtain a runtime handle for a custom formatter, hold the formatter's
+    /// own `config()` handle before passing the formatter in.
     ///
     /// ```rust,ignore
     /// let formatter = TextFormatter::stderr(flags, ColorizePreset::Auto);

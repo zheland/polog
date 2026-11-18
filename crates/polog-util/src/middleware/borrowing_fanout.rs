@@ -15,8 +15,8 @@ use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
 /// [`BorrowingHandler::log_borrowed`] /
 /// [`BorrowingHandler::enter_span_borrowed`]. When more than one branch
 /// accepts, arguments are converted once and shared by reference, with no `Arc`
-/// allocation. When exactly one branch accepts, arguments pass to that branch
-/// unchanged.
+/// allocation.
+/// When exactly one branch accepts, arguments pass to that branch unchanged.
 ///
 /// # Arity
 ///

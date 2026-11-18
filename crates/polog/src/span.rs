@@ -176,8 +176,9 @@ where
 /// It is returned by [`DeferredSpan::enter`], including internally by
 /// [`PollInstrumented::new`]. Because it owns the handler, it can be stored in
 /// a struct or moved into a future without holding a borrow of the original
-/// logger. On drop it emits [`DynHandler::exit_span`] with
-/// [`SpanKind::Detached`] on drop, unless the [`forget`] has been called.
+/// logger.
+/// On drop it emits [`DynHandler::exit_span`] with [`SpanKind::Detached`] on
+/// drop, unless the [`forget`] has been called.
 ///
 /// `OwningSpan` implements [`Logger`], so events logged through it and child
 /// spans created from it are attributed to its [`SpanId`].

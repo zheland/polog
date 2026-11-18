@@ -93,7 +93,8 @@ impl EventKinds {
     /// Every event kind, including per-poll signals.
     ///
     /// A convenient preset for backends that render the full `tracing`-style
-    /// lifecycle. Coincides with [`ALL`] today.
+    /// lifecycle.
+    /// Coincides with [`ALL`] today.
     /// Kept as a named preset because the two may diverge when new event kinds
     /// are added.
     ///

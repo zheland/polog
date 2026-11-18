@@ -22,8 +22,9 @@ with [`polog`] and a backend such as [`pologger`].
 
 `polog-util` supplies the pieces that are useful around such a facade but do
 not belong in the core crate: filtering, enrichment, fanout, offloading,
-sharing, type erasure, delegators to `log`/`slog`/`tracing`, and small
-context wrappers that middleware can inject.
+sharing, type erasure, inbound bridges from `log`/`slog`/`tracing`, outbound
+delegators to `log`/`slog`/`tracing`, and small context wrappers that
+middleware can inject.
 
 `polog-util` provides:
 - Middleware that wraps any [`Handler`]: [`Filter`], [`Fanout`],
@@ -32,7 +33,12 @@ context wrappers that middleware can inject.
 - Middleware that makes a non‑shared handler shareable: [`Shared`].
 - Type‑erased argument wrappers: [`TypeErasedArgs`],
   [`TypeErasedArcLogArgs`], [`TypeErasedArcContextArgs`].
+- Type-erased foreign-event metadata and arguments:
+  [`TypeErasedExternalDescriptor`], [`TypeErasedExternalArgs`].
 - Typed argument access and downcasting via [`MixedArgsExt`].
+- Inbound foreign-facade adapters that normalize events from `log`, `slog`,
+  and `tracing` into the `polog` handler chain: [`BridgeLog`],
+  [`BridgeSlog`], [`BridgeTracing`], and the [`ExternalHandler`] family.
 - Delegators to other ecosystems: [`ViaLog`], [`ViaSlog`], [`ViaTracing`].
 - Conversion functions between `polog::Level`/`LevelFilter` and
   `log`/`slog`/`tracing` types under [`conv`].
@@ -66,7 +72,7 @@ Enable features for external integrations:
 
 ```toml
 [dependencies]
-polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "offloader" ] }
+polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1", "offloader" ] }
 ```
 
 
@@ -75,9 +81,9 @@ polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "offloader" ] 
 | Crate | Role |
 |:--:|:--|
 | [`polog`] | Facade traits and macros. |
-| `polog-util` | Optional utilities and middleware. |
+| `polog-util` | Optional utilities, middleware and foreign-facade adapters. |
 | [`pologger`] | Reference logger backend implementation. |
-| [`log`] / [`slog`] / [`tracing`] | External ecosystems bridged by delegators. |
+| [`log`] / [`slog`] / [`tracing`] | External ecosystems bridged in both directions. |
 
 
 ## Composition and placement
@@ -207,7 +213,29 @@ let _handle = service.spawn();
 let logger = Filter::new(handler, filter);
 ```
 
-### Delegators
+### Inbound foreign-facade adapters
+
+These adapters receive events from `log`, `slog`, or `tracing` and forward
+them into a `polog` handler chain.
+They are the reverse direction of the outbound delegators below.
+
+| Item | Behavior |
+|:--:|:--|
+| `BridgeLog<H>` | `log::Log` adapter over a `polog::Handler` backend. |
+| `BridgeSlog<H>` | `slog::Drain` adapter over a `polog::Handler` backend. |
+| `BridgeTracing<H>` | `tracing::Dispatch`/`tracing::Subscriber` adapter over a `polog::Handler` backend. |
+| `ExternalHandler<Context>` | Backend/middleware trait for foreign-facade events. Extends `Handler<Context>`. |
+| `ExternalDescriptor` | Borrowed description of a foreign event/span: message, level, target, module path, file, line, column. |
+| `TypeErasedExternalDescriptor` | Owned, type-erased `ExternalDescriptor` for storing foreign metadata. |
+| `ExternalArgs` | Borrowed view of foreign event arguments; walks fields once through a visitor. |
+| `ExternalArgsVisitor` | Visitor receiving `visit_message` and `visit_arg` callbacks. |
+| `ExternalArgValue<'_>` | Borrowed foreign argument value: primitives, strings, `Display`/`Debug`/`Error` trait objects, and `format_args!`. |
+| `TypeErasedExternalArgs` | Owned, type-erased foreign argument set. |
+
+
+### Outbound delegators
+
+These adapters forward `polog` events and spans to foreign facades.
 
 | Item | Behavior |
 |:--:|:--|
@@ -316,11 +344,26 @@ let worker = service.spawn().expect("failed to spawn logger worker");
 `DropNewest` and `DropOldest` drop on a full channel, optionally after a
 timeout.
 
-
-The shared generator is what lets `SharedPologger` interleave foreign and
-`polog` events in one backend with a single, non‑overlapping span ID
-space.
+The shared generator is what lets `Pologger` interleave foreign and `polog`
+events in one backend with a single, non‑overlapping span ID space.
 A fresh `Arc::new(SpanIdGenerator::new())` is fine.
+
+### Ingesting `log` events
+
+```rust
+use polog_util::bridges::log_0_4::BridgeLog;
+
+BridgeLog::new(handler.clone())
+    .try_install_global(polog::LevelFilter::Info)
+    .unwrap();
+```
+
+`BridgeLog` forwards `log` records into the `polog` handler chain.
+`log` events have no span lifecycle, so only the event path is used.
+
+`BridgeSlog` and `BridgeTracing` are structured the same way under
+`polog_util::bridges::slog_2::BridgeSlog` and
+`polog_util::bridges::tracing_0_1::BridgeTracing`.
 
 ### Delegating to `log`
 
@@ -331,7 +374,8 @@ let handler = ViaLog::new(handler, ViaLogFlags::empty());
 ```
 
 `ViaSlog` and `ViaTracing` are structured the same way under
-`polog_util::slog_2::ViaSlog` and `polog_util::tracing_0_1::ViaTracing`.
+`polog_util::delegators::slog_2::ViaSlog` and
+`polog_util::delegators::tracing_0_1::ViaTracing`.
 
 ### Type-erased arguments
 
@@ -430,22 +474,21 @@ Forward direction — `polog` events to a foreign facade — is handled by
 the delegators in this crate (`ViaLog`, `ViaSlog`, `ViaTracing`).
 
 Reverse direction — foreign events to a `polog` backend — is handled by
-`pologger::SharedPologger`, not by `polog-util`. The two are deliberately
-separated:
+the bridges in this crate (`BridgeLog`, `BridgeSlog`, `BridgeTracing`).
 
-- `polog-util` supplies the *filter interface* both directions need
-  (`ExternalFilterFn`) plus the `ExternalDescriptor<'a>` type that lets a
-  foreign event be filtered without a `'static` `Descriptor`.
-- `pologger` supplies the *backend adapter* (`SharedPologger`) that converts
-  foreign events to `polog`'s rendering model and shares its
-  `SpanIdGenerator` with the rest of the chain.
+Filters implement both `FilterFn` and `ExternalFilterFn`, so a single parsed
+rule set can filter both paths.
 
-This split keeps `polog-util` free of `log` / `slog` / `tracing` feature
-dependencies for users who only need one direction.
+### Why are there separate `ExternalDescriptor` and `ExternalArgs` types?
 
-A user who needs both directions installs `polog-util` and `pologger`
-together and gets a single filter type (`ExternalFilterFn`) shared by both
-the foreign-ingest path and the `polog` call-site path.
+Foreign facades do not carry `'static` `polog::Descriptor` values, and they
+differ in which metadata they provide.
+`ExternalDescriptor` is a borrowed, optional-field view over that metadata,
+and `ExternalArgs` walks the foreign argument list once through a visitor.
+This avoids leaking foreign metadata to obtain `'static` values and avoids
+building a parallel native `Descriptor` layer.
+`TypeErasedExternalDescriptor` and `TypeErasedExternalArgs` provide owned
+forms for storage and off-thread handling.
 
 
 ## Documentation
@@ -478,6 +521,9 @@ additional terms or conditions.
 [`tracing`]: https://docs.rs/tracing/latest/tracing/
 [`Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
 [`BorrowingHandler`]: https://docs.rs/polog/latest/polog/trait.BorrowingHandler.html
-[`ViaLog`]: https://docs.rs/polog-util/latest/polog_util/struct.ViaLog.html
-[`ViaSlog`]: https://docs.rs/polog-util/latest/polog_util/struct.ViaSlog.html
-[`ViaTracing`]: https://docs.rs/polog-util/latest/polog_util/struct.ViaTracing.html
+[`BridgeLog`]: https://docs.rs/polog-util/latest/polog_util/bridges/log_0_4/struct.BridgeLog.html
+[`BridgeSlog`]: https://docs.rs/polog-util/latest/polog_util/bridges/slog_2/struct.BridgeSlog.html
+[`BridgeTracing`]: https://docs.rs/polog-util/latest/polog_util/bridges/tracing_0_1/struct.BridgeTracing.html
+[`ViaLog`]: https://docs.rs/polog-util/latest/polog_util/delegators/log_0_4/struct.ViaLog.html
+[`ViaSlog`]: https://docs.rs/polog-util/latest/polog_util/delegators/slog_2/struct.ViaSlog.html
+[`ViaTracing`]: https://docs.rs/polog-util/latest/polog_util/delegators/tracing_0_1/struct.ViaTracing.html

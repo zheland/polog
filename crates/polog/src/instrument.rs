@@ -116,9 +116,9 @@ where
     /// [`SpanId`] and receives a fresh [`SpanId`] so backends can distinguish
     /// concurrent instrumented futures by span.
     ///
-    /// The factory receives a [`DetachedLogger`] built from the poll span. Its
-    /// [`SpanId`] is the poll span's, so events logged and child spans created
-    /// through the context are attributed to the poll span.
+    /// The factory receives a [`DetachedLogger`] built from the poll span.
+    /// Its [`SpanId`] is the poll span's, so events logged and child spans
+    /// created through the context are attributed to the poll span.
     ///
     /// This is the imperative form of [`PollInstrument::poll_instrument`]:
     /// `PollInstrumented::new(span, f)` is equivalent to

@@ -97,7 +97,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 pub struct ViaLog<L> {
     /// The `log` backend to forward to.
     handler: L,
-
+    /// The flags customizing the behavior of the delegator.
     flags: ViaLogFlags,
 }
 

@@ -244,9 +244,9 @@ where
     ///
     /// This method is called unconditionally for spans that were accepted
     /// by [`try_enable_external`](Self::try_enable_external) at creation
-    /// time. It is not a filter point, matching `tracing::Subscriber`'s
-    /// contract: `Subscriber::record` runs without an additional
-    /// `enabled` check.
+    /// time.
+    /// It is not a filter point, matching `tracing::Subscriber`'s contract:
+    /// `Subscriber::record` runs without an additional `enabled` check.
     ///
     /// The default implementation discards the recorded fields, because
     /// `polog`'s native span model has no dynamic fields. Backends that

@@ -380,90 +380,6 @@ See [Rendering examples](#rendering-examples) above for terminal captures of
 every variant.
 
 
-## Foreign facades
-
-### Foreign span lifecycle
-
-`log` and `slog` have no span concept, so their events reach
-`SharedPologger` as flat `Log` events with the `root` parent span.
-
-`tracing` has a span lifecycle, and `SharedPologger` maps it as follows:
-- `new_span` emits a `ExternalNew` event on a fresh polog `SpanId`.
-- `enter` emits a `DetachedEnter` event on a new polog `SpanId` whose parent
-  is the span object’s ID.
-- `exit` emits the matching `DetachedExit`.
-- `try_close` emits `ExternalClose` on the span object’s ID.
-- `event` attaches to the innermost entered span of this subscriber on the
-  current thread, using a thread‑local enter stack that `SharedPologger`
-  maintains per `tracing::Subscriber`.
-
-The thread‑local enter stack is internal to `SharedPologger` and is never
-exposed to `polog` call sites.
-`polog` itself remains thread‑local‑free.
-The stack lives only because `tracing` requires contextual parent lookup
-and has no other mechanism.
-
-`record` and `record_follows_from` are mapped to `Log` events with the
-field names `record` and `record_follows_from`, and the target span ID
-respectively.
-This keeps dynamic tracing fields visible in the output at the cost of
-losing their original type — the same trade `polog` makes for every
-argument.
-
-### Foreign events and the offloader
-
-Foreign facade events (`log`, `slog`, `tracing`) take a different path
-than `polog` events:
-
-- **`polog` events** flow through the caller-side middleware chain, which
-  typically ends in `OffloaderHandle`. The offloader enqueues the event, and
-  a dedicated worker thread formats it and writes it to the sink.
-- **Foreign events** are captured by `SharedPologger`, which is registered
-  as the global sink for the chosen facade. `SharedPologger` locks its inner
-  `Pologger` and formats the event **synchronously on the emitting thread**,
-  with no channel round trip.
-
-This asymmetry is deliberate:
-
-1. `SharedPologger` is called by the foreign facade's global dispatch
-   mechanism. There is no place to insert an offloader between the facade
-   and the global sink without wrapping the entire foreign interface.
-2. Registration APIs (`log::set_boxed_logger`,
-   `tracing::subscriber::set_global_default`) hold the sink for the lifetime
-   of the process. `SharedPologger` is cheap to clone and already `Send +
-   Sync`, which matches their contract.
-3. `slog::Drain::log` returns `Result` and is expected to complete
-   synchronously; routing it through a worker would require the drain to
-   buffer or block.
-
-Practical consequences:
-
-- **Formatting latency.** A foreign event pays formatting cost on the
-  emitting thread, under the `SharedPologger` mutex. If the backend sink is
-  slow (file I/O, network), the foreign caller blocks.
-- **Contention.** All foreign emitting threads serialize through the mutex.
-  `polog` events do not, because they hand off work to the worker.
-- **Ordering.** Foreign and `polog` events do not have a guaranteed total
-  order. A `polog` event may be enqueued, then a foreign event executes and
-  writes first, then the worker processes the queued `polog` event. The
-  shared `SpanIdGenerator` keeps IDs globally unique, but the arrival order
-  at the sink is not stable.
-
-**If offloading every event matters**, do not register `SharedPologger`
-directly as the global sink. Instead implement `log::Log` /
-`tracing::Subscriber` / `slog::Drain` over a wrapper that forwards to an
-`OffloaderHandle`.
-The foreign facade then pays only the enqueue cost on the emitting thread.
-`polog` does not provide such a wrapper out of the box, because the
-trade-off (a small amount of per-event allocation and type erasure to
-flatten a foreign event into a `polog` one) is application-specific.
-
-**If synchronous formatting is acceptable**, the current setup is correct:
-`SharedPologger` is cheap, uses the same `SpanIdGenerator`, and emits
-through the same formatter as `polog` events, so a single sink serves
-both paths with no extra wiring.
-
-
 ## API Cheat Sheet
 
 ### Backends
@@ -560,33 +476,6 @@ Use it when you control the call graph and the performance budget is tight.
 
 `log`, `slog`, and `tracing` remain the right choice for libraries and for
 applications that consume the ecosystems built around them.
-
-### Why is foreign-event ingestion in `pologger` and not in `polog-util`?
-
-Because it depends on the backend that actually renders the event.
-`polog-util` only supplies `ExternalFilterFn` and `ExternalDescriptor` so
-that filters compose across both directions.
-`pologger` supplies the `SharedPologger` adapter that converts a foreign
-event into a form its `Formatter` can render.
-A different backend would provide its own adapter but reuse the same
-`ExternalFilterFn`.
-
-### Why does `SharedPologger` extract the `SpanIdGenerator` from `Pologger`?
-
-For foreign events to correlate with `polog` events, both must allocate
-span IDs from the same counter.
-`SharedPologger::new` clones the generator out of the wrapped
-[`Pologger`], so no separate argument is needed.
-Passing the same `Arc<SpanIdGenerator>` to [`Pologger::new`] and to
-[`new_offloader`] guarantees that the worker, the foreign facade
-adapters, and `polog` call sites all draw from a single counter, so no
-ID is ever reused across directions.
-
-### Are foreign events offloaded?
-
-No. See [Foreign events and offloading](#foreign-events-and-offloading).
-`SharedPologger` formats foreign events synchronously on the emitting
-thread, under its inner mutex.
 
 ### What about log rotation, compression, remote shipping, or OpenTelemetry?
 

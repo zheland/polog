@@ -31,7 +31,7 @@ event and defers formatting until they are consumed.
 | Crate | API Docs | README | Role |
 |:--:|:--:|:--:|:--|
 | [`polog`] | [API Docs][`polog`] | [README][polog-readme] | Facade traits and macros. |
-| [`polog-util`] | [API Docs][`polog-util`] | [README][polog-util-readme] | Optional utilities and middleware. |
+| [`polog-util`] | [API Docs][`polog-util`] | [README][polog-util-readme] | Optional utilities, middleware and foreign-facade adapters. |
 | [`pologger`] | [API Docs][`pologger`] | [README][pologger-readme] | Reference logger backend implementation. |
 
 

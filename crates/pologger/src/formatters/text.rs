@@ -17,7 +17,8 @@ use crate::{
 /// `TextFormatter` sanitizes content: every C0 control character and DEL in
 /// a caller-supplied string is replaced with its Unicode Control Picture
 /// counterpart, and the replacement is colorized in red when colorization is
-/// enabled. See the crate-level documentation for the full contract.
+/// enabled.
+/// See the crate-level documentation for the full contract.
 ///
 /// # Flags
 ///

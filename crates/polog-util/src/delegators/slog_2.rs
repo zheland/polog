@@ -68,8 +68,9 @@ pub struct ViaSlog<D>
 where
     D: Send + Sync + slog::Drain<Ok = (), Err = !>,
 {
+    /// The `slog` drain to forward to.
     handler: slog::Logger<D>,
-
+    /// The flags customizing the behavior of the delegator.
     flags: ViaSlogFlags,
 }
 

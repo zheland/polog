@@ -62,6 +62,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 /// [`tracing::Span`]: tracing_0_1::Span
 #[derive(Clone, Debug, Default)]
 pub struct ViaTracing {
+    /// The `tracing` dispatch to forward to.
     dispatch: Dispatch,
 
     /// Live spans keyed by polog `SpanId`.
@@ -1113,10 +1114,10 @@ mod tests {
                 Event::NewSpan(span_id_offset + 1, "Span"),
                 Event::EnterSpan(span_id_offset + 1),
                 Event::ExitSpan(span_id_offset),
-                Event::Enabled("event crates/polog-util/src/delegators/tracing_0_1.rs:601"),
+                Event::Enabled("event crates/polog-util/src/delegators/tracing_0_1.rs:602"),
                 Event::Event {
                     parent: None,
-                    name: "event crates/polog-util/src/delegators/tracing_0_1.rs:601",
+                    name: "event crates/polog-util/src/delegators/tracing_0_1.rs:602",
                     fields: vec![
                         (
                             "message",

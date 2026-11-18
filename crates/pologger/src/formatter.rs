@@ -87,7 +87,8 @@ pub trait Formatter {
     /// Writes a field key.
     ///
     /// For structural formatters (`NdJsonFormatter`), this emits the key
-    /// prefix. For flat formatters (`TextFormatter`), this is a no-op.
+    /// prefix.
+    /// For flat formatters (`TextFormatter`), this is a no-op.
     ///
     /// # Errors
     ///
