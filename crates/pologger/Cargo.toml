@@ -23,14 +23,13 @@ categories = [
 
 [features]
 either-1 = [ "dep:either-1" ]
-log-0-4 = [ "dep:log-0-4", "log-0-4/kv", "polog-util/log-0-4" ]
+log-0-4 = [ "dep:log-0-4", "polog-util/log-0-4" ]
 slog-2 = [ "dep:slog-2", "polog-util/slog-2" ]
-tracing-0-1 = [ "dep:tracing-core-0-1", "dep:tracing-0-1", "dep:dashmap", "polog-util/tracing-0-1", "tracing-core-0-1/std" ]
+tracing-0-1 = [ "dep:tracing-0-1", "polog-util/tracing-0-1" ]
 
 [dependencies]
 bitflags = { version = "2.13.2", default-features = false }
-dashmap = { version = "6.2.1", default-features = false, optional = true }
-jiff = { version = "1.0.0", default-features = false, features = [ "std" ] }
+jiff = { version = "1.0.1", default-features = false, features = [ "std" ] }
 # Bumping `parking_lot` requires a `pologger` breaking-change release,
 # because the version of `parking_lot` is a part of `pologger`'s public type identity.
 parking_lot = { version = "0.13.0", default-features = false }
