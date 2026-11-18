@@ -115,9 +115,6 @@ struct SpanData {
 
     /// Current ref-count, as tracked by `clone_span` and `try_close`.
     num_refs: usize,
-
-    /// Determines if the span state change events must be emitted to `polog`.
-    is_enabled: bool,
 }
 
 /// One frame of [`ENTER_STACK`].
@@ -135,10 +132,6 @@ struct EnterFrame {
     /// Span id emitted by `enter_span`.
     /// Only valid within `polog` scope.
     span_id: SpanId,
-
-    /// Cached from `new_span`.
-    /// Avoids re-locking `spans` on `exit`.
-    is_enabled: bool,
 
     /// Cached from `new_span`.
     /// Avoids re-locking `spans` on `exit`.
@@ -168,7 +161,7 @@ where
 
     #[inline]
     fn enabled(&self, metadata: &tracing_0_1::Metadata<'_>) -> bool {
-        H::try_enable_external(&self.handler, metadata, ()).is_some()
+        H::is_enabled_external(&self.handler, metadata)
     }
 
     #[inline]
@@ -181,7 +174,6 @@ where
         let span_id = self.handler.generate_span_id();
         let subscriber_id = self.data.subscriber_id;
         let metadata = attributes.metadata();
-        let context = H::try_enable_external(&self.handler, metadata, ());
 
         let parent_span_id = get_span_id_from_stack(subscriber_id, attributes.parent());
 
@@ -190,20 +182,17 @@ where
             SpanData {
                 metadata,
                 num_refs: 1,
-                is_enabled: context.is_some(),
             },
         );
 
-        if let Some(context) = H::try_enable_external(&self.handler, metadata, ()) {
-            H::new_span_external(
-                &mut self.handler.clone(),
-                metadata,
-                attributes,
-                parent_span_id,
-                span_id,
-                context,
-            );
-        }
+        H::new_span_external(
+            &mut self.handler.clone(),
+            metadata,
+            attributes,
+            parent_span_id,
+            span_id,
+            (),
+        );
 
         tracing_0_1::span::Id::from_non_zero_u64(span_id.0)
     }
@@ -221,7 +210,7 @@ where
     fn try_close(&self, id: tracing_0_1::span::Id) -> bool {
         let span_id = SpanId(id.into_non_zero_u64());
 
-        let (metadata, was_enabled) = {
+        let metadata = {
             let spans = &self.data.spans;
             match spans.entry(span_id) {
                 dashmap::Entry::Occupied(mut entry) => {
@@ -231,7 +220,7 @@ where
                         return false;
                     }
                     let span = entry.remove();
-                    (span.metadata, span.is_enabled)
+                    span.metadata
                 }
 
                 // The span is unknown.
@@ -239,9 +228,7 @@ where
             }
         };
 
-        if was_enabled {
-            H::close_span_external(&mut self.handler.clone(), metadata, span_id, ());
-        }
+        H::close_span_external(&mut self.handler.clone(), metadata, span_id, ());
 
         true
     }
@@ -256,28 +243,24 @@ where
 
         let subscriber_id = self.data.subscriber_id;
         let span_id = self.handler.generate_span_id();
-        let context = H::try_enable_external(&self.handler, metadata, ());
 
         ENTER_STACK.with(|cell| {
             cell.borrow_mut().push(EnterFrame {
                 subscriber_id,
                 parent_span_id,
                 span_id,
-                is_enabled: context.is_some(),
                 metadata,
             });
         });
 
-        if let Some(context) = context {
-            H::enter_span_external(
-                &mut self.handler.clone(),
-                metadata,
-                &(),
-                Some(parent_span_id),
-                span_id,
-                context,
-            );
-        }
+        H::enter_span_external(
+            &mut self.handler.clone(),
+            metadata,
+            &(),
+            Some(parent_span_id),
+            span_id,
+            (),
+        );
     }
 
     #[inline]
@@ -304,9 +287,7 @@ where
             return;
         };
 
-        if frame.is_enabled {
-            H::exit_span_external(&mut self.handler.clone(), frame.metadata, frame.span_id, ());
-        }
+        H::exit_span_external(&mut self.handler.clone(), frame.metadata, frame.span_id, ());
     }
 
     // -----------------------------------------------------------------------
@@ -376,9 +357,7 @@ where
 
         let span_id = get_span_id_from_stack(subscriber_id, event.parent());
 
-        if let Some(context) = H::try_enable_external(&self.handler, metadata, ()) {
-            H::log_external(&mut self.handler.clone(), metadata, event, span_id, context);
-        }
+        H::log_external(&mut self.handler.clone(), metadata, event, span_id, ());
     }
 
     // -----------------------------------------------------------------------

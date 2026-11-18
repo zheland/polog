@@ -21,13 +21,10 @@ fn test_log_global() {
     assert_eq!(
         tracker.take_details(),
         &[
-            // `LogBridge::try_install_global`.
             "max_level_external",
-            // `ViaLog::try_enable`.
-            "try_enable_external(None, ())",
-            // `LogBridge::log`.
-            "try_enable_external(Some(Fmt(Info)), ())",
-            "log_external(Some(Fmt(Info)), (key = value), None, ())",
+            "is_enabled_external(None)", // `<ViaLog as Handler>::try_enable`.
+            "is_enabled_external(Some(Fmt(Info)))", // `LogBridge::log`.
+            "log_external(Some(Fmt(Info)), (key = value), None, ())"
         ]
     );
 
@@ -35,12 +32,13 @@ fn test_log_global() {
     assert_eq!(
         tracker.take_details(),
         &[
-            "try_enable_external(None, ())",
-            "try_enable_external(Some(Fmt(Span)), ())",
+            "is_enabled_external(None)", // `<ViaLog as Handler>::try_enable`.
+            "is_enabled_external(Some(Fmt(Span)))", // `LogBridge::log`.
             "log_external(Some(Fmt(Span)), (foo = bar), None, ())"
         ]
     );
     drop(span);
+    assert_eq!(tracker.take_details(), &[""; 0]);
 
     check_handler::check_basic_dyn_handler_fns(&mut logger);
     check_handler::check_basic_handler_fns(&mut logger, Some(&()));

@@ -351,6 +351,16 @@ where
             LevelFilter::Off
         }
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        // `Drain` has no `is_enabled` hook, so per-drain filtering is
+        // applied when the record is actually logged.
+        descriptor.level() <= self.max_level_external()
+    }
 }
 
 impl<D, Context> ExternalHandler<Context> for ViaSlog<D>
@@ -359,26 +369,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        _descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        // `Drain` has no `is_enabled` hook, so per-drain filtering is
-        // applied when the record is actually logged.
-        Some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         _span_id: Option<SpanId>,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -393,7 +389,7 @@ where
         _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -407,7 +403,7 @@ where
         args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,

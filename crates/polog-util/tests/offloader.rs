@@ -12,7 +12,7 @@ use polog::{
     BaseHandler, Descriptor, DynHandler, Handler, Level, LevelFilter, Logger, SpanIdGenerator,
     SpanKind, log_descriptor_ref,
 };
-use polog_test_helpers::check_external_handler::test_external;
+use polog_test_helpers::check_external_handler::check_external_handler_fns;
 use polog_test_helpers::panic::catch_unwind_on_thread;
 use polog_test_helpers::tracker::Tracker;
 use polog_util::filters::MaxLevel;
@@ -582,23 +582,23 @@ fn test_offloader_external() {
     let worker = service.spawn().unwrap();
 
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
+    check_external_handler_fns(&mut logger, &());
     logger.flush_blocking();
 
     assert_eq!(
         tracker.take_events(),
         &[
-            "try_enable_external",
+            "is_enabled_external",
             "log_external",
-            "try_enable_external",
+            "is_enabled_external",
             "new_span_external",
-            "try_enable_external",
+            "is_enabled_external",
             "enter_span_external",
             "record_span_external",
             "link_span_external",
             "exit_span_external",
             "close_span_external",
-            "flush_blocking",
+            "flush_blocking"
         ]
     );
 

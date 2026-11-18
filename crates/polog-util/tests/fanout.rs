@@ -2,16 +2,21 @@
 #![allow(unused_crate_dependencies, reason = "okay in tests")]
 
 use polog::{Discard, LevelFilter};
-use polog_test_helpers::check_external_handler::test_external;
+use polog_test_helpers::check_external_handler::check_external_handler_fns;
 use polog_test_helpers::tracker::Tracker;
 use polog_util::{BaseExternalHandler, BorrowingFanout1, BorrowingFanout4, Fanout1, Fanout4};
 
-const EXTERNAL_AND_GEN: &[&str] = &[
+// Fanout has to repeat the checks for each sub-handler because external
+// handler doesn't cache result of `is_enabled_external` in enriched context
+// as it has no such concept.
+// Therefore all events contains a lot of additional `is_enabled_external`.
+
+const FANOUT1_AND_GEN: &[&str] = &[
     "max_level_external",
     "generate_span_id",
     "generate_span_id",
     "generate_span_id",
-    "try_enable_external",
+    "is_enabled_external",
     "log_external",
     "new_span_external",
     "enter_span_external",
@@ -21,11 +26,37 @@ const EXTERNAL_AND_GEN: &[&str] = &[
     "close_span_external",
 ];
 
-const EXTERNAL: &[&str] = &[
+const FANOUT4_AND_GEN: &[&str] = &[
     "max_level_external",
-    "try_enable_external",
+    "generate_span_id",
+    "generate_span_id",
+    "generate_span_id",
+    "is_enabled_external",
+    "is_enabled_external",
+    "is_enabled_external",
     "log_external",
+    "is_enabled_external",
+    "is_enabled_external",
     "new_span_external",
+    "is_enabled_external",
+    "is_enabled_external",
+    "enter_span_external",
+    "record_span_external",
+    "link_span_external",
+    "exit_span_external",
+    "close_span_external",
+];
+
+const FANOUT4: &[&str] = &[
+    "max_level_external",
+    "is_enabled_external",
+    "is_enabled_external",
+    "log_external",
+    "is_enabled_external",
+    "is_enabled_external",
+    "new_span_external",
+    "is_enabled_external",
+    "is_enabled_external",
     "enter_span_external",
     "record_span_external",
     "link_span_external",
@@ -42,8 +73,8 @@ fn test_fanout_external() {
 
     let mut logger = Fanout1::new((tracker1.clone(),));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT1_AND_GEN);
 
     let mut logger = Fanout4::new((
         Fanout4::new((tracker1.clone(), Discard, Discard, Discard)),
@@ -52,11 +83,11 @@ fn test_fanout_external() {
         Fanout4::new((Discard, Discard, Discard, tracker4.clone())),
     ));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
-    assert_eq!(tracker2.take_events(), EXTERNAL);
-    assert_eq!(tracker3.take_events(), EXTERNAL);
-    assert_eq!(tracker4.take_events(), EXTERNAL);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT4_AND_GEN);
+    assert_eq!(tracker2.take_events(), FANOUT4);
+    assert_eq!(tracker3.take_events(), FANOUT4);
+    assert_eq!(tracker4.take_events(), FANOUT4);
 
     let mut logger = Fanout4::new((
         BorrowingFanout4::new((tracker1.clone(), Discard, Discard, Discard)),
@@ -65,11 +96,11 @@ fn test_fanout_external() {
         BorrowingFanout4::new((Discard, Discard, Discard, tracker4.clone())),
     ));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
-    assert_eq!(tracker2.take_events(), EXTERNAL);
-    assert_eq!(tracker3.take_events(), EXTERNAL);
-    assert_eq!(tracker4.take_events(), EXTERNAL);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT4_AND_GEN);
+    assert_eq!(tracker2.take_events(), FANOUT4);
+    assert_eq!(tracker3.take_events(), FANOUT4);
+    assert_eq!(tracker4.take_events(), FANOUT4);
 }
 
 #[test]
@@ -81,8 +112,8 @@ fn test_borrowing_fanout_external() {
 
     let mut logger = BorrowingFanout1::new((tracker1.clone(),));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT1_AND_GEN);
 
     let mut logger = BorrowingFanout4::new((
         Fanout4::new((tracker1.clone(), Discard, Discard, Discard)),
@@ -91,11 +122,11 @@ fn test_borrowing_fanout_external() {
         Fanout4::new((Discard, Discard, Discard, tracker4.clone())),
     ));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
-    assert_eq!(tracker2.take_events(), EXTERNAL);
-    assert_eq!(tracker3.take_events(), EXTERNAL);
-    assert_eq!(tracker4.take_events(), EXTERNAL);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT4_AND_GEN);
+    assert_eq!(tracker2.take_events(), FANOUT4);
+    assert_eq!(tracker3.take_events(), FANOUT4);
+    assert_eq!(tracker4.take_events(), FANOUT4);
 
     let mut logger = BorrowingFanout4::new((
         BorrowingFanout4::new((tracker1.clone(), Discard, Discard, Discard)),
@@ -104,9 +135,9 @@ fn test_borrowing_fanout_external() {
         BorrowingFanout4::new((Discard, Discard, Discard, tracker4.clone())),
     ));
     assert_eq!(logger.max_level_external(), LevelFilter::Trace);
-    test_external(&mut logger, &());
-    assert_eq!(tracker1.take_events(), EXTERNAL_AND_GEN);
-    assert_eq!(tracker2.take_events(), EXTERNAL);
-    assert_eq!(tracker3.take_events(), EXTERNAL);
-    assert_eq!(tracker4.take_events(), EXTERNAL);
+    check_external_handler_fns(&mut logger, &());
+    assert_eq!(tracker1.take_events(), FANOUT4_AND_GEN);
+    assert_eq!(tracker2.take_events(), FANOUT4);
+    assert_eq!(tracker3.take_events(), FANOUT4);
+    assert_eq!(tracker4.take_events(), FANOUT4);
 }

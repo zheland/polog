@@ -371,6 +371,20 @@ impl BaseExternalHandler for Tracker {
         }
         LevelFilter::ALL
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        let mut this = self.0.lock().unwrap();
+        this.events.push("is_enabled_external");
+        if this.details_enabled {
+            this.details
+                .push(format!("is_enabled_external({:?})", descriptor.message()));
+        }
+        true
+    }
 }
 
 impl<Context> ExternalHandler<Context> for Tracker
@@ -378,33 +392,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        let mut this = self.0.lock().unwrap();
-        this.events.push("try_enable_external");
-        if this.details_enabled {
-            this.details.push(format!(
-                "try_enable_external({:?}, {})",
-                descriptor.message(),
-                fmt_context(&context)
-            ));
-        }
-        Some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -428,7 +421,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -452,7 +445,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -598,8 +591,8 @@ where
         fn visit_message(&mut self, value: polog_util::ExternalArgValue<'_>) {
             if self.1 {
                 let _ = write!(self.0, ", ");
-                self.1 = true;
             }
+            self.1 = true;
             let _ = write!(self.0, "{value}");
         }
 
@@ -610,8 +603,8 @@ where
         ) {
             if self.1 {
                 let _ = write!(self.0, ", ");
-                self.1 = true;
             }
+            self.1 = true;
             let _ = write!(self.0, "{key} = {value}");
         }
     }

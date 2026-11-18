@@ -12,13 +12,13 @@ fn test_slog_global() {
     tracker.set_details_enabled(true);
     let slog_logger = SlogBridge::new(tracker.clone()).into_slog_logger();
 
-    let mut logger = ViaSlog::new(slog_logger, ViaSlogFlags::all());
+    let mut logger = ViaSlog::new(slog_logger.clone(), ViaSlogFlags::all());
 
     polog::info!(&mut logger, "Info"; key = "value");
     assert_eq!(
         tracker.take_details(),
         &[
-            "try_enable_external(Some(Fmt(Info)), ())",
+            "is_enabled_external(Some(Fmt(Info)))",
             "log_external(Some(Fmt(Info)), (key = value), None, ())"
         ]
     );
@@ -27,7 +27,7 @@ fn test_slog_global() {
     assert_eq!(
         tracker.take_details(),
         &[
-            "try_enable_external(Some(Fmt(Span)), ())",
+            "is_enabled_external(Some(Fmt(Span)))",
             "log_external(Some(Fmt(Span)), (key = value), None, ())"
         ]
     );

@@ -360,6 +360,14 @@ where
         let level = log::max_level();
         conv::log_0_4::level_filter_from_foreign(level)
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        is_enabled_external(&self.handler, descriptor)
+    }
 }
 
 impl<L, Context> ExternalHandler<Context> for ViaLog<L>
@@ -368,24 +376,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        is_enabled_external(&self.handler, descriptor).then_some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         _span_id: Option<SpanId>,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -400,7 +396,7 @@ where
         _args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -414,7 +410,7 @@ where
         args: &Args,
         _parent_span_id: Option<SpanId>,
         _span_id: SpanId,
-        _context: Self::EnrichedContext,
+        _context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,

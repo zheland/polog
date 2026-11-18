@@ -271,7 +271,7 @@ impl<H, Context, CustomEvent, CustomHandler>
     #[inline]
     pub fn spawn(mut self) -> Result<std::thread::JoinHandle<()>, core_or_std::io::Error>
     where
-        H: 'static + Send + ExternalHandler<Context> + Handler<()>,
+        H: 'static + Send + Handler<Context> + Handler<()> + ExternalHandler<Context>,
         Context: ContextArgs,
         CustomEvent: 'static + Send,
         CustomHandler: 'static + Send + FnMut(&mut H, CustomEvent) -> ControlFlow<(), ()>,
@@ -296,7 +296,7 @@ impl<H, Context, CustomEvent, CustomHandler>
     #[inline]
     pub fn run_blocking(&mut self)
     where
-        H: ExternalHandler<Context> + Handler<()>,
+        H: Handler<Context> + Handler<()> + ExternalHandler<Context>,
         Context: ContextArgs,
         CustomHandler: FnMut(&mut H, CustomEvent) -> ControlFlow<(), ()>,
     {
@@ -422,7 +422,7 @@ impl<H, Context, CustomEvent, CustomHandler>
                     span_id,
                     context,
                 } => {
-                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                    if self.handler.is_enabled_external(&*descriptor) {
                         <H as ExternalHandler<Context>>::log_external(
                             &mut self.handler,
                             &*descriptor,
@@ -440,7 +440,7 @@ impl<H, Context, CustomEvent, CustomHandler>
                     span_id,
                     context,
                 } => {
-                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                    if self.handler.is_enabled_external(&*descriptor) {
                         <H as ExternalHandler<Context>>::new_span_external(
                             &mut self.handler,
                             &*descriptor,
@@ -461,7 +461,7 @@ impl<H, Context, CustomEvent, CustomHandler>
                     span_id,
                     context,
                 } => {
-                    if let Some(context) = self.handler.try_enable_external(&*descriptor, context) {
+                    if self.handler.is_enabled_external(&*descriptor) {
                         <H as ExternalHandler<Context>>::enter_span_external(
                             &mut self.handler,
                             &*descriptor,
@@ -1402,6 +1402,20 @@ where
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, _descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        // [`Handler::is_enabled_external`] on `Offload` always accepts the
+        // event.
+        //
+        // The full `try_enable` check is still performed inside the worker,
+        // before the job is forwarded to the wrapped handler.
+        // This matches the semantics of a non-offloaded chain.
+        true
+    }
 }
 
 impl<Context, CustomEvent> ExternalHandler<Context> for OffloaderHandle<Context, CustomEvent>
@@ -1409,30 +1423,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        _descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        // [`Handler::try_enable_external`] on `Offload` always accepts the
-        // event.
-        //
-        // The full `try_enable` check is still performed inside the worker,
-        // before the job is forwarded to the wrapped handler.
-        // This matches the semantics of a non-offloaded chain.
-        Some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -1447,7 +1443,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -1462,7 +1458,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -1685,6 +1681,14 @@ where
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        OffloaderHandle::is_enabled_external(&**self, descriptor)
+    }
 }
 
 impl<Context, CustomEvent> ExternalHandler<Context> for &OffloaderHandle<Context, CustomEvent>
@@ -1692,24 +1696,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        OffloaderHandle::try_enable_external(&**self, descriptor, context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -1724,7 +1716,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -1739,7 +1731,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,

@@ -313,6 +313,14 @@ where
     fn max_level_external(&self) -> LevelFilter {
         H::max_level_external(&self.handler)
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        H::is_enabled_external(&self.handler, descriptor)
+    }
 }
 
 impl<H, F, Context> ExternalHandler<Context> for Enricher<H, F>
@@ -324,29 +332,17 @@ where
     Context::WithDebuggableArg<F::Output>: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        let context = context.with_debuggable_arg(self.arg_fn.call());
-        H::try_enable_external(&self.handler, descriptor, context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
         H::log_external(&mut self.handler, descriptor, args, span_id, context);
     }
 
@@ -357,11 +353,12 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
         H::new_span_external(
             &mut self.handler,
             descriptor,
@@ -379,11 +376,12 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
+        let context = context.with_debuggable_arg(self.arg_fn.call());
         H::enter_span_external(
             &mut self.handler,
             descriptor,

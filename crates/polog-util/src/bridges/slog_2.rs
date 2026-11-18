@@ -77,13 +77,13 @@ where
         record: &slog_2::Record<'_>,
         values: &slog_2::OwnedKVList,
     ) -> Result<Self::Ok, Self::Err> {
-        if let Some(context) = H::try_enable_external(&self.handler, record, ()) {
+        if H::is_enabled_external(&self.handler, record) {
             H::log_external(
                 &mut self.handler.clone(),
                 record,
                 &(record, values),
                 None,
-                context,
+                (),
             );
         }
         Ok(())
@@ -95,9 +95,10 @@ where
         Ok(())
     }
 
+    // This method is not automatically called by `slog` macros.
     #[inline]
     fn is_enabled(&self, level: slog_2::Level) -> bool {
-        H::try_enable_external(&self.handler, &level, ()).is_some()
+        H::is_enabled_external(&self.handler, &level)
     }
 }
 

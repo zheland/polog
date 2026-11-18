@@ -193,9 +193,9 @@ pub trait LoggerExt: Logger {
     /// Creates a transparent span that owns a cloned handler and shares
     /// the current span ID.
     ///
-    /// A transparent span emits no enter/exit events; only its
-    /// [`Logger::span_id`] is used, to attribute events and child spans
-    /// to the enclosing span.
+    /// A transparent span emits no enter/exit events.
+    /// Only its [`Logger::span_id`] is used, to attribute events and child
+    /// spans to the enclosing span.
     /// This is the owning counterpart of
     /// [`LoggerExt::transparent_borrowing_span`] and is useful when only span
     /// ID propagation is needed while the span must be stored or moved.

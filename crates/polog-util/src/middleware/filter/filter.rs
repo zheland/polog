@@ -351,6 +351,15 @@ where
             .max_level()
             .min(H::max_level_external(&self.handler))
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        self.filter.is_enabled_external(&descriptor)
+            && H::is_enabled_external(&self.handler, &descriptor)
+    }
 }
 
 impl<H, F, Context> ExternalHandler<Context> for Filter<H, F>
@@ -360,28 +369,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        if self.filter.is_enabled_external(&descriptor) {
-            H::try_enable_external(&self.handler, &descriptor, context)
-        } else {
-            None
-        }
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -396,7 +389,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -418,7 +411,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,

@@ -7,8 +7,9 @@ use crate::util::{DisplayAndDebug, MaybeStaticStr};
 ///
 /// Called exactly once per event, in source order, by
 /// [`ExternalArgs::visit`]. Implementations render, collect, filter, or
-/// forward as they see fit; the source walks its fields once and the
-/// callback decides what to do with each.
+/// forward as they see fit.
+/// The source walks its fields once and the callback decides what to do with
+/// each.
 pub trait ExternalArgsVisitor {
     /// Called at most once, when the foreign source distinguishes a
     /// message field from the argument list.
@@ -40,8 +41,8 @@ pub trait ExternalArgs {
     /// Visits every field of the event.
     ///
     /// The order is the source's argument order. `visit_message` runs
-    /// before `visit_arg` if a distinguished message exists; otherwise
-    /// `visit_message` is not called.
+    /// before `visit_arg` if a distinguished message exists.
+    /// Otherwise `visit_message` is not called.
     fn visit<Visitor>(&self, visitor: &mut Visitor)
     where
         Visitor: ExternalArgsVisitor;

@@ -76,26 +76,22 @@ impl ExternalArgs for SimpleArgs {
 }
 
 #[inline]
-pub fn test_external<L, Context>(logger: &mut L, context: &Context)
+pub fn check_external_handler_fns<L, Context>(logger: &mut L, context: &Context)
 where
-    L: ExternalHandler<Context>,
-    L::EnrichedContext: Clone + PartialEq + fmt::Debug,
+    L: BaseHandler + ExternalHandler<Context>,
     Context: Clone + ContextArgs,
 {
     let span_id1 = logger.generate_span_id();
     let span_id2 = logger.generate_span_id();
     let span_id3 = logger.generate_span_id();
 
-    #[expect(clippy::unwrap_used, reason = "okay in test helpers")]
-    let enriched_context = logger
-        .try_enable_external(&SIMPLE_DESCRIPTOR, context.clone())
-        .unwrap();
+    assert!(logger.is_enabled_external(&SIMPLE_DESCRIPTOR));
 
     logger.log_external(
         &SIMPLE_DESCRIPTOR,
         &SimpleArgs,
         Some(span_id1),
-        enriched_context.clone(),
+        context.clone(),
     );
 
     logger.new_span_external(
@@ -103,7 +99,7 @@ where
         &SimpleArgs,
         Some(span_id1),
         span_id2,
-        enriched_context.clone(),
+        context.clone(),
     );
 
     logger.enter_span_external(
@@ -111,7 +107,7 @@ where
         &SimpleArgs,
         Some(span_id2),
         span_id3,
-        enriched_context.clone(),
+        context.clone(),
     );
 
     logger.record_span_external(&SIMPLE_DESCRIPTOR, &SimpleArgs, span_id2, context.clone());

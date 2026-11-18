@@ -369,6 +369,14 @@ where
     fn max_level_external(&self) -> LevelFilter {
         T1::max_level_external(&self.handlers.0)
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        <T1>::is_enabled_external(&self.handlers.0, descriptor)
+    }
 }
 
 impl<T1, Context> ExternalHandler<Context> for Fanout<(T1,), 1>
@@ -377,36 +385,17 @@ where
     Context: Clone + ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        let context = (<T1>::try_enable_external(
-            &self.handlers.0,
-            descriptor,
-            context,
-        ),);
-        (context.0.is_some()).then_some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        if let Some(context) = context.0 {
-            <T1>::log_external(&mut self.handlers.0, descriptor, args, span_id, context);
-        }
+        <T1>::log_external(&mut self.handlers.0, descriptor, args, span_id, context);
     }
 
     #[inline]
@@ -416,25 +405,19 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        if context.0.is_none() {
-            let _is_newly_inserted: bool = self.disabled_spans[0].insert(span_id);
-        }
-
-        if let Some(context) = context.0 {
-            <T1>::new_span_external(
-                &mut self.handlers.0,
-                descriptor,
-                args,
-                parent_span_id,
-                span_id,
-                context,
-            );
-        }
+        <T1>::new_span_external(
+            &mut self.handlers.0,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
     #[inline]
@@ -444,25 +427,19 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        if context.0.is_none() {
-            let _is_newly_inserted: bool = self.disabled_spans[0].insert(span_id);
-        }
-
-        if let Some(context) = context.0 {
-            <T1>::enter_span_external(
-                &mut self.handlers.0,
-                descriptor,
-                args,
-                parent_span_id,
-                span_id,
-                context,
-            );
-        }
+        <T1>::enter_span_external(
+            &mut self.handlers.0,
+            descriptor,
+            args,
+            parent_span_id,
+            span_id,
+            context,
+        );
     }
 
     #[inline]
@@ -470,11 +447,7 @@ where
     where
         Desc: ExternalDescriptor,
     {
-        let was_enabled = self.disabled_spans[0].remove(&span_id).is_none();
-
-        if was_enabled {
-            <T1>::exit_span_external(&mut self.handlers.0, descriptor, span_id, context);
-        }
+        <T1>::exit_span_external(&mut self.handlers.0, descriptor, span_id, context);
     }
 
     #[inline]
@@ -482,11 +455,7 @@ where
     where
         Desc: ExternalDescriptor,
     {
-        let was_enabled = self.disabled_spans[0].remove(&span_id).is_none();
-
-        if was_enabled {
-            <T1>::close_span_external(&mut self.handlers.0, descriptor, span_id, context);
-        }
+        <T1>::close_span_external(&mut self.handlers.0, descriptor, span_id, context);
     }
 
     #[inline]
@@ -500,11 +469,7 @@ where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        let is_enabled = !self.disabled_spans[0].contains(&span_id);
-
-        if is_enabled {
-            <T1>::record_span_external(&mut self.handlers.0, descriptor, args, span_id, context);
-        }
+        <T1>::record_span_external(&mut self.handlers.0, descriptor, args, span_id, context);
     }
 
     #[expect(clippy::similar_names, reason = "better than alternatives")]
@@ -518,17 +483,13 @@ where
     ) where
         Desc: ExternalDescriptor,
     {
-        let is_enabled = !self.disabled_spans[0].contains(&follower_span_id);
-
-        if is_enabled {
-            <T1>::link_span_external(
-                &mut self.handlers.0,
-                descriptor,
-                followed_span_id,
-                follower_span_id,
-                context,
-            );
-        }
+        <T1>::link_span_external(
+            &mut self.handlers.0,
+            descriptor,
+            followed_span_id,
+            follower_span_id,
+            context,
+        );
     }
 }
 
@@ -1492,6 +1453,25 @@ macro_rules! impl_variadic {
                 $( .max(<$type_i>::max_level_external(&self.handlers.$field_i)) )*
                 .max(<$type_n>::max_level_external(&self.handlers.$field_n))
             }
+
+            #[inline]
+            fn is_enabled_external<Desc>(&self, descriptor: &Desc) -> bool
+            where
+                Desc: ExternalDescriptor,
+            {
+                <$type_1>::is_enabled_external(
+                    &self.handlers.$field_1,
+                    descriptor
+                )
+                $( || <$type_i>::is_enabled_external(
+                    &self.handlers.$field_i,
+                    descriptor
+                ) )*
+                || <$type_n>::is_enabled_external(
+                    &self.handlers.$field_n,
+                    descriptor
+                )
+            }
         }
 
         impl< $type_1 $(, $type_i )*, $type_n , Context> ExternalHandler<Context>
@@ -1506,75 +1486,94 @@ macro_rules! impl_variadic {
             Context: Clone + ContextArgs,
         {
             #[inline]
-            fn try_enable_external<Desc>(
-                &self,
-                descriptor: &Desc,
-                context: Context,
-            ) -> Option<Self::EnrichedContext>
-            where
-                Desc: ExternalDescriptor,
-            {
-                let context = (
-                    <$type_1>::try_enable_external(
-                        &self.handlers.$field_1,
-                        descriptor,
-                        context.clone()
-                    ),
-                    $( <$type_i>::try_enable_external(
-                        &self.handlers.$field_i,
-                        descriptor,
-                        context.clone()
-                    ), )*
-                    <$type_n>::try_enable_external(
-                        &self.handlers.$field_n,
-                        descriptor,
-                        context
-                    ),
-                );
-                (
-                    context.$field_1.is_some()
-                    $( || context.$field_i.is_some() )*
-                    || context.$field_n.is_some()
-                ).then_some(context)
-            }
-
-            #[inline]
             fn log_external<Desc, Args>(
                 &mut self,
                 descriptor: &Desc,
                 args: &Args,
                 span_id: Option<SpanId>,
-                context: Self::EnrichedContext,
+                context: Context,
             ) where
                 Desc: ExternalDescriptor,
                 Args: ExternalArgs,
             {
-                if let Some(context) = context.$field_1 {
-                    <$type_1>::log_external(
-                        &mut self.handlers.$field_1,
-                        descriptor,
-                        args,
-                        span_id,
-                        context
-                    );
-                }
-                $( if let Some(context) = context.$field_i {
-                    <$type_i>::log_external(
-                        &mut self.handlers.$field_i,
-                        descriptor,
-                        args,
-                        span_id,
-                        context
-                    );
-                } )*
-                if let Some(context) = context.$field_n {
-                    <$type_n>::log_external(
-                        &mut self.handlers.$field_n,
-                        descriptor,
-                        args,
-                        span_id,
-                        context
-                    );
+                let is_enabled = [
+                    <$type_1>::is_enabled_external(
+                        &self.handlers.$field_1,
+                        descriptor
+                    ),
+                    $( <$type_i>::is_enabled_external(
+                        &self.handlers.$field_i,
+                        descriptor
+                    ), )*
+                    <$type_n>::is_enabled_external(
+                        &self.handlers.$field_n,
+                        descriptor
+                    ),
+                ];
+
+                #[expect(clippy::arithmetic_side_effects, reason = "never overflows")]
+                let num_enabled = (
+                    usize::from(is_enabled[$field_1])
+                    $( + usize::from(is_enabled[$field_i]) )*
+                    + usize::from(is_enabled[$field_n])
+                );
+
+                if num_enabled == 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::log_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            span_id,
+                            context,
+                        );
+                    }
+                    $( else if is_enabled[$field_i] {
+                        <$type_i>::log_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            span_id,
+                            context,
+                        );
+                    } )*
+                    else if is_enabled[$field_n] {
+                        <$type_n>::log_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            span_id,
+                            context,
+                        );
+                    }
+                } else if num_enabled > 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::log_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            span_id,
+                            context.clone(),
+                        );
+                    }
+                    $( if is_enabled[$field_i] {
+                        <$type_i>::log_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            span_id,
+                            context.clone(),
+                        );
+                    } )*
+                    if is_enabled[$field_n] {
+                        <$type_n>::log_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            span_id,
+                            context,
+                        );
+                    }
                 }
             }
 
@@ -1585,53 +1584,95 @@ macro_rules! impl_variadic {
                 args: &Args,
                 parent_span_id: Option<SpanId>,
                 span_id: SpanId,
-                context: Self::EnrichedContext,
+                context: Context,
             ) where
                 Desc: ExternalDescriptor,
                 Args: ExternalArgs,
             {
-                if context.$field_1.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_1].insert(span_id);
-                }
-                $( if context.$field_i.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_i].insert(span_id);
-                } )*
-                if context.$field_n.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_n].insert(span_id);
-                }
+                let is_enabled = [
+                    <$type_1>::is_enabled_external(
+                        &self.handlers.$field_1,
+                        descriptor
+                    ),
+                    $( <$type_i>::is_enabled_external(
+                        &self.handlers.$field_i,
+                        descriptor
+                    ), )*
+                    <$type_n>::is_enabled_external(
+                        &self.handlers.$field_n,
+                        descriptor
+                    ),
+                ];
 
-                if let Some(context) = context.$field_1 {
-                    <$type_1>::new_span_external(
-                        &mut self.handlers.$field_1,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
-                }
-                $( if let Some(context) = context.$field_i {
-                    <$type_i>::new_span_external(
-                        &mut self.handlers.$field_i,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
-                } )*
-                if let Some(context) = context.$field_n {
-                    <$type_n>::new_span_external(
-                        &mut self.handlers.$field_n,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
+                #[expect(clippy::arithmetic_side_effects, reason = "never overflows")]
+                let num_enabled = (
+                    usize::from(is_enabled[$field_1])
+                    $( + usize::from(is_enabled[$field_i]) )*
+                    + usize::from(is_enabled[$field_n])
+                );
+
+                if num_enabled == 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::new_span_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
+                    $( else if is_enabled[$field_i] {
+                        <$type_i>::new_span_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    } )*
+                    else if is_enabled[$field_n] {
+                        <$type_n>::new_span_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
+                } else if num_enabled > 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::new_span_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context.clone(),
+                        );
+                    }
+                    $( if is_enabled[$field_i] {
+                        <$type_i>::new_span_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context.clone(),
+                        );
+                    } )*
+                    if is_enabled[$field_n] {
+                        <$type_n>::new_span_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
                 }
             }
 
@@ -1642,53 +1683,95 @@ macro_rules! impl_variadic {
                 args: &Args,
                 parent_span_id: Option<SpanId>,
                 span_id: SpanId,
-                context: Self::EnrichedContext,
+                context: Context,
             ) where
                 Desc: ExternalDescriptor,
                 Args: ExternalArgs,
             {
-                if context.$field_1.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_1].insert(span_id);
-                }
-                $( if context.$field_i.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_i].insert(span_id);
-                } )*
-                if context.$field_n.is_none() {
-                    let _is_newly_inserted: bool =
-                        self.disabled_spans[$field_n].insert(span_id);
-                }
+                let is_enabled = [
+                    <$type_1>::is_enabled_external(
+                        &self.handlers.$field_1,
+                        descriptor
+                    ),
+                    $( <$type_i>::is_enabled_external(
+                        &self.handlers.$field_i,
+                        descriptor
+                    ), )*
+                    <$type_n>::is_enabled_external(
+                        &self.handlers.$field_n,
+                        descriptor
+                    ),
+                ];
 
-                if let Some(context) = context.$field_1 {
-                    <$type_1>::enter_span_external(
-                        &mut self.handlers.$field_1,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
-                }
-                $( if let Some(context) = context.$field_i {
-                    <$type_i>::enter_span_external(
-                        &mut self.handlers.$field_i,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
-                } )*
-                if let Some(context) = context.$field_n {
-                    <$type_n>::enter_span_external(
-                        &mut self.handlers.$field_n,
-                        descriptor,
-                        args,
-                        parent_span_id,
-                        span_id,
-                        context,
-                    );
+                #[expect(clippy::arithmetic_side_effects, reason = "never overflows")]
+                let num_enabled = (
+                    usize::from(is_enabled[$field_1])
+                    $( + usize::from(is_enabled[$field_i]) )*
+                    + usize::from(is_enabled[$field_n])
+                );
+
+                if num_enabled == 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::enter_span_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
+                    $( else if is_enabled[$field_i] {
+                        <$type_i>::enter_span_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    } )*
+                    else if is_enabled[$field_n] {
+                        <$type_n>::enter_span_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
+                } else if num_enabled > 1 {
+                    if is_enabled[$field_1] {
+                        <$type_1>::enter_span_external(
+                            &mut self.handlers.$field_1,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context.clone(),
+                        );
+                    }
+                    $( if is_enabled[$field_i] {
+                        <$type_i>::enter_span_external(
+                            &mut self.handlers.$field_i,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context.clone(),
+                        );
+                    } )*
+                    if is_enabled[$field_n] {
+                        <$type_n>::enter_span_external(
+                            &mut self.handlers.$field_n,
+                            descriptor,
+                            args,
+                            parent_span_id,
+                            span_id,
+                            context,
+                        );
+                    }
                 }
             }
 

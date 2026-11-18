@@ -79,20 +79,18 @@ impl<H> log_0_4::Log for LogBridge<H>
 where
     H: SharedHandler<()> + ExternalHandler<()>,
 {
+    // See <https://docs.rs/log/latest/log/trait.Log.html#tymethod.log>
+    //
+    // This method isn't called automatically by the `log!` macros.
     #[inline]
     fn enabled(&self, metadata: &log_0_4::Metadata<'_>) -> bool {
-        H::try_enable_external(&self.handler, metadata, ()).is_some()
+        H::is_enabled_external(&self.handler, metadata)
     }
 
     #[inline]
     fn log(&self, record: &log_0_4::Record<'_>) {
-        // See <https://docs.rs/log/latest/log/trait.Log.html#tymethod.log>
-        //
-        // > This method isn't called automatically by the log! macros.
-        // > It can be called manually on shut-down to ensure any in-flight
-        // > records are flushed.
-        if let Some(context) = H::try_enable_external(&self.handler, record, ()) {
-            H::log_external(&mut self.handler.clone(), record, record, None, context);
+        if H::is_enabled_external(&self.handler, record) {
+            H::log_external(&mut self.handler.clone(), record, record, None, ());
         }
     }
 
