@@ -25,7 +25,7 @@ categories = [
 either-1 = [ "dep:either-1" ]
 log-0-4 = [ "dep:log-0-4", "polog-util/log-0-4" ]
 slog-2 = [ "dep:slog-2", "polog-util/slog-2" ]
-tracing-0-1 = [ "dep:tracing-0-1", "polog-util/tracing-0-1" ]
+tracing-0-1 = [ "dep:tracing-0-1", "dep:tracing-core-0-1", "polog-util/tracing-0-1" ]
 
 [dependencies]
 bitflags = { version = "2.13.2", default-features = false }
