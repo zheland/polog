@@ -6,6 +6,7 @@ use polog::{
     BaseHandler, BorrowingHandler, Descriptor, Discard, DynHandler, Handler, Level, SpanKind,
     log_descriptor_ref,
 };
+use polog_test_helpers::check_handler;
 use polog_test_helpers::panic::catch_unwind_on_thread;
 use polog_test_helpers::tracker::Tracker;
 
@@ -96,6 +97,35 @@ fn test_either_low_level() {
                 "exit_span(nested)",
             ]
         );
+
+        check_handler::check_basic_dyn_handler_fns(&mut logger);
+        check_handler::check_basic_handler_fns(&mut logger, Some(&context));
+        check_handler::check_basic_borrowing_handler_fns(&mut logger, Some(&context));
+        check_handler::check_basic_shared_handler_fns(&mut logger);
+        drop(tracker.take_events());
+    }
+}
+
+#[test]
+fn test_either_low_level_noop_misused_context() {
+    const TRACE_DESC: &Descriptor = log_descriptor_ref!(Level::Trace, "Message");
+
+    let tracker = Tracker::default();
+    let logger1: Either<Tracker, Tracker> = Either::Left(tracker.clone());
+    let logger2: Either<Tracker, Tracker> = Either::Right(tracker.clone());
+
+    for (mut logger, context) in [(logger1, Either::Right(())), (logger2, Either::Left(()))] {
+        let span_id = logger.generate_span_id();
+        assert_eq!(tracker.take_events(), ["generate_span_id"]);
+
+        logger.log(TRACE_DESC, (), None, context);
+        logger.log_static(TRACE_DESC, (), None, context);
+        logger.log_borrowed(TRACE_DESC, &(), None, &context);
+        logger.log(TRACE_DESC, (), None, context);
+        logger.enter_span(TRACE_DESC, (), None, span_id, SpanKind::Nested, context);
+        logger.enter_span_static(TRACE_DESC, (), None, span_id, SpanKind::Nested, context);
+        logger.enter_span_borrowed(TRACE_DESC, &(), None, span_id, SpanKind::Nested, &context);
+        assert_eq!(tracker.take_events(), [""; 0]);
     }
 }
 

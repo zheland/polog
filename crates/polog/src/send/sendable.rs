@@ -2161,4 +2161,26 @@ mod tests {
         assert_eq!(guard().temp_into_sendable(), 123);
         assert_eq!(guard().temp_to_sendable(), 123);
     }
+
+    #[cfg(feature = "either-1")]
+    #[test]
+    fn test_into_sendable_either() {
+        use either_1::Either;
+
+        const LEFT: Either<Range<i32>, Range<i32>> = Either::Left(10..20);
+        const RIGHT: Either<Range<i32>, Range<i32>> = Either::Right(10..20);
+
+        check_copiable_eq(Either::<i32, i32>::Left(123));
+        check_copiable_eq(Either::<i32, i32>::Right(123));
+
+        assert_eq!(LEFT.clone().into_sendable(), LEFT);
+        assert_eq!(LEFT.to_sendable(), Either::Left(&(10..20)));
+        assert_eq!(LEFT.clone().temp_into_sendable(), LEFT);
+        assert_eq!(LEFT.temp_to_sendable(), LEFT);
+
+        assert_eq!(RIGHT.clone().into_sendable(), RIGHT);
+        assert_eq!(RIGHT.to_sendable(), Either::Right(&(10..20)));
+        assert_eq!(RIGHT.clone().temp_into_sendable(), RIGHT);
+        assert_eq!(RIGHT.temp_to_sendable(), RIGHT);
+    }
 }

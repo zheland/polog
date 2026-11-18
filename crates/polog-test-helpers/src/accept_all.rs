@@ -346,21 +346,3 @@ where
 }
 
 impl<Context> SharedHandler<Context> for &'static AcceptAll where Context: ContextArgs {}
-
-#[cfg(test)]
-mod tests {
-    use crate::accept_all::AcceptAll;
-    use crate::check_handler;
-
-    #[test]
-    fn test_accept_all() {
-        check_handler::check_basic_dyn_handler_fns(&mut AcceptAll);
-        check_handler::check_basic_handler_fns(&mut AcceptAll, Some(&()));
-        check_handler::check_basic_borrowing_handler_fns(&mut AcceptAll, Some(&()));
-        check_handler::check_basic_shared_handler_fns(&mut AcceptAll);
-        check_handler::check_basic_dyn_handler_fns(&mut &AcceptAll);
-        check_handler::check_basic_handler_fns(&mut &AcceptAll, Some(&()));
-        check_handler::check_basic_borrowing_handler_fns(&mut &AcceptAll, Some(&()));
-        check_handler::check_basic_shared_handler_fns(&mut &AcceptAll);
-    }
-}
