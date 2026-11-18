@@ -1,8 +1,8 @@
 #![expect(missing_docs, reason = "okay in tests")]
 #![allow(unused_crate_dependencies, reason = "okay in tests")]
 
-use polog_test_helpers::check_handler;
 use polog_test_helpers::tracker::Tracker;
+use polog_test_helpers::{check_external_handler, check_handler};
 use polog_util::bridges::slog_2::SlogBridge;
 use polog_util::delegators::slog_2::{ViaSlog, ViaSlogFlags};
 
@@ -52,4 +52,5 @@ fn test_slog_global() {
     check_handler::check_basic_handler_fns(&mut logger, Some(&()));
     check_handler::check_basic_borrowing_handler_fns(&mut logger, Some(&()));
     check_handler::check_basic_shared_handler_fns(&mut logger);
+    check_external_handler::check_external_handler_fns(&mut logger, &());
 }

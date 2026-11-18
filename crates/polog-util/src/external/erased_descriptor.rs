@@ -125,3 +125,40 @@ fn cow_as_maybe_static<'a>(value: &'a Cow<'static, str>) -> MaybeStaticStr<'a> {
         Cow::Owned(value) => MaybeStaticStr::Borrowed(value),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::borrow::Cow;
+    use alloc::format;
+
+    use crate::{ExternalDescriptor, TypeErasedExternalDescriptor};
+
+    #[expect(clippy::mut_mut, reason = "explicitly tested")]
+    #[test]
+    fn test_erased_descriptor() {
+        let descriptor1 = TypeErasedExternalDescriptor {
+            message: Some(Cow::Borrowed("name")),
+            level: polog::Level::Info,
+            target: Some(Cow::Borrowed("target")),
+            module_path: Some(Cow::Borrowed("module_path")),
+            file: Some(Cow::Borrowed("file.rs")),
+            line: Some(12),
+            column: Some(23),
+        };
+        let mut descriptor2 = descriptor1.clone();
+
+        let desc1: &dyn ExternalDescriptor = &&descriptor1;
+        let desc2: &mut dyn ExternalDescriptor = &mut &mut descriptor2;
+
+        assert_eq!(
+            format!("{:?}", desc1.message()),
+            format!("{:?}", desc2.message())
+        );
+        assert_eq!(desc1.level(), desc2.level());
+        assert_eq!(desc1.target(), desc2.target());
+        assert_eq!(desc1.module_path(), desc2.module_path());
+        assert_eq!(desc1.file(), desc2.file());
+        assert_eq!(desc1.line(), desc2.line());
+        assert_eq!(desc1.column(), desc2.column());
+    }
+}

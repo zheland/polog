@@ -18,9 +18,9 @@ const SIMPLE_DESCRIPTOR: TypeErasedExternalDescriptor = TypeErasedExternalDescri
     column: Some(23),
 };
 
-struct SimpleArgs;
+struct ExampleArgs;
 
-impl ExternalArgs for SimpleArgs {
+impl ExternalArgs for ExampleArgs {
     #[inline]
     fn visit<Visitor>(&self, visitor: &mut Visitor)
     where
@@ -89,14 +89,14 @@ where
 
     logger.log_external(
         &SIMPLE_DESCRIPTOR,
-        &SimpleArgs,
+        &ExampleArgs,
         Some(span_id1),
         context.clone(),
     );
 
     logger.new_span_external(
         &SIMPLE_DESCRIPTOR,
-        &SimpleArgs,
+        &ExampleArgs,
         Some(span_id1),
         span_id2,
         context.clone(),
@@ -104,13 +104,13 @@ where
 
     logger.enter_span_external(
         &SIMPLE_DESCRIPTOR,
-        &SimpleArgs,
+        &ExampleArgs,
         Some(span_id2),
         span_id3,
         context.clone(),
     );
 
-    logger.record_span_external(&SIMPLE_DESCRIPTOR, &SimpleArgs, span_id2, context.clone());
+    logger.record_span_external(&SIMPLE_DESCRIPTOR, &ExampleArgs, span_id2, context.clone());
     logger.link_span_external(&SIMPLE_DESCRIPTOR, span_id1, span_id3, context.clone());
     logger.exit_span_external(&SIMPLE_DESCRIPTOR, span_id3, context.clone());
     logger.close_span_external(&SIMPLE_DESCRIPTOR, span_id2, context.clone());

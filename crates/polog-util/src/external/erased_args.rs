@@ -224,3 +224,122 @@ impl ExternalArgs for TypeErasedExternalArgs {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::string::String;
+    use core::fmt::{self, Write};
+
+    use crate::util::{DisplayAndDebug, MaybeStaticStr};
+    use crate::{ExternalArgValue, ExternalArgs, ExternalArgsVisitor, TypeErasedExternalArgs};
+
+    struct ExampleArgs;
+
+    impl ExternalArgs for ExampleArgs {
+        #[inline]
+        fn visit<Visitor>(&self, visitor: &mut Visitor)
+        where
+            Visitor: ExternalArgsVisitor,
+        {
+            #[derive(Debug)]
+            struct Error;
+            impl fmt::Display for Error {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    f.write_str("custom")
+                }
+            }
+            impl core::error::Error for Error {}
+
+            let error = Error;
+            let display: &dyn DisplayAndDebug = &321_i32;
+            let debug: &dyn fmt::Debug = &"debug";
+            let fmt_args = format_args!("-{}-", 123);
+
+            visitor.visit_message(ExternalArgValue::Str("message-override"));
+
+            let s = |value| MaybeStaticStr::Static(value);
+
+            visitor.visit_arg(s("unit"), ExternalArgValue::Unit);
+            visitor.visit_arg(s("none"), ExternalArgValue::None);
+            visitor.visit_arg(s("bool"), ExternalArgValue::Bool(true));
+            visitor.visit_arg(s("char"), ExternalArgValue::Char('a'));
+            visitor.visit_arg(s("u8"), ExternalArgValue::U8(12));
+            visitor.visit_arg(s("i8"), ExternalArgValue::I8(23));
+            visitor.visit_arg(s("u16"), ExternalArgValue::U16(34));
+            visitor.visit_arg(s("i16"), ExternalArgValue::I16(45));
+            visitor.visit_arg(s("u32"), ExternalArgValue::U32(56));
+            visitor.visit_arg(s("i32"), ExternalArgValue::I32(67));
+            visitor.visit_arg(s("u64"), ExternalArgValue::U64(78));
+            visitor.visit_arg(s("i64"), ExternalArgValue::I64(89));
+            visitor.visit_arg(s("u128"), ExternalArgValue::U128(123));
+            visitor.visit_arg(s("i128"), ExternalArgValue::I128(234));
+            visitor.visit_arg(s("usize"), ExternalArgValue::Usize(345));
+            visitor.visit_arg(s("isize"), ExternalArgValue::Isize(456));
+            visitor.visit_arg(s("f32"), ExternalArgValue::F32(123.234));
+            visitor.visit_arg(s("f64"), ExternalArgValue::F64(234.345));
+            visitor.visit_arg(s("str"), ExternalArgValue::Str("abc"));
+            visitor.visit_arg(s("display"), ExternalArgValue::Display(display));
+            visitor.visit_arg(s("debug"), ExternalArgValue::Debug(debug));
+            visitor.visit_arg(s("error"), ExternalArgValue::Error(&error));
+            visitor.visit_arg(s("fmt"), ExternalArgValue::Fmt(&fmt_args));
+
+            visitor.visit_arg(
+                MaybeStaticStr::Borrowed("foo"),
+                ExternalArgValue::Str("bar"),
+            );
+        }
+    }
+
+    struct ToStringVisitor(String);
+
+    #[expect(clippy::unwrap_used, reason = "okay in tests")]
+    impl ExternalArgsVisitor for ToStringVisitor {
+        fn visit_message(&mut self, value: ExternalArgValue<'_>) {
+            write!(self.0, "msg: {value}; ").unwrap();
+        }
+
+        fn visit_arg(&mut self, key: MaybeStaticStr<'_>, value: ExternalArgValue<'_>) {
+            write!(self.0, "arg.{key}: {value}; ").unwrap();
+        }
+    }
+
+    #[expect(clippy::mut_mut, reason = "explicitly tested")]
+    #[test]
+    fn test_erased_external_args() {
+        const EXPECTED_ARENA: &str = "\
+            message-override\
+            unitnoneboolchar\
+            u8i8u16i16u32i32u64i64u128i128usizeisizef32f64\
+            strabcdisplay321debug\"debug\"errorcustomfmt-123-foobar";
+
+        let mut visitor1 = ToStringVisitor(String::new());
+        ExampleArgs.visit(&mut visitor1);
+
+        let args = TypeErasedExternalArgs::from_args(&ExampleArgs);
+        assert_eq!(args.str_arena, EXPECTED_ARENA);
+        let mut visitor2 = ToStringVisitor(String::new());
+        args.visit(&mut visitor2);
+
+        let mut args = TypeErasedExternalArgs::from_args(&args);
+        assert_eq!(args.str_arena, EXPECTED_ARENA);
+        let mut visitor3 = ToStringVisitor(String::new());
+        args.visit(&mut &mut visitor3);
+
+        let args = TypeErasedExternalArgs::from_args(&&mut args);
+        assert_eq!(args.str_arena, EXPECTED_ARENA);
+        let mut visitor4 = ToStringVisitor(String::new());
+        args.visit(&mut &mut visitor4);
+
+        assert_eq!(
+            visitor1.0,
+            "msg: message-override; arg.unit: (); arg.none: None; arg.bool: true; arg.char: a; \
+             arg.u8: 12; arg.i8: 23; arg.u16: 34; arg.i16: 45; arg.u32: 56; arg.i32: 67; arg.u64: \
+             78; arg.i64: 89; arg.u128: 123; arg.i128: 234; arg.usize: 345; arg.isize: 456; \
+             arg.f32: 123.234; arg.f64: 234.345; arg.str: abc; arg.display: 321; arg.debug: \
+             \"debug\"; arg.error: custom; arg.fmt: -123-; arg.foo: bar; "
+        );
+        assert_eq!(visitor1.0, visitor2.0);
+        assert_eq!(visitor1.0, visitor3.0);
+        assert_eq!(visitor1.0, visitor4.0);
+    }
+}

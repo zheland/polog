@@ -155,3 +155,33 @@ impl fmt::Display for ExternalMessage<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::format;
+
+    use crate::ExternalMessage;
+    use crate::util::MaybeStaticStr;
+
+    #[test]
+    fn test_external_message_fmt() {
+        assert_eq!(
+            format!("{}", ExternalMessage::Str(MaybeStaticStr::Static("static"))),
+            "static"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                ExternalMessage::Str(MaybeStaticStr::Borrowed("borrowed"))
+            ),
+            "borrowed"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                ExternalMessage::Fmt(&format_args!("{}-{}", "foo", "bar"))
+            ),
+            "foo-bar"
+        );
+    }
+}

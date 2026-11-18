@@ -75,7 +75,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 ///
 /// [`Handler::try_enable`] calls [`log::Log::enabled`] with a
 /// [`log::Metadata`] built from the descriptor;
-/// [`ExternalHandler::try_enable_external`] does the same for external
+/// [`BaseExternalHandler::is_enabled_external`] does the same for external
 /// events.
 /// A `log` backend that returns `false` from `enabled` short-circuits
 /// before any arguments are formatted.
@@ -87,7 +87,7 @@ static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
 /// [`ExternalHandler`]: crate::ExternalHandler
 /// [`ExternalHandler::log_external`]: crate::ExternalHandler::log_external
 /// [`ExternalHandler::enter_span_external`]: crate::ExternalHandler::enter_span_external
-/// [`ExternalHandler::try_enable_external`]: crate::ExternalHandler::try_enable_external
+/// [`BaseExternalHandler::is_enabled_external`]: crate::BaseExternalHandler::is_enabled_external
 /// [`log::Log::enabled`]: log_0_4::Log::enabled
 /// [`log::Log::log`]: log_0_4::Log::log
 /// [`log::Metadata`]: log_0_4::Metadata

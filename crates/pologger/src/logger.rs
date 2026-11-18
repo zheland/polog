@@ -890,6 +890,14 @@ where
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+
+    #[inline]
+    fn is_enabled_external<Desc>(&self, _descriptor: &Desc) -> bool
+    where
+        Desc: ExternalDescriptor,
+    {
+        true
+    }
 }
 
 impl<F, Context> ExternalHandler<Context> for Pologger<F>
@@ -898,24 +906,12 @@ where
     Context: ContextArgs,
 {
     #[inline]
-    fn try_enable_external<Desc>(
-        &self,
-        _descriptor: &Desc,
-        context: Context,
-    ) -> Option<Self::EnrichedContext>
-    where
-        Desc: ExternalDescriptor,
-    {
-        Some(context)
-    }
-
-    #[inline]
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
         args: &Args,
         span_id: Option<SpanId>,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -942,7 +938,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
@@ -990,7 +986,7 @@ where
         args: &Args,
         parent_span_id: Option<SpanId>,
         span_id: SpanId,
-        context: Self::EnrichedContext,
+        context: Context,
     ) where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,

@@ -39,10 +39,9 @@ pub trait BaseExternalHandler {
 ///
 /// # Method families
 ///
-/// - **Event path** (`log` and `slog`): [`log_external`](Self::log_external)
-///   after [`try_enable_external`](Self::try_enable_external) has accepted the
-///   event. The span methods are not called for these facades. They have no
-///   span lifecycle.
+/// - **Event path** (`log` and `slog`): [`log_external`] after
+///   [`is_enabled_external`] has accepted the event. The span methods are not
+///   called for these facades. They have no span lifecycle.
 /// - **Span lifecycle** (`tracing`): a
 ///   [`new_span_external`](Self::new_span_external) →
 ///   [`enter_span_external`](Self::enter_span_external) →
@@ -54,18 +53,18 @@ pub trait BaseExternalHandler {
 ///
 /// # Enablement
 ///
-/// [`try_enable_external`](Self::try_enable_external) runs first for
-/// every event and every span-object, matching [`Handler::try_enable`].
-/// A `None` return means the event or span is dropped.
-/// The other methods are then not called.
-/// `try_enable_external` does not receive [`ExternalArgs`], matching
-/// [`ExternalFilterFn`](crate::ExternalFilterFn) and
-/// [`FilterFn`](crate::FilterFn), which also decide on the descriptor
-/// alone.
+/// [`is_enabled_external`] runs first for every event and every span-object,
+/// matching [`Handler::try_enable`]. A `false` return means the event or span
+/// is dropped and the other methods are then not called.
 ///
+/// [`Handler`]: polog::Handler
+/// [`Handler::try_enable`]: polog::Handler::try_enable
+/// [`Handler<Context>`]: polog::Handler
 /// [`polog::Descriptor`]: polog::Descriptor
 /// [`polog::LogArgs`]: polog::LogArgs
 /// [`polog::DynHandler::exit_span`]: polog::DynHandler::exit_span
+/// [`log_external`]: Self::log_external
+/// [`is_enabled_external`]: BaseExternalHandler::is_enabled_external
 pub trait ExternalHandler<Context>: BaseExternalHandler
 where
     Context: ContextArgs,
@@ -86,7 +85,7 @@ where
     ///   when no span is active.
     /// - `context`: The context.
     ///
-    /// [`is_enabled_external`]: Self::is_enabled_external
+    /// [`is_enabled_external`]: BaseExternalHandler::is_enabled_external
     fn log_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
@@ -116,7 +115,7 @@ where
     /// Implementations must not re-check enablement.
     ///
     /// [`BaseHandler::generate_span_id`]: polog::BaseHandler::generate_span_id
-    /// [`is_enabled_external`]: Self::is_enabled_external
+    /// [`is_enabled_external`]: BaseExternalHandler::is_enabled_external
     /// [`enter_span_external`]: Self::enter_span_external
     fn new_span_external<Desc, Args>(
         &mut self,
@@ -187,7 +186,7 @@ where
     /// `true`.
     /// Implementations must not re-check enablement.
     ///
-    /// [`is_enabled_external`]: Self::is_enabled_external
+    /// [`is_enabled_external`]: BaseExternalHandler::is_enabled_external
     /// [`new_span_external`]: Self::new_span_external
     /// [`exit_span_external`]: Self::exit_span_external
     /// [`close_span_external`]: Self::close_span_external
@@ -256,7 +255,7 @@ where
     ///
     /// [`Self::EnrichedContext`]: polog::Handler::EnrichedContext
     /// [`new_span_external`]: Self::new_span_external
-    /// [`is_enabled_external`]: Self::is_enabled_external
+    /// [`is_enabled_external`]: BaseExternalHandler::is_enabled_external
     fn record_span_external<Desc, Args>(
         &mut self,
         descriptor: &Desc,
@@ -569,8 +568,6 @@ where
 #[cfg(feature = "alloc")]
 mod alloc_impls {
     use alloc::boxed::Box;
-    use alloc::rc::Rc;
-    use alloc::sync::Arc;
 
     use polog::{ContextArgs, LevelFilter, SpanId};
 
@@ -589,44 +586,6 @@ mod alloc_impls {
             Context: ContextArgs,
         ),
         impl (H) self => **self
-    );
-
-    propagate_base_external_handler_impl!(
-        impl (H) BaseExternalHandler for Rc<H>
-        where (
-            H: ?Sized,
-            for<'a> &'a H: BaseExternalHandler,
-        ),
-        impl (&H) self => &**self
-    );
-
-    propagate_external_handler_impl!(
-        impl (H, Context) ExternalHandler<Context> for Rc<H>
-        where (
-            H: ?Sized,
-            for<'a> &'a H: ExternalHandler<Context>,
-            Context: ContextArgs,
-        ),
-        impl (&H) self => &**self
-    );
-
-    propagate_base_external_handler_impl!(
-        impl (H) BaseExternalHandler for Arc<H>
-        where (
-            H: ?Sized,
-            for<'a> &'a H: BaseExternalHandler,
-        ),
-        impl (&H) self => &**self
-    );
-
-    propagate_external_handler_impl!(
-        impl (H, Context) ExternalHandler<Context> for Arc<H>
-        where (
-            H: ?Sized,
-            for<'a> &'a H: ExternalHandler<Context>,
-            Context: ContextArgs,
-        ),
-        impl (&H) self => &**self
     );
 }
 

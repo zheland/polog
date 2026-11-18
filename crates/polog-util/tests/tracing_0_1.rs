@@ -7,6 +7,7 @@ use polog_test_helpers::tracker::Tracker;
 use polog_util::bridges::tracing_0_1::TracingBridge;
 use polog_util::delegators::tracing_0_1::ViaTracing;
 
+#[expect(clippy::too_many_lines, reason = "better to keep together")]
 #[test]
 fn test_tracing_global() {
     let tracker = Tracker::default();
@@ -63,16 +64,69 @@ fn test_tracing_global() {
     assert_eq!(
         tracker.take_details(),
         &[
-            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))))",
-            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))))",
-            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:57\"))), (`tracing::event!`), None, ())",
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:58\"))))",
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:58\"))))",
+            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:58\"))), \
+             (`tracing::event!`), None, ())",
             "is_enabled_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))))",
-            "new_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (e = 5, f = 6), None, SpanId(5), ())",
-            "enter_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (), Some(SpanId(5)), SpanId(6), ())",
-            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))))",
-            "is_enabled_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))))",
-            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:61\"))), (`tracing::event!` In A), Some(SpanId(6)), ())",
-            "exit_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), SpanId(6), ())"
+            "new_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (e = 5, f = \
+             6), None, SpanId(5), ())",
+            "enter_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), (), \
+             Some(SpanId(5)), SpanId(6), ())",
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:62\"))))",
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:62\"))))",
+            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:62\"))), \
+             (`tracing::event!` In A), Some(SpanId(6)), ())",
+            "exit_span_external(Some(Str(Static(\"`tracing::info_span!` Span A\"))), SpanId(6), \
+             ())"
+        ]
+    );
+
+    tracing_0_1::event!(
+        tracing_0_1::Level::INFO,
+        u64 = 123_u64,
+        i64 = 234_i64,
+        u128 = 345_u128,
+        i128 = 456_i128,
+        f64 = 123.234_f64,
+        bool = true,
+        str = "str",
+        "`tracing::event!`"
+    );
+    assert_eq!(
+        tracker.take_details(),
+        &[
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:89\"))))",
+            "is_enabled_external(Some(Str(Static(\"event \
+             crates/polog-util/tests/tracing_0_1.rs:89\"))))",
+            "log_external(Some(Str(Static(\"event crates/polog-util/tests/tracing_0_1.rs:89\"))), \
+             (`tracing::event!`, u64 = 123, i64 = 234, u128 = 345, i128 = 456, f64 = 123.234, \
+             bool = true, str = str), None, ())"
+        ]
+    );
+    let span = tracing_0_1::info_span!(
+        "`tracing::event!`",
+        u64 = 123_u64,
+        i64 = 234_i64,
+        u128 = 345_u128,
+        i128 = 456_i128,
+        f64 = 123.234_f64,
+        bool = true,
+        str = "str",
+    );
+    drop(span);
+    assert_eq!(
+        tracker.take_details(),
+        &[
+            "is_enabled_external(Some(Str(Static(\"`tracing::event!`\"))))",
+            "new_span_external(Some(Str(Static(\"`tracing::event!`\"))), (u64 = 123, i64 = 234, \
+             u128 = 345, i128 = 456, f64 = 123.234, bool = true, str = str), None, SpanId(7), ())",
+            "close_span_external(Some(Str(Static(\"`tracing::event!`\"))), SpanId(7), ())"
         ]
     );
 

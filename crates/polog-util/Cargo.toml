@@ -64,6 +64,14 @@ polog-test-helpers = { workspace = true }
 tokio = { version = "1.54.1", default-features = false, features = [ "macros", "rt", "rt-multi-thread" ] }
 
 [[test]]
+name = "alloc"
+required-features = [ "alloc" ]
+
+[[test]]
+name = "alloc_and_either_1"
+required-features = [ "alloc", "either-1" ]
+
+[[test]]
 name = "fanout"
 required-features = [ "fanout" ]
 
