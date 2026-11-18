@@ -90,6 +90,27 @@ impl ViaTracing {
         }
     }
 
+    /// Returns a reference to the wrapped dispatch.
+    #[inline]
+    #[must_use]
+    pub const fn dispatch(&self) -> &Dispatch {
+        &self.dispatch
+    }
+
+    /// Returns a mutable reference to the wrapped dispatch.
+    #[inline]
+    #[must_use]
+    pub const fn dispatch_mut(&mut self) -> &mut Dispatch {
+        &mut self.dispatch
+    }
+
+    /// Consumes the middleware, returning the wrapped dispatch.
+    #[inline]
+    #[must_use]
+    pub fn into_dispatch(self) -> Dispatch {
+        self.dispatch
+    }
+
     #[inline]
     fn static_data_for(&self, descriptor: &'static Descriptor) -> LeakedData {
         // The fast path for a shard read.
@@ -749,6 +770,14 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_delegator_tracing_accessors() {
+        let mut enricher = ViaTracing::new(tracing_0_1::Dispatch::none());
+        let _ = enricher.dispatch();
+        let _ = enricher.dispatch_mut();
+        let _dispatch: tracing_0_1::Dispatch = enricher.into_dispatch();
+    }
+
     #[tokio::test]
     async fn test_delegator_tracing() {
         // Because of the global subscriber all tracing tests are performed
@@ -1114,10 +1143,10 @@ mod tests {
                 Event::NewSpan(span_id_offset + 1, "Span"),
                 Event::EnterSpan(span_id_offset + 1),
                 Event::ExitSpan(span_id_offset),
-                Event::Enabled("event crates/polog-util/src/delegators/tracing_0_1.rs:602"),
+                Event::Enabled("event crates/polog-util/src/delegators/tracing_0_1.rs:623"),
                 Event::Event {
                     parent: None,
-                    name: "event crates/polog-util/src/delegators/tracing_0_1.rs:602",
+                    name: "event crates/polog-util/src/delegators/tracing_0_1.rs:623",
                     fields: vec![
                         (
                             "message",

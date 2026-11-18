@@ -12,12 +12,13 @@ use polog::{
     BaseHandler, Descriptor, DynHandler, Handler, Level, LevelFilter, Logger, SpanIdGenerator,
     SpanKind, log_descriptor_ref,
 };
+use polog_test_helpers::check_external_handler::test_external;
 use polog_test_helpers::panic::catch_unwind_on_thread;
 use polog_test_helpers::tracker::Tracker;
 use polog_util::filters::MaxLevel;
 use polog_util::{
-    Filter, OffloaderBackpressurePolicy, OffloaderCapacity, OffloaderHandle, OffloaderService,
-    new_offloader,
+    BaseExternalHandler, Filter, OffloaderBackpressurePolicy, OffloaderCapacity, OffloaderHandle,
+    OffloaderService, new_offloader,
 };
 
 #[expect(clippy::type_complexity, reason = "okay in tests")]
@@ -572,6 +573,37 @@ async fn test_offloader_flush_on_panic_async_multi_thread() {
 
     logger.flush_on_panic();
     assert_eq!(tracker.take_events(), [""; 0]);
+}
+
+#[test]
+fn test_offloader_external() {
+    let tracker = Tracker::default();
+    let (mut logger, service) = new_test_offloader(tracker.clone());
+    let worker = service.spawn().unwrap();
+
+    assert_eq!(logger.max_level_external(), LevelFilter::Trace);
+    test_external(&mut logger, &());
+    logger.flush_blocking();
+
+    assert_eq!(
+        tracker.take_events(),
+        &[
+            "try_enable_external",
+            "log_external",
+            "try_enable_external",
+            "new_span_external",
+            "try_enable_external",
+            "enter_span_external",
+            "record_span_external",
+            "link_span_external",
+            "exit_span_external",
+            "close_span_external",
+            "flush_blocking",
+        ]
+    );
+
+    logger.stop();
+    worker.join().unwrap();
 }
 
 #[test]

@@ -5,7 +5,7 @@ use polog::{
     SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// A [`Handler`] that appends a value to the context of every event and span.
 ///
@@ -305,6 +305,16 @@ where
 {
 }
 
+impl<H, F> BaseExternalHandler for Enricher<H, F>
+where
+    H: BaseExternalHandler,
+{
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        H::max_level_external(&self.handler)
+    }
+}
+
 impl<H, F, Context> ExternalHandler<Context> for Enricher<H, F>
 where
     H: ExternalHandler<Context::WithDebuggableArg<F::Output>>,
@@ -313,11 +323,6 @@ where
     Context: ContextArgs,
     Context::WithDebuggableArg<F::Output>: ContextArgs,
 {
-    #[inline]
-    fn max_level_external(&self) -> LevelFilter {
-        H::max_level_external(&self.handler)
-    }
-
     #[inline]
     fn try_enable_external<Desc>(
         &self,

@@ -24,7 +24,7 @@ use polog::{
 
 use crate::args::{TypeErasedArcLogArgs, TypeErasedArgs};
 use crate::{
-    ExternalArgs, ExternalDescriptor, ExternalHandler, TypeErasedExternalArgs,
+    BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler, TypeErasedExternalArgs,
     TypeErasedExternalDescriptor,
 };
 
@@ -1394,7 +1394,7 @@ where
 {
 }
 
-impl<Context, CustomEvent> ExternalHandler<Context> for OffloaderHandle<Context, CustomEvent>
+impl<Context, CustomEvent> BaseExternalHandler for OffloaderHandle<Context, CustomEvent>
 where
     Context: ContextArgs,
 {
@@ -1402,7 +1402,12 @@ where
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+}
 
+impl<Context, CustomEvent> ExternalHandler<Context> for OffloaderHandle<Context, CustomEvent>
+where
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -1672,7 +1677,7 @@ where
 {
 }
 
-impl<Context, CustomEvent> ExternalHandler<Context> for &OffloaderHandle<Context, CustomEvent>
+impl<Context, CustomEvent> BaseExternalHandler for &OffloaderHandle<Context, CustomEvent>
 where
     Context: ContextArgs,
 {
@@ -1680,7 +1685,12 @@ where
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+}
 
+impl<Context, CustomEvent> ExternalHandler<Context> for &OffloaderHandle<Context, CustomEvent>
+where
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,

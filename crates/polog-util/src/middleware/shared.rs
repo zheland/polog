@@ -6,7 +6,7 @@ use polog::{
     LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// Wraps a non‑shared [`Handler`] so it can be cloned and shared across
 /// threads.
@@ -303,16 +303,21 @@ impl<H> Clone for Shared<H> {
     }
 }
 
-impl<H, Context> ExternalHandler<Context> for Shared<H>
+impl<H> BaseExternalHandler for Shared<H>
 where
-    H: ExternalHandler<Context>,
-    Context: ContextArgs,
+    H: BaseExternalHandler,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         H::max_level_external(&*self.0.lock())
     }
+}
 
+impl<H, Context> ExternalHandler<Context> for Shared<H>
+where
+    H: ExternalHandler<Context>,
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -373,7 +378,7 @@ where
         Desc: ExternalDescriptor,
         Args: ExternalArgs,
     {
-        H::new_span_external(
+        H::enter_span_external(
             &mut *self.0.lock(),
             descriptor,
             args,
@@ -453,6 +458,9 @@ mod tests {
 
         polog::info!(&mut logger, "Message");
         assert_eq!(tracker.take_events(), ["try_enable", "log"]);
+
+        polog::info!(&mut logger, "Message");
+        assert_eq!(logger.inner().lock().take_events(), ["try_enable", "log"]);
 
         let span = polog::info_span!(&mut logger, "Span");
         assert_eq!(

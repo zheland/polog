@@ -94,3 +94,51 @@ impl fmt::Display for MaybeStaticStr<'_> {
         fmt::Write::write_str(f, self.as_str())
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::util::MaybeStaticStr;
+
+    #[test]
+    fn test_maybe_static_str() {
+        use MaybeStaticStr as MsStr;
+
+        assert_eq!(MsStr::Static("value").as_str(), "value");
+        assert_eq!(MsStr::Borrowed("value").as_str(), "value");
+        assert_eq!(MsStr::Static("value").try_as_static_str(), Some("value"));
+        assert_eq!(MsStr::Borrowed("value").try_as_static_str(), None);
+
+        assert_eq!(MsStr::Static("value"), MsStr::Borrowed("value"));
+        assert!(MsStr::Static("a") < MsStr::Borrowed("b"));
+        assert!(MsStr::Borrowed("a") < MsStr::Static("b"));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_maybe_static_str_hash() {
+        use std::collections::HashSet;
+
+        use MaybeStaticStr as MsStr;
+
+        let mut set = HashSet::new();
+
+        assert!(set.insert(MsStr::Static("a")));
+        assert!(!set.insert(MsStr::Borrowed("a")));
+        assert!(set.insert(MsStr::Borrowed("b")));
+        assert!(!set.insert(MsStr::Static("b")));
+
+        assert_eq!(set.len(), 2);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn test_maybe_static_str_display() {
+        use alloc::format;
+
+        use MaybeStaticStr as MsStr;
+
+        assert_eq!(format!("{}", MsStr::Static("value")), "value");
+        assert_eq!(format!("{}", MsStr::Borrowed("value")), "value");
+    }
+}

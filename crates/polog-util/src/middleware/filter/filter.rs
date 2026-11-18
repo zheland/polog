@@ -3,7 +3,7 @@ use polog::{
     LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// Handler middleware that filters events and spans by a [`FilterFn`].
 ///
@@ -340,11 +340,10 @@ where
 {
 }
 
-impl<H, F, Context> ExternalHandler<Context> for Filter<H, F>
+impl<H, F> BaseExternalHandler for Filter<H, F>
 where
-    H: ExternalHandler<Context>,
+    H: BaseExternalHandler,
     F: ExternalFilterFn,
-    Context: ContextArgs,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
@@ -352,7 +351,14 @@ where
             .max_level()
             .min(H::max_level_external(&self.handler))
     }
+}
 
+impl<H, F, Context> ExternalHandler<Context> for Filter<H, F>
+where
+    H: ExternalHandler<Context>,
+    F: ExternalFilterFn,
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,

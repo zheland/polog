@@ -298,3 +298,16 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::bridges::log_0_4::LogBridge;
+
+    #[test]
+    fn test_log_bridge_accessors() {
+        let mut enricher = LogBridge::new(123);
+        assert_eq!(enricher.handler(), &123);
+        assert_eq!(enricher.handler_mut(), &123);
+        assert_eq!(enricher.into_handler(), 123);
+    }
+}

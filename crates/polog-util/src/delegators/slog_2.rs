@@ -12,7 +12,8 @@ use slog_2 as slog;
 use crate::conv::slog_2::level_into_foreign_approx;
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    BaseExternalHandler, ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor,
+    ExternalHandler,
 };
 
 static SPAN_ID_GENERATOR: SpanIdGenerator = SpanIdGenerator::new();
@@ -327,10 +328,9 @@ where
 {
 }
 
-impl<D, Context> ExternalHandler<Context> for ViaSlog<D>
+impl<D> BaseExternalHandler for ViaSlog<D>
 where
     D: 'static + Send + Sync + Clone + slog::Drain<Ok = (), Err = !>,
-    Context: ContextArgs,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
@@ -351,7 +351,13 @@ where
             LevelFilter::Off
         }
     }
+}
 
+impl<D, Context> ExternalHandler<Context> for ViaSlog<D>
+where
+    D: 'static + Send + Sync + Clone + slog::Drain<Ok = (), Err = !>,
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -800,6 +806,15 @@ mod tests {
             self.events.lock().push(Event::IsEnabled);
             true
         }
+    }
+
+    #[test]
+    fn test_delegator_slog_accessors() {
+        let drain = slog_2::Logger::root(slog_2::Discard, slog_2::o!());
+        let mut enricher = ViaSlog::new(drain, ViaSlogFlags::all());
+        let _ = enricher.handler();
+        let _ = enricher.handler_mut();
+        let _drain: slog_2::Logger = enricher.into_handler();
     }
 
     #[tokio::test]

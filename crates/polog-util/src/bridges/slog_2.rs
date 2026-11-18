@@ -348,3 +348,16 @@ fn key_as_str(key: &slog_2::Key) -> MaybeStaticStr<'_> {
     // Unfortunately no API methods return static str.
     MaybeStaticStr::Borrowed(key.as_str())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::bridges::slog_2::SlogBridge;
+
+    #[test]
+    fn test_slog_bridge_accessors() {
+        let mut enricher = SlogBridge::new(123);
+        assert_eq!(enricher.handler(), &123);
+        assert_eq!(enricher.handler_mut(), &123);
+        assert_eq!(enricher.into_handler(), 123);
+    }
+}

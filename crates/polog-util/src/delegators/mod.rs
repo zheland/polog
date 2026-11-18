@@ -11,17 +11,9 @@ pub mod slog_2;
 
 /// This relies on the doc-hidden `FieldSet::value_set_all`.
 /// See the long comment in `tracing_0_1::with_values` function.
-#[cfg(all(
-    feature = "std",
-    feature = "tracing-0-1-semver-unstable",
-    feature = "tracing-core-0-1",
-))]
+#[cfg(all(feature = "std", feature = "tracing-0-1-semver-unstable"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(
-        feature = "std",
-        feature = "tracing-0-1-semver-unstable",
-        feature = "tracing-core-0-1",
-    )))
+    doc(cfg(all(feature = "std", feature = "tracing-0-1-semver-unstable")))
 )]
 pub mod tracing_0_1;

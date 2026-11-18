@@ -9,8 +9,8 @@ use polog::{
 use crate::conv::log_0_4::level_into_foreign_approx;
 use crate::util::MaybeStaticStr;
 use crate::{
-    ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
-    ExternalMessage, conv,
+    BaseExternalHandler, ExternalArgValue, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor,
+    ExternalHandler, ExternalMessage, conv,
 };
 
 /// Fallback ID generator used by `ViaLog`.
@@ -351,17 +351,22 @@ where
 {
 }
 
-impl<L, Context> ExternalHandler<Context> for ViaLog<L>
+impl<L> BaseExternalHandler for ViaLog<L>
 where
     L: 'static + Send + Sync + Clone + log::Log,
-    Context: ContextArgs,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         let level = log::max_level();
         conv::log_0_4::level_filter_from_foreign(level)
     }
+}
 
+impl<L, Context> ExternalHandler<Context> for ViaLog<L>
+where
+    L: 'static + Send + Sync + Clone + log::Log,
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -824,6 +829,14 @@ mod tests {
             self.0.push((key.as_str().to_owned(), format!("{value}")));
             Ok(())
         }
+    }
+
+    #[test]
+    fn test_delegator_log_accessors() {
+        let mut enricher = ViaLog::new(123, ViaLogFlags::all());
+        assert_eq!(enricher.handler(), &123);
+        assert_eq!(enricher.handler_mut(), &123);
+        assert_eq!(enricher.into_handler(), 123);
     }
 
     #[tokio::test]

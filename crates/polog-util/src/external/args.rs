@@ -201,7 +201,7 @@ mod tests {
         struct Error;
         impl fmt::Display for Error {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("missing")
+                f.write_str("custom")
             }
         }
         impl core::error::Error for Error {}
@@ -211,6 +211,8 @@ mod tests {
         let debug: &dyn fmt::Debug = &"debug";
         let fmt_args = format_args!("-{}-", 123);
 
+        assert_eq!(format!("{}", ExternalArgValue::Unit), "()");
+        assert_eq!(format!("{}", ExternalArgValue::None), "None");
         assert_eq!(format!("{}", ExternalArgValue::Bool(true)), "true");
         assert_eq!(format!("{}", ExternalArgValue::Char('a')), "a");
         assert_eq!(format!("{}", ExternalArgValue::U8(1)), "1");
@@ -230,7 +232,7 @@ mod tests {
         assert_eq!(format!("{}", ExternalArgValue::Str("str")), "str");
         assert_eq!(format!("{}", ExternalArgValue::Display(display)), "123");
         assert_eq!(format!("{}", ExternalArgValue::Debug(debug)), "\"debug\"");
-        assert_eq!(format!("{}", ExternalArgValue::Error(&error)), "missing");
+        assert_eq!(format!("{}", ExternalArgValue::Error(&error)), "custom");
         assert_eq!(format!("{}", ExternalArgValue::Fmt(&fmt_args)), "-123-");
     }
 }

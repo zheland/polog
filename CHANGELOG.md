@@ -32,6 +32,7 @@ Initial public release. The workspace is published as three crates:
   `ConstMaxLevel`, `Target`, `TargetPrefix`, and combinators.
 - `polog-util`: Type-erased argument wrappers, typed argument access via
   `MixedArgsExt`.
+- `polog-util`: Bridges from `log` 0.4, `slog` 2, and `tracing` 0.1.
 - `polog-util`: Delegators to `log` 0.4, `slog` 2, and `tracing` 0.1.
 - `polog-util`: Level and filter conversions between `polog` and each foreign
   facade.
@@ -42,8 +43,6 @@ Initial public release. The workspace is published as three crates:
 - `pologger`: `NdJsonFormatter` with RFC 8259 escaping.
 - `pologger`: `OffThreadLoggerBuilder` for one-call chain construction and live
   reconfiguration via `OffThreadLoggerConfig`.
-- `pologger`: `SharedPologger` with `log`, `slog`, and `tracing` sink
-  implementations.
 - `pologger`: `LoggerConfig` bitflags covering event kinds, descriptor, site,
   context, and derived fields, plus behavior switches.
 

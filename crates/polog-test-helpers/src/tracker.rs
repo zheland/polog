@@ -7,7 +7,9 @@ use polog::{
     BaseHandler, BorrowingHandler, ContextArgs, Descriptor, DisplayableMixedArgs, DynHandler,
     Handler, LevelFilter, LogArgs, SharedHandler, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
-use polog_util::{ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler};
+use polog_util::{
+    BaseExternalHandler, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+};
 
 #[doc(hidden)]
 #[derive(Clone, Default, Debug)]
@@ -359,17 +361,22 @@ where
 
 impl<Context> SharedHandler<Context> for Tracker where Context: ContextArgs {}
 
-impl<Context> ExternalHandler<Context> for Tracker
-where
-    Context: ContextArgs,
-{
+impl BaseExternalHandler for Tracker {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         let mut this = self.0.lock().unwrap();
         this.events.push("max_level_external");
+        if this.details_enabled {
+            this.details.push("max_level_external".to_owned());
+        }
         LevelFilter::ALL
     }
+}
 
+impl<Context> ExternalHandler<Context> for Tracker
+where
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,

@@ -19,7 +19,8 @@ use polog::{
     Handler, Level, LevelFilter, LogArgs, SpanId, SpanIdGenerator, SpanKind, StaticLogArgs,
 };
 use polog_util::{
-    ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler, MixedArgsExt, context,
+    BaseExternalHandler, ExternalArgs, ExternalArgsVisitor, ExternalDescriptor, ExternalHandler,
+    MixedArgsExt, context,
 };
 
 use crate::{
@@ -881,16 +882,21 @@ where
     }
 }
 
-impl<F, Context> ExternalHandler<Context> for Pologger<F>
+impl<F> BaseExternalHandler for Pologger<F>
 where
     F: Formatter,
-    Context: ContextArgs,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::ALL
     }
+}
 
+impl<F, Context> ExternalHandler<Context> for Pologger<F>
+where
+    F: Formatter,
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,

@@ -1,6 +1,18 @@
-use polog::{ContextArgs, Discard, Handler, LevelFilter, SpanId};
+use polog::{BaseHandler, ContextArgs, Discard, Handler, LevelFilter, SpanId};
 
 use crate::{ExternalArgs, ExternalDescriptor};
+
+/// Functionality common to all [`ExternalHandler`] implementations.
+pub trait BaseExternalHandler: BaseHandler {
+    /// The highest‑severity [`LevelFilter`] this handler will accept.
+    ///
+    /// Used by the facade bridges like [`LogBridge`] and
+    /// provided by the facade delegators like [`ViaLog`]
+    ///
+    /// [`LogBridge`]: crate::bridges::log_0_4::LogBridge
+    /// [`ViaLog`]: crate::delegators::log_0_4::ViaLog
+    fn max_level_external(&self) -> LevelFilter;
+}
 
 /// A backend or middleware handler for events from foreign facades.
 ///
@@ -42,19 +54,10 @@ use crate::{ExternalArgs, ExternalDescriptor};
 /// [`polog::Descriptor`]: polog::Descriptor
 /// [`polog::LogArgs`]: polog::LogArgs
 /// [`polog::DynHandler::exit_span`]: polog::DynHandler::exit_span
-pub trait ExternalHandler<Context>: Handler<Context>
+pub trait ExternalHandler<Context>: BaseExternalHandler + Handler<Context>
 where
     Context: ContextArgs,
 {
-    /// The highest‑severity [`LevelFilter`] this handler will accept.
-    ///
-    /// Used by the facade bridges like [`LogBridge`] and
-    /// provided by the facade delegators like [`ViaLog`]
-    ///
-    /// [`LogBridge`]: crate::bridges::log_0_4::LogBridge
-    /// [`ViaLog`]: crate::delegators::log_0_4::ViaLog
-    fn max_level_external(&self) -> LevelFilter;
-
     /// Checks whether the handler accepts the event or span described by
     /// `descriptor`, optionally enriching the incoming `context`.
     ///
@@ -312,11 +315,6 @@ macro_rules! propagate_external_handler_impl {
             $($bounds)*
         {
             #[inline]
-            fn max_level_external(&$self) -> LevelFilter {
-                <$via as ExternalHandler<Context>>::max_level_external(&$expr)
-            }
-
-            #[inline]
             fn try_enable_external<Desc>(
                 &$self,
                 descriptor: &Desc,
@@ -446,6 +444,16 @@ macro_rules! propagate_external_handler_impl {
     };
 }
 
+impl<H> BaseExternalHandler for &mut H
+where
+    H: ?Sized + BaseExternalHandler,
+{
+    #[inline]
+    fn max_level_external(&self) -> LevelFilter {
+        <H as BaseExternalHandler>::max_level_external(&**self)
+    }
+}
+
 propagate_external_handler_impl!(
     impl (H, Context) ExternalHandler<Context> for &mut H
     where (
@@ -455,15 +463,17 @@ propagate_external_handler_impl!(
     impl (H) self => **self
 );
 
-impl<Context> ExternalHandler<Context> for Discard
-where
-    Context: ContextArgs,
-{
+impl BaseExternalHandler for Discard {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         LevelFilter::Off
     }
+}
 
+impl<Context> ExternalHandler<Context> for Discard
+where
+    Context: ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -565,7 +575,17 @@ mod alloc_impls {
 
     use polog::{ContextArgs, LevelFilter, SpanId};
 
-    use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+    use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
+
+    impl<H> BaseExternalHandler for Box<H>
+    where
+        H: ?Sized + BaseExternalHandler,
+    {
+        #[inline]
+        fn max_level_external(&self) -> LevelFilter {
+            <H as BaseExternalHandler>::max_level_external(&**self)
+        }
+    }
 
     propagate_external_handler_impl!(
         impl (H, Context) ExternalHandler<Context> for Box<H>
@@ -576,6 +596,17 @@ mod alloc_impls {
         impl (H) self => **self
     );
 
+    impl<H> BaseExternalHandler for Rc<H>
+    where
+        H: ?Sized,
+        for<'a> &'a H: BaseExternalHandler,
+    {
+        #[inline]
+        fn max_level_external(&self) -> LevelFilter {
+            <&H as BaseExternalHandler>::max_level_external(&&**self)
+        }
+    }
+
     propagate_external_handler_impl!(
         impl (H, Context, EnrichedContext) ExternalHandler<Context> for Rc<H>
         where (
@@ -585,6 +616,17 @@ mod alloc_impls {
         ),
         impl (&H) self => &**self
     );
+
+    impl<H> BaseExternalHandler for Arc<H>
+    where
+        H: ?Sized,
+        for<'a> &'a H: BaseExternalHandler,
+    {
+        #[inline]
+        fn max_level_external(&self) -> LevelFilter {
+            <&H as BaseExternalHandler>::max_level_external(&&**self)
+        }
+    }
 
     propagate_external_handler_impl!(
         impl (H, Context, EnrichedContext) ExternalHandler<Context> for Arc<H>
@@ -601,13 +643,12 @@ mod alloc_impls {
 mod either_1_impls {
     use polog::{ContextArgs, LevelFilter, SpanId};
 
-    use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+    use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
 
-    impl<H1, H2, Context> ExternalHandler<Context> for either_1::Either<H1, H2>
+    impl<H1, H2> BaseExternalHandler for either_1::Either<H1, H2>
     where
-        H1: ExternalHandler<Context>,
-        H2: ExternalHandler<Context>,
-        Context: ContextArgs,
+        H1: BaseExternalHandler,
+        H2: BaseExternalHandler,
     {
         #[inline]
         fn max_level_external(&self) -> LevelFilter {
@@ -616,7 +657,14 @@ mod either_1_impls {
                 Self::Right(handler) => H2::max_level_external(handler),
             }
         }
+    }
 
+    impl<H1, H2, Context> ExternalHandler<Context> for either_1::Either<H1, H2>
+    where
+        H1: ExternalHandler<Context>,
+        H2: ExternalHandler<Context>,
+        Context: ContextArgs,
+    {
         #[inline]
         fn try_enable_external<Desc>(
             &self,

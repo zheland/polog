@@ -332,11 +332,9 @@ mod tests {
         BuildOffThreadLoggerError, LoggerConfig, OffThreadLoggerBuilder, TextFormatterConfig,
     };
 
-    #[cfg(feature = "slog-2")]
     #[derive(Clone, Debug)]
     struct Writer(Arc<Mutex<Vec<u8>>>);
 
-    #[cfg(feature = "slog-2")]
     impl std::io::Write for Writer {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             self.0.lock().write(buf)

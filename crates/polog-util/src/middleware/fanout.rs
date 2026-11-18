@@ -6,7 +6,7 @@ use polog::{
     LogArgs, SharedHandler, SpanId, SpanKind, StaticLogArgs,
 };
 
-use crate::{ExternalArgs, ExternalDescriptor, ExternalHandler};
+use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandler};
 
 /// A [`Handler`] that forwards every accepted event and span to all wrapped
 /// handlers, sharing arguments through an `Arc` when necessary.
@@ -361,16 +361,21 @@ where
 {
 }
 
-impl<T1, Context> ExternalHandler<Context> for Fanout<(T1,), 1>
+impl<T1> BaseExternalHandler for Fanout<(T1,), 1>
 where
-    T1: ExternalHandler<Context>,
-    Context: Clone + ContextArgs,
+    T1: BaseExternalHandler,
 {
     #[inline]
     fn max_level_external(&self) -> LevelFilter {
         T1::max_level_external(&self.handlers.0)
     }
+}
 
+impl<T1, Context> ExternalHandler<Context> for Fanout<(T1,), 1>
+where
+    T1: ExternalHandler<Context>,
+    Context: Clone + ContextArgs,
+{
     #[inline]
     fn try_enable_external<Desc>(
         &self,
@@ -1471,6 +1476,24 @@ macro_rules! impl_variadic {
         {
         }
 
+        impl< $type_1 $(, $type_i )*, $type_n> BaseExternalHandler
+            for Fanout<
+                ( $type_1, $( $type_i, )* $type_n, ),
+                { count!( $field_1 $($field_i)* $field_n ) }
+            >
+        where
+            $type_1: BaseExternalHandler,
+            $( $type_i: BaseExternalHandler, )*
+            $type_n: BaseExternalHandler,
+        {
+            #[inline]
+            fn max_level_external(&self) -> LevelFilter {
+                <$type_1>::max_level_external(&self.handlers.$field_1)
+                $( .max(<$type_i>::max_level_external(&self.handlers.$field_i)) )*
+                .max(<$type_n>::max_level_external(&self.handlers.$field_n))
+            }
+        }
+
         impl< $type_1 $(, $type_i )*, $type_n , Context> ExternalHandler<Context>
             for Fanout<
                 ( $type_1, $( $type_i, )* $type_n, ),
@@ -1482,13 +1505,6 @@ macro_rules! impl_variadic {
             $type_n: ExternalHandler<Context>,
             Context: Clone + ContextArgs,
         {
-            #[inline]
-            fn max_level_external(&self) -> LevelFilter {
-                <$type_1>::max_level_external(&self.handlers.$field_1)
-                $( .max(<$type_i>::max_level_external(&self.handlers.$field_i)) )*
-                .max(<$type_n>::max_level_external(&self.handlers.$field_n))
-            }
-
             #[inline]
             fn try_enable_external<Desc>(
                 &self,

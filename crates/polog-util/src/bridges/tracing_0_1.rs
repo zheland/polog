@@ -691,3 +691,16 @@ where
 fn field_name(field: &tracing_0_1::field::Field) -> MaybeStaticStr<'_> {
     MaybeStaticStr::Static(field.name())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::bridges::tracing_0_1::TracingBridge;
+
+    #[test]
+    fn test_tracing_bridge_accessors() {
+        let mut enricher = TracingBridge::new(123);
+        assert_eq!(enricher.handler(), &123);
+        assert_eq!(enricher.handler_mut(), &123);
+        assert_eq!(enricher.into_handler(), 123);
+    }
+}
