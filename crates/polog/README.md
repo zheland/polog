@@ -237,21 +237,21 @@ Span events usage:
 `polog` intentionally uses a stricter span lifecycle than [`tracing`].
 A span is entered exactly once, immediately when it is created, and exited
 exactly once when it is destroyed.
-There are no separate New/Close events.
+There are no separate `New`/`Close` events.
 For poll‑instrumented futures, the wrapper emits a `SpanKind::Detached`
-enter/exit pair around the future's lifetime, and per‑poll
-TaskPoll/TaskPending/TaskReady events between them, so repeated polling is
-never conflated with re‑entering the span.
+`Enter`/`Exit` pair around the future's lifetime, and per‑poll
+`TaskPoll`/`TaskPending`/`TaskReady` events between them, so repeated
+polling is never conflated with re‑entering the span.
 
-Additional `polog` features:
+Additionally `polog` features:
 - [`Level::Fatal`] log level that always panics after logging, with the log
   record flushed to the sink before the panic begins.
 - [`Level::Bug`] log level that conditionally panics after logging if
   enabled by the logger, with the log record flushed before the panic
   begins.
-- Macros unifying logging and panic logic like: `log!` with `FATAL` or `BUG`
-  log levels, `fatal!`, `bug!`, `fatal_assert!`, `fatal_assert_eq!`,
-  `fatal_assert_ne!`, `bug_assert!`, `bug_assert_eq!`, `bug_assert_ne!`.
+- Macros unifying logging and panic logic like: [`log!`] with `FATAL` or
+  `BUG` log levels, [`fatal!`], [`bug!`], [`fatal_assert!`],
+  [`bug_assert!`], [`unwrap_ok_or_fatal!`] and similar.
 
 
 ## API Cheat Sheet
@@ -259,7 +259,7 @@ Additional `polog` features:
 Primary logging macros:
 | Level | Log | Spans | Inspects and mapping | Assertions and unwraps |
 |:--:|:--:|:--:|:--:|:--:|
-| passed as argument | [`log!`] | [`span!`],<br>[`owning_span!`],<br>[`deferred_span!`] | [`some_or_log`],<br>[`none_or_log`],<br>[`ok_or_log!`],<br>[`err_or_log!`] | - |
+| passed as argument | [`log!`] | [`span!`],<br>[`owning_span!`],<br>[`deferred_span!`] | [`some_or_log!`],<br>[`none_or_log!`],<br>[`ok_or_log!`],<br>[`err_or_log!`] | - |
 | [`Level::Trace`] | [`trace!`] | [`trace_span!`],<br>[`owning_trace_span!`],<br>[`deferred_trace_span!`] | [`some_or_trace!`],<br>[`none_or_trace!`],<br>[`ok_or_trace!`],<br>[`err_or_trace!`] | - |
 | [`Level::Debug`] | [`debug!`] | [`debug_span!`],<br>[`owning_debug_span!`],<br>[`deferred_debug_span!`] | [`some_or_debug!`],<br>[`none_or_debug!`],<br>[`ok_or_debug!`],<br>[`err_or_debug!`] | - |
 | [`Level::Info`] | [`info!`] | [`info_span!`],<br>[`owning_info_span!`],<br>[`deferred_info_span!`] | [`some_or_info!`],<br>[`none_or_info!`],<br>[`ok_or_info!`],<br>[`err_or_info!`] | - |
@@ -269,7 +269,7 @@ Primary logging macros:
 | [`Level::Fatal`] | [`fatal!`] | - | - | [`fatal_assert!`],<br>[`fatal_assert_eq!`],<br>[`fatal_assert_ne!`],<br>[`unwrap_some_or_fatal!`],<br>[`unwrap_none_or_fatal!`],<br>[`unwrap_ok_or_fatal!`],<br>[`unwrap_err_or_fatal!`] |
 
 Additional helper macros:
-- [`log_descriptor!`], [`span_descriptor!`], [`log_descriptor_ref!`],
+- [`log_descriptor!`], [`log_descriptor_ref!`], [`span_descriptor!`],
   [`span_descriptor_ref!`], [`parse_keys!`], [`parse_values!`],
   [`locate_and_parse_values!`], [`uninstantiated_fn_name!`],
   [`instantiated_fn_name!`].
@@ -287,14 +287,19 @@ Primary traits:
   erasure.
 - [`DebuggableDynHandler`]: A [`DynHandler`] whose concrete type also
   implements [`Debug`].
+- [`PollInstrument`]: An extension trait for wrapping a future factory with
+  poll instrumentation.
 - [`IntoSendable`]: A trait to convert a value into sendable static form.
 - [`LogArgs<'a>`]: A trait for heterogeneous tuples that is used for log
   arguments. Implemented for `DisplayableMixedArgs<'a> +
   IntoSendable<Sendable: DisplayableMixedArgs<'static>>`.
 - [`StaticLogArgs`]: The already-converted form of a log argument tuple
   (`'static + Send + Sync + DisplayableMixedArgs<'static>`). Accepted by
-  [`Handler::log_static`] and [`Handler::enter_span_static`]; shareable as
+  [`Handler::log_static`] and [`Handler::enter_span_static`]. Shareable as
   `Arc<Args>` across branches.
+- [`ContextArgs`]: A trait for heterogeneous tuples that is used for log
+  context. Implemented for `'static + Send + Sync +
+  DebuggableMixedArgsBuilder<'static>`.
 - [`DisplayableMixedArgs<'a>`]: A trait for heterogeneous tuples of
   displayable values that is used for log arguments. Subtrait of
   `DynMixedArgs<dyn Display + 'a>`.
@@ -303,8 +308,6 @@ Primary traits:
   `MixedArgs`.
 - [`MixedArgs`]: A heterogeneous tuples that is used for log arguments and
   log context.
-- [`PollInstrument`]: An extension trait for wrapping a future factory with
-  poll instrumentation.
 
 Primary structs:
 - [`Descriptor`]: Metadata describing a span or event.
@@ -333,6 +336,7 @@ Primary structs:
 
 Primary enums:
 - [`Level`]: Severity level for a log entry.
+- [`SpanLevel`]: Severity level for a span entry.
 - [`LevelFilter`]: Logging filtering level.
 - [`SpanKind`]: The kind of span: `Nested` or `Detached`.
 
@@ -501,12 +505,7 @@ Example:
 ```rust
 fn foo_bar_baz(logger: &mut impl polog::Logger) {
     let logger = polog::info_span!(logger; @fn, request_id, % method);
-    // Log an entry with the message derived from function name: "foo_bar_baz".
-}
-
-fn abc_def_ghi(logger: &mut impl polog::Logger) {
-    let logger = polog::info_span!(logger; @fn, request_id, % method);
-    // Log an entry with the message derived from function name: "abc_def_ghi".
+    // Log an entry with the message derived from the function name: "foo_bar_baz".
 }
 ```
 
@@ -663,19 +662,19 @@ blocked by it.
   [`SpanKind::Detached`]. The canonical use case is RAII: store the span in
   a struct whose `Drop` marks the end of the struct's lifetime.
 
-- **Use [`deferred_span!`] when the span's arguments or its entry point are
-  not yet known.** The returned [`DeferredSpan`] captures the descriptor, a
-  lazy argument factory, and a cloned handler without emitting any events.
-  Call [`DeferredSpan::enter`] later to materialize an [`OwningSpan`], or
-  pass it to [`PollInstrument::poll_instrument`] to wrap a future with
-  per‑poll events.
+- **Use [`deferred_span!`] when the span's entry point is not yet known.**
+  The returned [`DeferredSpan`] captures the descriptor, a lazy argument
+  factory, and a cloned handler without emitting any events. Call
+  [`DeferredSpan::enter`] later to materialize an [`OwningSpan`], or pass it
+  to [`PollInstrument::poll_instrument`] to wrap a future with per‑poll
+  events.
 
 - **Use [`LoggerExt::detach`] when a span context must cross a thread or
   task boundary** but the span itself does not need to be stored as a value.
-  The returned [`DetachedLogger`] is a lightweight logger; create spans from
+  The returned [`DetachedLogger`] is a lightweight logger. Create spans from
   it inside the spawned thread or task where their arguments are known.
 
-### Type erasure for library authors
+### Type erasure
 
 A library that stores an owning span in a struct must otherwise carry
 `H: Handler<()>` through every type that touches that struct.
@@ -1239,14 +1238,16 @@ The two interoperability directions are independent, and the workspace
 ships both.
 
 To receive log events from `log`, `slog`, or `tracing`, wrap the target
-backend in `polog_util::bridges::log_0_4::LogBridge`,
-`polog_util::bridges::slog_2::SlogBridge`, or
-`polog_util::bridges::tracing_0_1::TracingBridge`.
+backend in:
+- [`polog_util::bridges::log_0_4::LogBridge`],
+- [`polog_util::bridges::slog_2::SlogBridge`], or
+- [`polog_util::bridges::tracing_0_1::TracingBridge`].
 
-To send polog events to `log`, `slog`, or `tracing`, use
-`polog_util::delegators::log_0_4::ViaLog`,
-`polog_util::delegators::slog_2::ViaSlog`, or
-`polog_util::delegators::tracing_0_1::ViaTracing` as a target backend.
+To send polog events to `log`, `slog`, or `tracing`, use as a target
+backend:
+- [`polog_util::delegators::log_0_4::ViaLog`],
+- [`polog_util::delegators::slog_2::ViaSlog`], or
+- [`polog_util::delegators::tracing_0_1::ViaTracing`].
 
 `polog` itself has no knowledge of either direction.
 Both adapters live in the downstream crates so that `polog` stays focused on
@@ -1292,8 +1293,8 @@ it. Contributions are very welcome!
 If you need the `log` ecosystem, a global logger, or `max_level_*` Cargo
 features, stay with `log`.
 The two facades are not mutually exclusive:
-`polog_util::bridges::log_0_4::LogBridge` and
-`polog_util::delegators::log_0_4::ViaLog` bridge in both directions.
+[`polog_util::bridges::log_0_4::LogBridge`] and
+[`polog_util::delegators::log_0_4::ViaLog`] bridge in both directions.
 
 ### Why choose `polog` over `tracing`?
 
@@ -1317,8 +1318,9 @@ automatic spans via `#[instrument]`.
 If you rely on ambient span context, `#[instrument]`, `Span::record`,
 `Span::current()`, or a global subscriber, stay with `tracing`.
 The two facades are not mutually exclusive:
-`polog_util::bridges::tracing_0_1::TracingBridge` and
-`polog_util::delegators::tracing_0_1::ViaTracing` bridge in both directions.
+[`polog_util::bridges::tracing_0_1::TracingBridge`] and
+[`polog_util::delegators::tracing_0_1::ViaTracing`] bridge in both
+directions.
 
 ### Why choose `polog` over `slog`?
 
@@ -1347,8 +1349,8 @@ the call graph.
 If you need typed structured output via `slog::Serializer`, a mature
 drain ecosystem, or `serde` integration, stay with `slog`.
 The two facades are not mutually exclusive:
-`polog_util::bridges::slog_2::SlogBridge` and
-`polog_util::delegators::slog_2::ViaSlog` bridge in both directions.
+[`polog_util::bridges::slog_2::SlogBridge`] and
+[`polog_util::delegators::slog_2::ViaSlog`] bridge in both directions.
 
 ### Why not standard Rust formatting?
 
@@ -1373,7 +1375,7 @@ Key‑value logging keeps the log site lightweight, defers all formatting
 to the logger, and preserves structured data for downstream consumers.
 
 For cases where you truly need a Rust‑like formatting, the library
-provides a **formatted value** syntax:
+provides a **lazy formatted value** syntax:
 ```rust
 polog::error!(&mut logger, "Failed to read file"; code = :f("{:04x}{:04x}{:.8}", high, low, frac));
 ```
@@ -1386,7 +1388,7 @@ It changes the dispatch model that `polog` is built around.
 
 At each `polog::info!(logger, ...)` call site, the concrete logger type is
 statically known.
-That lets the compiler monomorphize and inline `is_enabled`/`log`,
+That lets the compiler monomorphize and inline `try_enable`/`log`,
 constant‑fold filters, eliminate disabled events, and format sync args with
 fully monomorphized `Display` calls.
 Async loggers still get `IntoSendable` conversion once per argument, but the
@@ -1394,12 +1396,12 @@ handler dispatch remains static.
 
 A global logger must be selected at runtime.
 In Rust that normally means an object‑safe erased handler behind
-`OnceLock<Box<dyn ...>>` or `OnceLock<&'static dyn ...>`.
-That has three effects:
-- every event pays an indirect call instead of a static, inlinable call;
-- the compiler cannot generally prove which concrete handler is behind the
-  global, so it cannot inline, const‑fold, or specialize for it;
-- if the global can be replaced, or even if it is only set once, the
+`OnceLock<Box<dyn ...>>` or `OnceLock<&'static dyn ...>`, that has several
+effects including:
+- Every event pays an indirect call instead of a static, inlinable call.
+- The compiler cannot generally prove which concrete handler is behind the
+  global, so it cannot inline, const‑fold, or specialize for it.
+- If the global can be replaced, or even if it is only set once, the
   load/branch is opaque enough that LLVM is much less confident about the
   callee type and lifetime.
 
@@ -1521,8 +1523,8 @@ A structured backend has two opt-in paths:
 
 Neither path is free: (1) requires an off-thread handler, (2) requires
 per-argument opt-in.
-Both preserve the design; the visitor protocol used by `tracing` and `slog`
-would not.
+Both preserve the design.
+The visitor protocol used by `tracing` and `slog` would not.
 
 ### What is meant by saying that it is "impossible to send non‑primitive values without formatting" in other crates?
 
@@ -1556,7 +1558,7 @@ types on the log producing thread.
 
 ### Why does the log descriptor not contain the full function path?
 
-While unstable technically it is almost possible to add `function_path` to
+While unstable, technically it is almost possible to add `function_path` to
 `Descriptor` using something like:
 ```rust,ignore
 #[cfg(feature = "unstable")]
@@ -1572,7 +1574,7 @@ macro_rules! __function_path {
 }
 ```
 The problem, however, is that the `core::any::type_name` is not a const
-function (as of `Rust 1.99.0`) so it cannot be used to build static
+function (as of `Rust 1.100.0`) so it cannot be used to build static
 descriptor.
 
 You can use `@fn` meta‑attribute to pass function name as an string
@@ -1611,9 +1613,9 @@ Yes. `polog` is runtime‑agnostic:
 - `PollInstrumented` wraps any `F: Future` and polls it without assuming any
   reactor or timer.
 - The `OffloaderService` worker runs on a `std::thread`, not on a runtime
-  thread pool; it does not need a runtime at all.
+  thread pool. It does not need a runtime at all.
 - The `offloader-support-tokio` feature only gates
-  `tokio::task::block_in_place` during flush‑on‑panic; without it, the same
+  `tokio::task::block_in_place` during flush‑on‑panic. Without it, the same
   flush runs on the caller thread.
 
 The examples use Tokio because it is convenient for demonstrating async
@@ -1632,8 +1634,6 @@ The filtering layer lives in `polog-util`:
   folds away entirely.
 - [`FilterRules`] for a `RUST_LOG`‑style rule set with longest‑prefix‑wins
   matching: `FilterRules::parse("info,my_crate=debug")?.to_owning()`.
-- [`FilterFnExt`] for combinators such as
-  `MaxLevel(..).and(TargetPrefix(..))`.
 
 All three types implement both `FilterFn` (for the `polog` side) and
 `ExternalFilterFn` (for foreign events from `log` / `slog` / `tracing`), so
@@ -1834,7 +1834,7 @@ send-only cost toward `log` / `slog` / `tracing`'s — never above them,
 because `polog`'s conversion is at worst the same work those facades do
 unconditionally, but not as far below as the mixed-payload numbers show.
 The same caveat applies to compile time: the fixture has a bounded number of
-distinct call sites and argument-type combinations; a real application with
+distinct call sites and argument-type combinations. A real application with
 hundreds of distinct combinations will see a larger release build.
 
 The benchmark source is in `fixtures/codegen` and the bench script
@@ -1893,6 +1893,7 @@ submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any
 additional terms or conditions.
 
+
 [API Documentation]: https://docs.rs/polog/latest/polog/
 [`polog`]: https://docs.rs/polog/latest/polog/
 [`log`]: https://docs.rs/log/latest/log/
@@ -1903,6 +1904,10 @@ additional terms or conditions.
 [`polog-util`]: https://docs.rs/polog-util/latest/polog_util/
 [`Debug`]: https://doc.rust-lang.org/stable/core/fmt/trait.Debug.html
 [`Logger`]: https://docs.rs/polog/latest/polog/trait.Logger.html
+[`LoggerExt::borrowing_span`]: https://docs.rs/polog/latest/polog/trait.LoggerExt.html#method.borrowing_span
+[`LoggerExt::transparent_borrowing_span`]: https://docs.rs/polog/latest/polog/trait.LoggerExt.html#method.transparent_span
+[`LoggerExt::deferred_span`]: https://docs.rs/polog/latest/polog/trait.LoggerExt.html#method.deferred_span
+[`LoggerExt::detach`]: https://docs.rs/polog/latest/polog/trait.LoggerExt.html#method.detach
 [`DynHandler`]: https://docs.rs/polog/latest/polog/trait.DynHandler.html
 [`DebuggableDynHandler`]: https://docs.rs/polog/latest/polog/trait.DebuggableDynHandler.html
 [`Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
@@ -1910,7 +1915,6 @@ additional terms or conditions.
 [`Handler::enter_span_static`]: https://docs.rs/polog/latest/polog/trait.Handler.html#method.enter_span_static
 [`BorrowingHandler`]: https://docs.rs/polog/latest/polog/trait.BorrowingHandler.html
 [`SharedHandler`]: https://docs.rs/polog/latest/polog/trait.SharedHandler.html
-[`LoggerExt::transparent_borrowing_span`]: https://docs.rs/polog/latest/polog/trait.LoggerExt.html#method.transparent_span
 [`LogArgs<'a>`]: https://docs.rs/polog/latest/polog/trait.LogArgs.html
 [`StaticLogArgs`]: https://docs.rs/polog/latest/polog/trait.StaticLogArgs.html
 [`ContextArgs`]: https://docs.rs/polog/latest/polog/trait.ContextArgs.html
@@ -1939,6 +1943,7 @@ additional terms or conditions.
 [`TypeErasedOwningSpan`]: https://docs.rs/polog/latest/polog/struct.TypeErasedOwningSpan.html
 [`PollInstrumented`]: https://docs.rs/polog/latest/polog/struct.PollInstrumented.html
 [`Level`]: https://docs.rs/polog/latest/polog/enum.Level.html
+[`SpanLevel`]: https://docs.rs/polog/latest/polog/enum.SpanLevel.html
 [`Level::Trace`]: https://docs.rs/polog/latest/polog/enum.Level.html#variant.Trace
 [`Level::Debug`]: https://docs.rs/polog/latest/polog/enum.Level.html#variant.Debug
 [`Level::Info`]: https://docs.rs/polog/latest/polog/enum.Level.html#variant.Info
@@ -2022,4 +2027,10 @@ additional terms or conditions.
 [`ConstMaxLevel<MAX_LEVEL>`]: https://docs.rs/polog-util/latest/polog_util/struct.ConstMaxLevel.html
 [`FilterRules`]: https://docs.rs/polog-util/latest/polog_util/struct.FilterRules.html
 [`FilterFnExt`]: https://docs.rs/polog-util/latest/polog_util/trait.FilterFnExt.html
+[`polog_util::bridges::log_0_4::LogBridge`]: https://docs.rs/polog-util/latest/polog_util/bridged/log_0_4/struct.LogBridge.html
+[`polog_util::bridges::slog_2::SlogBridge`]: https://docs.rs/polog-util/latest/polog_util/bridged/slog_2/struct.SlogBridge.html
+[`polog_util::bridges::tracing_0_1::TracingBridge`]: https://docs.rs/polog-util/latest/polog_util/bridged/tracing_0_1/struct.TracingBridge.html
+[`polog_util::delegators::log_0_4::ViaLog`]: https://docs.rs/polog-util/latest/polog_util/delegators/log_0_4/struct.ViaLog.html
+[`polog_util::delegators::slog_2::ViaSlog`]: https://docs.rs/polog-util/latest/polog_util/delegators/slog_2/struct.ViaSlog.html
+[`polog_util::delegators::tracing_0_1::ViaTracing`]: https://docs.rs/polog-util/latest/polog_util/delegators/tracing_0_1/struct.ViaTracing.html
 [rust-lang/rust#108185]: https://github.com/rust-lang/rust/issues/108185
