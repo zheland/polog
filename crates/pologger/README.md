@@ -16,26 +16,10 @@ logging facade.
 It renders `polog` events and spans as human‑readable text or
 newline‑delimited JSON, with configurable flags to select which fields
 are shown.
-
-It also implements `log::Log`, `slog::Drain`, and `tracing::Subscriber`
-when the corresponding feature is enabled, so it can serve as a single
-sink for applications that use more than one logging facade.
-All three integrations share the same `SpanIdGenerator` with the `polog`
-chain, so span IDs are consistent across directions.
+Foreign events from `log`, `slog`, and `tracing` reach the same sink
+through the bridges in [`polog-util`].
 
 [![Example output](assets/terminal-captures/text-compact.svg)](examples/example/src/main.rs)
-
-
-## About
-
-`pologger` is a reference logging backend for the [`polog`] facade.
-It renders `polog` events and spans as human-readable text or
-newline-delimited JSON, and can also serve `log`, `slog`, and `tracing`
-events through the same sink.
-
-[`Pologger`] is the backend [`Handler`] that renders events and spans.
-[`OffThreadLoggerBuilder`] wires it into a complete off-thread logging chain
-from a single filter string and returns a logger ready for `polog` macros.
 
 
 ## When to use `pologger` and when not to
@@ -53,14 +37,15 @@ Choose `pologger` if:
 Avoid `pologger` if:
 - You do not use the `polog` facade at all. `pologger` is a backend for
   `polog`'s handler contract. Using it purely as a `log` / `tracing` /
-  `slog` sink is possible via `Pologger`, but `pologger` then provides
-  little over a direct facade-specific backend.
+  `slog` sink is possible by placing the [`polog-util`] bridges in front of
+  it, but `pologger` then provides little over a direct facade-specific
+  backend.
 - You need a structured‑output backend that preserves typed primitives.
   `NdJsonFormatter` emits every value as a JSON string, including numbers.
 - You need log rotation, compression, or remote transport. `pologger` writes
   to an `io::Write`. Wrap the writer to add those.
-- You need an async backend that does not block the worker thread.
-  `pologger`'s formatters are synchronous.
+- You need a mature ecosystem of log processors, formatters, and transports
+  right now.
 
 
 ## Usage
@@ -78,7 +63,7 @@ Enable features for the foreign facades you need:
 
 ```toml
 [dependencies]
-pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "tracing-0-1" ] }
+pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
 ```
 
 
@@ -94,30 +79,33 @@ It wires the choices that nearly every binary makes the same way:
 let (mut logger, config) =
     pologger::OffThreadLoggerBuilder::stderr_text("debug,foo=info,bar=trace")
         .build()
-        .unwrap();
+        .expect("failed to build off-thread logger");
 
+polog::info!(&mut logger, "Message 1"); // Printed.
+polog::trace!(&mut logger, "Message 2"); // Filtered out.
+polog::trace!(&mut logger, target: "foo", "Message 3"); // Filtered out.
+polog::trace!(&mut logger, target: "bar", "Message 4"); // Printed.
+
+// Example of bridging events from other logging systems.
 logger.register_as_global_log_logger().unwrap();
 logger.register_as_global_tracing_subscriber().unwrap();
 let slog_logger = logger.to_slog_logger();
 
-polog::info!(&mut logger, "Message 1"); // Printed
-polog::trace!(&mut logger, "Message 2"); // Filtered out
-polog::trace!(&mut logger, target: "foo", "Message 3"); // Filtered out
-polog::trace!(&mut logger, target: "bar", "Message 4"); // Printed
-
 // Example of dynamic filter update.
 let filter = polog_util::FilterRules::parse("trace,foo=debug,bar=info")
-    .unwrap()
+    .expect("failed to parse filter rules")
     .to_owning();
-
 *config.filter.write() = filter;
+// Update the process-wide `log` max level to match the new filter.
 config.update_global_log_level();
+// Rebuild the `tracing` callsite interest cache against the new filter.
 config.update_global_tracing_interest_cache();
 
-polog::trace!(&mut logger, "Message 5"); // Printed
-log::info!("Hello from log"); // Printed
-tracing::event!(tracing::Level::INFO, "Hello from tracing"); // Printed
-slog::info!(slog_logger, "Hello from slog"; "key" => "value"); // Printed
+// Example of using multiple logging facades.
+polog::trace!(&mut logger, "Message 5"); // Printed.
+log::info!("Hello from log"); // Printed.
+tracing::event!(tracing::Level::INFO, "Hello from tracing"); // Printed.
+slog::info!(slog_logger, "Hello from slog"; "key" => "value"); // Printed.
 ```
 
 The logger returned by `build` is an [`OffThreadLogger`], which
@@ -215,7 +203,7 @@ worker thread.
 Events and spans are rendered by a [`Formatter`] that receives each field
 through an individual `write_*` call.
 [`TextFormatter`] produces human-readable output, [`NdJsonFormatter`]
-produces one JSON object per line, and `polog::Discard` disables output.
+produces one JSON object per line.
 Which fields reach the formatter is controlled by [`LoggerConfig`].
 
 ### Rendering examples
@@ -244,7 +232,7 @@ Each capture below is reproducible with `cargo run -p example -- <preset>`.
 
 ### Formatters
 
-#### `TextFormatter`
+#### [`TextFormatter`]
 
 Renders each event as a single line.
 
@@ -263,8 +251,8 @@ Colors are controlled by [`ColorizePreset`]:
   (detected via [`supports-color`]). This is the default.
 - `On` - always emit color escapes.
 
-By default, `TextFormatter` replaces every C0 control character and DEL in
-log content with its Unicode Control Picture counterpart (`\x1b` → `␛`,
+By default, `TextFormatter` replaces every `C0` control character and `DEL`
+in log content with its Unicode Control Picture counterpart (`\x1b` → `␛`,
 `\x00` → `␀`, `\x7f` → `␡`).
 The replacement is colorized red when colorization is enabled, so a `␛`
 produced by the sanitizer is visually distinct from a literal `␛` in the
@@ -281,7 +269,7 @@ Newline and tab are preserved by default. Enable `SANITIZE_NEWLINES` to
 escape them too, which prevents log-line forging at the cost of collapsing
 multi-line stack traces into one line.
 
-#### `NdJsonFormatter`
+#### [`NdJsonFormatter`]
 
 Renders each event as a single JSON object.
 
@@ -340,14 +328,11 @@ to combine them.
 
 #### Combining formatters
 
-The [`Formatter`] trait is implemented for tuples `(F1, F2)` and for
-[`Either<F1, F2>`] when both `F1` and `F2` implement [`Formatter`].
+The [`Formatter`] trait is implemented for tuples `(F1, F2, ... Fn)` and for
+[`Either<F1, F2>`] when all `Fi` implement [`Formatter`].
 
-- `(F1, F2)` writes each event to both formatters.
+- `(F1, F2, ... Fn)` writes each event to all formatters.
 - `Either::V1(f)` and `Either::V2(f)` select one formatter at runtime.
-
-Neither wrapper is a [`Handler`] implementation on its own.
-Combine them inside a single [`Pologger`].
 
 
 ### Logger flags
@@ -396,9 +381,9 @@ every variant.
 | [`OffThreadLoggerBuilder::stdout_text`] | `TextFormatter` to buffered `stdout` with `ColorizePreset::Auto`. |
 | [`OffThreadLoggerBuilder::custom_text`] | `TextFormatter` to a caller‑supplied `io::Write`, colors off. |
 | [`OffThreadLoggerBuilder::custom_ndjson`] | `NdJsonFormatter` to a caller‑supplied `io::Write`. |
-| [`OffThreadLoggerBuilder::with_formatter`] | Arbitrary [`Formatter`]; formatter config is `()`. |
-| [`OffThreadLoggerBuilder::build`] | Parses the filter, wires the chain, spawns the worker, optionally registers globals. |
-| [`OffThreadLogger`] | Logger handle returned by `build`. Implements [`polog::Logger`]; owns the worker; joins it on drop. |
+| [`OffThreadLoggerBuilder::with_formatter`] | Arbitrary [`Formatter`], formatter config is `()`. |
+| [`OffThreadLoggerBuilder::build`] | Parses the filter, wires the chain, spawns the worker. |
+| [`OffThreadLogger`] | Logger handle returned by `build`. Implements [`polog::Logger`], owns the worker, joins it on drop. |
 | [`OffThreadLogger::register_as_global_log_logger`] | Registers the built chain as the global `log` logger. Requires `log-0-4`. |
 | [`OffThreadLogger::register_as_global_tracing_subscriber`] | Registers the built chain as the global `tracing` subscriber. Requires `tracing-0-1`. |
 | [`OffThreadLogger::to_slog_logger`] | Returns the built chain as slog logger. Requires `slog-2`. |
@@ -414,7 +399,6 @@ every variant.
 | [`NdJsonFormatter`] | One JSON object per line; RFC 8259 escaping, no sanitization. |
 | [`Either<F1, F2>`] | Runtime selection between two formatters (re‑export from `polog-util`). |
 | `(F1, F2, ..., Fn)` | Writes each event to both formatters in order. |
-| [`Discard`] | A [`Formatter`] that discards everything (re‑export from `polog`). |
 
 ### Formatter constructors
 
@@ -449,7 +433,7 @@ every variant.
 |:--:|:--:|:--:|:--:|
 | `either-1` | no | Enables `either::Either` implementations. | `dep:either` (version = 1) |
 | `log-0-4` | no | Provides `OffThreadLogger::register_as_global_log_logger()`. | `dep:log` (version = 0.4), `polog-util/log-0-4` |
-| `slog-2` | no | Provides `OffThreadLogger::make_slog_logger()`. | `dep:slog` (version = 2), `polog-util/slog-2` |
+| `slog-2` | no | Provides `OffThreadLogger::to_slog_logger()`. | `dep:slog` (version = 2), `polog-util/slog-2` |
 | `tracing-0-1` | no | Provides `OffThreadLogger::register_as_global_tracing_subscriber()`. | `dep:tracing-core` (version = 0.1), `polog-util/tracing-0-1` |
 
 
@@ -492,7 +476,7 @@ Each destination is application‑specific.
   `tracing-0-1-semver-unstable` feature, which depends on `#[doc(hidden)]`
   items of `tracing`. See the feature flags section for the semver
   implications. The reverse direction — capturing `tracing` events in a
-  `polog` backend — is `polog_util::bridges::tracing_0_1::BridgeTracing`.
+  `polog` backend — is `polog_util::bridges::tracing_0_1::TracingBridge`.
   That path does not reach OpenTelemetry.
 - **Custom sinks.** Implement [`Formatter`] directly. The trait describes
   each field individually, so a formatter can emit protobuf, logfmt, or a
@@ -544,6 +528,7 @@ submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any
 additional terms or conditions.
 
+
 [API Documentation]: https://docs.rs/pologger/latest/pologger/
 [`polog`]: https://docs.rs/polog/latest/polog/
 [`polog-util`]: https://docs.rs/polog-util/latest/polog_util/
@@ -570,10 +555,11 @@ additional terms or conditions.
 [`OffThreadLoggerBuilder::custom_text`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.custom_text
 [`OffThreadLoggerBuilder::custom_ndjson`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.custom_ndjson
 [`OffThreadLoggerBuilder::with_formatter`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.with_formatter
-[`OffThreadLoggerBuilder::register_as_global_log_logger`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.register_as_global_log_logger
-[`OffThreadLoggerBuilder::register_as_global_tracing_subscriber`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.register_as_global_tracing_subscriber
 [`OffThreadLoggerBuilder::build`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerBuilder.html#method.build
 [`OffThreadLogger`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLogger.html
+[`OffThreadLogger::register_as_global_log_logger`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLogger.html#method.register_as_global_log_logger
+[`OffThreadLogger::register_as_global_tracing_subscriber`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLogger.html#method.register_as_global_tracing_subscriber
+[`OffThreadLogger::to_slog_logger`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLogger.html#method.to_slog_logger
 [`OffThreadLoggerConfig`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerConfig.html
 [`OffThreadLoggerShutdownEvent`]: https://docs.rs/pologger/latest/pologger/struct.OffThreadLoggerShutdownEvent.html
 [`Pologger`]: https://docs.rs/pologger/latest/pologger/struct.Pologger.html
