@@ -2,8 +2,8 @@
 //!
 //! Each flag set is a distinct `bitflags`-generated type. A [`LoggerConfig`]
 //! bundles one value from each set. Backends that want a single flag
-//! namespace per visual concern use the individual flag types directly;
-//! backends that want a single configuration value use `LoggerConfig`.
+//! namespace per visual concern use the individual flag types directly.
+//! Backends that want a single configuration value use `LoggerConfig`.
 //!
 //! All flags are pure data: changing them has no side effect until the next
 //! call to [`Pologger`]'s rendering path, which reads them from the backend's

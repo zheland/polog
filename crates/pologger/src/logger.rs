@@ -176,12 +176,12 @@ impl LoggerConfig {
 
 impl<F> Pologger<F> {
     /// Creates a backend that reads its rendering configuration from
-    /// `flags`.
+    /// `config`.
     ///
     /// Sharing the generator is what keeps span IDs unique across `polog`
     /// events and foreign-facade events.
     ///
-    /// `flags` is shared: every clone of this handle — held here, by a
+    /// `config` is shared: every clone of this handle — held here, by a
     /// [`LoggerConfig`], by a config-watcher task, or by another `Pologger` —
     /// observes the same value. A write through any handle takes effect on the
     /// next event of every reader.

@@ -128,7 +128,7 @@ pub trait Formatter {
     /// The value is expected to be free of control characters.
     /// Implementations must not re-sanitize it.
     /// The backend uses this method for formatted timestamps that originate
-    /// from `chrono` or `humantime`, which emit only printable ASCII.
+    /// from `jiff`, which emit only printable ASCII.
     ///
     /// # Errors
     ///

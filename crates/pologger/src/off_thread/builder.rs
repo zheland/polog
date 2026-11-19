@@ -21,7 +21,6 @@ use crate::{
 /// - Offloading with a bounded channel and `DROP_NEWEST` backpressure.
 /// - Periodic flush on the worker.
 /// - `SystemTime` enricher on the caller side.
-/// - Optional global registration with `log` and/or `tracing`.
 ///
 /// Anything the builder does not expose (formatter flags, channel capacity,
 /// backpressure policy, custom enrichers, file rotation) is available by
@@ -207,15 +206,6 @@ impl<Fmt, FmtCfg> OffThreadLoggerBuilder<'_, Fmt, FmtCfg> {
     ///   did not parse.
     /// - [`BuildOffThreadLoggerError::SpawnLogger`] — the offloader worker
     ///   thread could not be spawned.
-    ///
-    /// # Partial registration on failure
-    ///
-    /// When both registrations are requested and the second one fails, the
-    /// first registration is already active and cannot be undone.
-    /// This is an inherent limitation of the process-global registration APIs
-    /// in `log` and `tracing`.
-    /// Neither crate offers an unregister operation. The
-    /// builder cannot roll back the first registration either.
     #[inline]
     pub fn build(
         self,

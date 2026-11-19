@@ -60,14 +60,21 @@ use crate::LoggerConfig;
 /// The filter is shared between the caller-side middleware and the
 /// worker-side foreign-event ingestion, so one write reconfigures both.
 /// If the same `OffThreadLoggerConfig` is cloned and one clone drops the
-/// filter handle while another keeps it, the shared value remains alive;
-/// only the reference count changes.
+/// filter handle while another keeps it, the shared value remains alive.
+/// Only the reference count changes.
+///
+/// Call [`update_global_log_level`] after every write to filter when the
+/// `log` integration is enabled.
+/// Call [`update_global_tracing_interest_cache`] after every write to
+/// filter when the `tracing` integration is enabled.
 ///
 /// [`Filter`]: polog_util::Filter
 /// [`filter`]: Self::filter
 /// [`formatter_config`]: Self::formatter_config
 /// [`Formatter`]: crate::Formatter
 /// [`logger_config`]: Self::logger_config
+/// [`update_global_log_level`]: Self::update_global_log_level
+/// [`update_global_tracing_interest_cache`]: Self::update_global_tracing_interest_cache
 /// [`LoggerConfig`]: crate::LoggerConfig
 /// [`OffThreadLoggerBuilder`]: crate::OffThreadLoggerBuilder
 /// [`OffThreadLoggerBuilder::build`]: crate::OffThreadLoggerBuilder::build
@@ -75,7 +82,6 @@ use crate::LoggerConfig;
 /// [`TextFormatterConfig`]: crate::TextFormatterConfig
 /// [`with_formatter`]: crate::OffThreadLoggerBuilder::with_formatter
 /// [`filter`]: Self::filter
-///
 /// [`LoggerConfig`]: crate::LoggerConfig
 #[derive(Clone, Debug)]
 pub struct OffThreadLoggerConfig<FmtCfg> {
