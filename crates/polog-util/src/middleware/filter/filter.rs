@@ -15,30 +15,33 @@ use crate::{BaseExternalHandler, ExternalArgs, ExternalDescriptor, ExternalHandl
 ///
 /// # Usage
 ///
-/// ```rust,ignore
+/// ```rust
 /// use polog::LevelFilter;
-/// use polog_util::{Filter, MaxLevel};
+/// use polog_util::Filter;
+/// use polog_util::filters::MaxLevel;
+/// # let mut handler = polog::Discard;
 ///
 /// let handler = Filter::new(handler, MaxLevel(LevelFilter::Info));
 /// ```
 ///
 /// Filters compose:
 ///
-/// ```rust,ignore
+/// ```rust
 /// use polog::LevelFilter;
-/// use polog_util::{All, FilterFnExt, MaxLevel, TargetPrefix};
+/// use polog_util::Filter;
+/// use polog_util::filters::{All, MaxLevel, Not, TargetPrefix};
+/// # let mut handler = polog::Discard;
 ///
-/// let filter = MaxLevel(LevelFilter::Debug)
-///     .and(TargetPrefix("my_app"))
-///     .not();
+/// let filter = Not(All((MaxLevel(LevelFilter::Debug), TargetPrefix("my_app"))));
 /// ```
 ///
 /// For configuration-driven filtering (command-line arguments, config files,
 /// environment variables), see [`FilterRules`], which parses a
 /// `RUST_LOG`-style string:
 ///
-/// ```rust,ignore
+/// ```rust
 /// use polog_util::{Filter, FilterRules};
+/// # let mut handler = polog::Discard;
 ///
 /// let rules = FilterRules::parse("info,my_crate=debug,my_crate::noisy=trace")
 ///     .expect("invalid filter specification");

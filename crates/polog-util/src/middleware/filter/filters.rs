@@ -120,11 +120,11 @@ impl ExternalFilterFn for MaxLevel {
 /// # Example
 ///
 /// ```rust
-/// use polog::Level;
+/// use polog::{Level, LevelFilter};
 /// use polog_util::FilterFn;
-/// use polog_util::filters::{ConstMaxLevel, InfoFilter};
+/// use polog_util::filters::ConstMaxLevel;
 ///
-/// let filter: InfoFilter = ConstMaxLevel;
+/// let filter = ConstMaxLevel::<{ LevelFilter::Info.into_u8() }>;
 /// assert!(filter.is_enabled(polog::log_descriptor_ref!(Level::Error, "")));
 /// assert!(filter.is_enabled(polog::log_descriptor_ref!(Level::Info, "")));
 /// assert!(!filter.is_enabled(polog::log_descriptor_ref!(Level::Debug, "")));
@@ -280,10 +280,16 @@ where
 }
 
 /// Conjunction of multiple filters: all must accept.
+///
+/// Implemented for tuples of filters like `All<(F1, F2, ... Fn)>` up to 12
+/// elements.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct All<T>(pub T);
 
 /// Disjunction of multiple filters: at least one must accept.
+///
+/// Implemented for tuples of filters like `Any<(F1, F2, ... Fn)>` up to 12
+/// elements.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Any<T>(pub T);
 
