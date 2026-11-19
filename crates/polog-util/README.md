@@ -71,7 +71,7 @@ Enable features for external integrations:
 
 ```toml
 [dependencies]
-polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1", "offloader" ] }
+polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
 ```
 
 
@@ -107,16 +107,16 @@ The table compares every chain-shaped item in this crate.
 | [`OffloaderHandle`] | Middleware | Chain | Wrapped `H`, on the worker thread | **yes** | no | Makes any `Handler` usable by `polog` macros and a fanin. The target need not be `SharedHandler`. |
 | [`Fanout<Hs, N>`] | Middleware | Chain | Multiple branches | if all `Hs` | **yes** | `Arc`-shares args when more than one branch accepts. Use when at least one branch is not a `BorrowingHandler`. |
 | [`BorrowingFanout<Hs, N>`] | Middleware | Chain | Multiple branches | if all `Hs` | **yes** | Avoids the `Arc`. **preferred** when every branch implements `BorrowingHandler`. |
-| [`Either<H1, H2>`] | Middleware | Chain | Exactly one branch | if `H1` and `H2` | no | Runtime selection; both arms must agree on `EnrichedContext`. |
-| [`LogBridge<H>`] | Bridge | `log` | Wrapped `H` | — | — | Chain input. `log` has no span lifecycle, so only events arrive. |
-| [`SlogBridge<H>`] | Bridge | `slog` | Wrapped `H` | — | — | Chain input. |
+| [`Either<H1, H2>`] | Middleware | Chain | Exactly one branch | if `H1` and `H2` | no | Runtime selection. Both arms must agree on `EnrichedContext`. |
+| [`LogBridge<H>`] | Bridge | `log` | Wrapped `H` | — | — | Chain input. Spans become regular records. |
+| [`SlogBridge<H>`] | Bridge | `slog` | Wrapped `H` | — | — | Chain input. Spans become regular records. |
 | [`TracingBridge<H>`] | Bridge | `tracing` | Wrapped `H` | — | — | Chain input, including span lifecycle. |
-| [`ViaLog`] | Delegator | Chain | `log::Log` | **yes** | — | Chain output; spans become regular records. |
-| [`ViaSlog`] | Delegator | Chain | `slog::Logger` | **yes** | — | Chain output; spans become regular records. |
-| [`ViaTracing`] | Delegator | Chain | `tracing::Dispatch` | **yes** | — | Chain output, including span lifecycle. |
-| `Pologger` (backend) | Backend | Chain | Formatter & I/O | no | — | Reference backend. Not a `SharedHandler`. Wrap in `Shared` or `OffloaderHandle` to get fanin. |
+| [`ViaLog`] | Delegator | Chain | [`log::Log`] | **yes** | — | Chain output. Spans become regular records. |
+| [`ViaSlog`] | Delegator | Chain | [`slog::Logger`] | **yes** | — | Chain output. Spans become regular records. |
+| [`ViaTracing`] | Delegator | Chain | [`tracing::Dispatch`] | **yes** | — | Chain output, including span lifecycle. |
+| [`Pologger`] from [`pologger`] crate | Backend | Chain | Formatter & I/O | no | — | Reference backend. Not a `SharedHandler`. Wrap in `Shared` or `OffloaderHandle` to get fanin. |
 
-Key takeaways:
+Notes:
 
 - **Prefer `BorrowingFanout` when every branch implements
   `BorrowingHandler`.** It avoids the `Arc` that `Fanout` allocates in the
@@ -166,22 +166,21 @@ Order matters along the chain from call site to backend.
 
 | Item | Behavior |
 |:--:|:--|
-| `Filter<H, F>` | Filters events and spans using a `FilterFn`. |
-| `FilterRules` | `RUST_LOG`‑style filter rules with longest‑prefix‑wins matching. |
-| `MaxLevel`, `ConstMaxLevel<M>`, `Target`, `TargetPrefix`, `All`, `Any`, `Always`, `Never`, `Not<F>` | Composable `FilterFn` implementations. |
-| `FilterFnExt` | Combinators `not`, `and`, `or` on any `FilterFn`. |
-| `Fanout<Hs, N>`, `Fanout1`…`Fanout4` | Delivers events and spans to up to four handlers, sharing args through `Arc` when more than one accepts. |
-| `BorrowingFanout<Hs, N>`, `BorrowingFanout1`…`BorrowingFanout4` | Like `Fanout`, but dispatches through `BorrowingHandler` and skips the `Arc` allocation. |
-| `Enricher<H, F>` | Injects `F::Output` as a context argument before delegating. |
-| `EnricherFn` | Trait for enricher output factories. Implemented for `Fn() -> T` closures. |
-| `SystemTimeEnricher<H>`, `MonotonicEnricher<H>` | Built‑in `Enricher` aliases over `SystemTimeEnricherFn` and `MonotonicEnricherFn`. |
-| `Shared<H>` | Makes a non‑shared `Handler` shareable across threads via `Arc<Mutex<H>>`. |
-| `Either<H1, H2>` | Runtime selection between two handlers. |
-| `OffloaderHandle<Context, CustomEvent>` | The `Handler` and `SharedHandler` frontend of the offload middleware. |
-| `OffloaderService<H, Context, CustomEvent, CustomHandler>` | Owns the backend and runs the worker. |
-| `new_offloader(...)` | Constructs the `(OffloaderHandle, OffloaderService)` pair. |
-| `OffloaderCapacity` | `Bounded(usize)` or `Unbounded`. |
-| `OffloaderBackpressurePolicy` | `Block`, `DropNewest { timeout }`, `DropOldest { timeout }`. Shorthands `DROP_NEWEST` and `DROP_OLDEST` use zero timeout. |
+| [`Filter<H, F>`] | Filters events and spans using a [`FilterFn`]. |
+| [`FilterRules`] | `RUST_LOG`‑style filter rules with longest‑prefix‑wins matching. |
+| [`MaxLevel`], [`ConstMaxLevel<M>`], [`Target`], [`TargetPrefix`], [`All`], [`Any`], [`Always`], [`Never`], [`Not<F>`] | Composable [`FilterFn`] implementations. |
+| [`Fanout<Hs, N>`], [`Fanout1`]…[`Fanout4`] | Delivers events and spans to up to four handlers, sharing args through `Arc` when more than one accepts. |
+| [`BorrowingFanout<Hs, N>`], [`BorrowingFanout1`]…[`BorrowingFanout4`] | Like `Fanout`, but dispatches through `BorrowingHandler` and skips the `Arc` allocation. |
+| [`Enricher<H, F>`] | Injects `F::Output` as a context argument before delegating. |
+|[ `EnricherFn`] | Trait for enricher output factories. Implemented for `Fn() -> T` closures. |
+| [`SystemTimeEnricher<H>`], [`MonotonicEnricher<H>`] | Built‑in `Enricher` aliases over [`SystemTimeEnricherFn`] and `MonotonicEnricherFn`. |
+| [`Shared<H>`] | Makes a non‑shared [`Handler`] shareable across threads via `Arc<Mutex<H>>`. |
+| [`Either<H1, H2>`] | Runtime selection between two handlers. |
+| [`OffloaderHandle<Context, CustomEvent>`] | The [`Handler`] and [`SharedHandler`] frontend of the offload middleware. |
+| [`OffloaderService<H, Context, CustomEvent, CustomHandler>`] | Owns the backend and runs the worker. |
+| [`new_offloader(...)`] | Constructs the `(OffloaderHandle, OffloaderService)` pair. |
+| [`OffloaderCapacity`] | `Bounded(usize)` or `Unbounded`. |
+| [`OffloaderBackpressurePolicy`] | `Block`, `DropNewest { timeout }`, `DropOldest { timeout }`. Shorthands `DROP_NEWEST` and `DROP_OLDEST` use zero timeout. |
 
 ### Filtering
 
@@ -192,88 +191,50 @@ Filters in this crate implement two related traits:
 - [`ExternalFilterFn`] — receives `&ExternalDescriptor<'_>`. Used when it
   ingests foreign events from `log` / `slog` / `tracing`.
 
-Every built‑in filter — `MaxLevel`, `ConstMaxLevel<M>`, `Target`,
-`TargetPrefix`, `All`, `Any`, `Not`, `Always`, `Never`, `FilterRules` —
-implements both, so one parsed rule set filters both the `polog` chain
-and the foreign-facade ingestion:
-
-```rust,ignore
-use core::time::Duration;
-use std::sync::Arc;
-
-use polog_util::{
-    Filter, FilterRules, OffloaderBackpressurePolicy, OffloaderCapacity, new_offloader,
-};
-
-let filter = FilterRules::parse("info,my_crate=debug")
-    .expect("invalid filter")
-    .to_owning();
-
-let span_id_generator = Arc::new(polog::SpanIdGenerator::new());
-let formatter = pologger::TextFormatter::stderr(
-    pologger::TextFormatterFlags::default(),
-    pologger::ColorizePreset::Auto,
-);
-let handler = pologger::Pologger::new(
-    Arc::clone(&span_id_generator),
-    formatter,
-    pologger::LoggerFlags::compact(),
-);
-
-let (handler, service) = new_offloader(
-    handler,
-    span_id_generator,
-    OffloaderCapacity::Bounded(8192),
-    OffloaderBackpressurePolicy::DROP_NEWEST,
-    Some(Duration::from_millis(1)),  // Flush_interval.
-    |_, ev: !| match ev {}, // Custom_handler.
-);
-
-let _handle = service.spawn();
-
-// Polog side.
-let logger = Filter::new(handler, filter);
-```
+Every built‑in filter — [`MaxLevel`], [`ConstMaxLevel<M>`], [`Target`],
+[`TargetPrefix`], [`All`], [`Any`], [`Not`], [`Always`], [`Never`],
+[`FilterRules`] — implements both, so one parsed rule set filters both the
+`polog` chain and the foreign-facade ingestion:
 
 ### Inbound foreign-facade adapters
 
-These adapters receive events from `log`, `slog`, or `tracing` and forward
-them into a `polog` handler chain.
+These adapters receive events from [`log`], [`slog`], or [`tracing`] and
+forward them into a [`polog`] handler chain.
 They are the reverse direction of the outbound delegators below.
 
 | Item | Behavior |
 |:--:|:--|
-| `LogBridge<H>` | `log::Log` adapter over a `polog::Handler` backend. |
-| `SlogBridge<H>` | `slog::Drain` adapter over a `polog::Handler` backend. |
-| `TracingBridge<H>` | `tracing::Dispatch`/`tracing::Subscriber` adapter over a `polog::Handler` backend. |
-| `ExternalHandler<Context>` | Backend/middleware trait for foreign-facade events. Extends `Handler<Context>`. |
-| `ExternalDescriptor` | Borrowed description of a foreign event/span: message, level, target, module path, file, line, column. |
-| `TypeErasedExternalDescriptor` | Owned, type-erased `ExternalDescriptor` for storing foreign metadata. |
-| `ExternalArgs` | Borrowed view of foreign event arguments; walks fields once through a visitor. |
-| `ExternalArgsVisitor` | Visitor receiving `visit_message` and `visit_arg` callbacks. |
-| `ExternalArgValue<'_>` | Borrowed foreign argument value: primitives, strings, `Display`/`Debug`/`Error` trait objects, and `format_args!`. |
-| `TypeErasedExternalArgs` | Owned, type-erased foreign argument set. |
+| [`LogBridge<H>`] | [`log::Log`] adapter over a [`polog::Handler`] backend. |
+| [`SlogBridge<H>`] | [`slog::Drain`] adapter over a [`polog::Handler`] backend. |
+| [`TracingBridge<H>`] | [`tracing::Dispatch`]/[`tracing::Subscriber`] adapter over a [`polog::Handler`] backend. |
+| [`ExternalHandler<Context>`] | Backend/middleware trait for foreign-facade events. Extends `Handler<Context>`. |
+| [`ExternalDescriptor`] | Borrowed description of a foreign event/span: message, level, target, module path, file, line, column. |
+| [`TypeErasedExternalDescriptor`] | Owned, type-erased [`ExternalDescriptor`] for storing foreign metadata. |
+| [`ExternalArgs`] | Borrowed view of foreign event arguments; walks fields once through a visitor. |
+| [`ExternalArgsVisitor`] | Visitor receiving `visit_message` and `visit_arg` callbacks. |
+| [`ExternalArgValue<'_>`] | Borrowed foreign argument value: primitives, strings, `Display`/`Debug`/`Error` trait objects, and `format_args!`. |
+| [`TypeErasedExternalArgs`] | Owned, type-erased foreign argument set. |
 
 
 ### Outbound delegators
 
-These adapters forward `polog` events and spans to foreign facades.
+These adapters forward [`polog`] events and spans to foreign facades.
 
 | Item | Behavior |
 |:--:|:--|
-| `log_0_4::ViaLog` | Forwards events and spans to a `log::Log` backend. Spans are logged as regular records. |
-| `slog_2::ViaSlog` | Forwards events and spans to a `slog::Logger`. Spans are logged as regular records. |
-| `tracing_0_1::ViaTracing` | Forwards events and spans to a `tracing::Dispatch`, including the span lifecycle. |
+| [`ViaLog<L>`] | Forwards events and spans to a [`log::Log`] backend. Spans are logged as regular records. |
+| [`ViaSlog<D>`] | Forwards events and spans to a [`slog::Logger`]. Spans are logged as regular records. |
+| [`ViaTracing`] | Forwards events and spans to a [`tracing::Dispatch`], including the span lifecycle. |
 
 ### Argument utilities
 
 | Item | Behavior |
 |:--:|:--|
-| `TypeErasedArgs<T>` | Transparent wrapper that forwards `MixedArgs` behavior and can be stored behind `Arc`. |
-| `TypeErasedArcLogArgs` | `TypeErasedArgs<Arc<dyn … + DisplayableMixedArgs<'static>>>`. |
-| `TypeErasedArcContextArgs` | `TypeErasedArgs<Arc<dyn … + AnyDebuggableMixedArgs<'static>>>`. |
-| `MixedArgsExt` | Typed downcasting: `try_nth_arg_as::<T>(i)`, `type_filtered_nth_arg::<T>(i)`, `type_filtered_num_args::<T>()`. |
-| `AnyDynMixedArgs`, `AnyDisplayableMixedArgs`, `AnyDebuggableMixedArgs` and their `…Builder` counterparts | Marker traits combining `Any` with the argument traits, for downcasting to a concrete tuple. |
+| [`TypeErasedArgs<T>`] | Transparent wrapper that forwards `MixedArgs` behavior and can be stored behind `Arc`. |
+| [`TypeErasedArcLogArgs`] | `TypeErasedArgs<Arc<dyn … + DisplayableMixedArgs<'static>>>`. |
+| [`TypeErasedArcContextArgs`] | `TypeErasedArgs<Arc<dyn … + AnyDebuggableMixedArgs<'static>>>`. |
+| [`MixedArgsExt`] | Typed downcasting: `try_nth_arg_as::<T>(i)`, `type_filtered_nth_arg::<T>(i)`, `type_filtered_num_args::<T>()`. |
+| [`AnyDynMixedArgs`], [`AnyDisplayableMixedArgs`], [`AnyDebuggableMixedArgs`] and their `…Builder` counterparts | Marker traits combining `Any` with the argument traits, for downcasting to a concrete tuple. |
 
 ### Context wrappers
 
@@ -320,7 +281,7 @@ let rules = FilterRules::parse("info,my_crate=debug,my_crate::noisy=info")
 let handler = Filter::new(handler, rules);
 ```
 
-`FilterRules::parse` returns a rule set borrowing from the input string.
+[`FilterRules::parse`] returns a rule set borrowing from the input string.
 Call `.to_owning()` before storing the handler to make it static.
 
 ### Enrichment
@@ -360,15 +321,11 @@ let worker = service.spawn().expect("failed to spawn logger worker");
 // Send custom events with `handler.send_custom(event, policy)`.
 ```
 
-`OffloaderService::spawn` spawns a dedicated worker thread.
-`OffloaderService::run_blocking` runs the loop on the calling thread.
-`OffloaderBackpressurePolicy::Block` blocks the caller on a full channel.
-`DropNewest` and `DropOldest` drop on a full channel, optionally after a
+[`OffloaderService::spawn`] spawns a dedicated worker thread.
+[`OffloaderService::run_blocking`] runs the loop on the calling thread.
+[`OffloaderBackpressurePolicy::Block`] blocks the caller on a full channel.
+[`DropNewest`] and [`DropOldest`] drop on a full channel, optionally after a
 timeout.
-
-The shared generator is what lets `Pologger` interleave foreign and `polog`
-events in one backend with a single, non‑overlapping span ID space.
-A fresh `Arc::new(SpanIdGenerator::new())` is fine.
 
 ### Ingesting `log` events
 
@@ -380,12 +337,9 @@ LogBridge::new(handler.clone())
     .unwrap();
 ```
 
-`LogBridge` forwards `log` records into the `polog` handler chain.
+[`LogBridge`] forwards `log` records into the `polog` handler chain.
 `log` events have no span lifecycle, so only the event path is used.
-
-`SlogBridge` and `TracingBridge` are structured the same way under
-`polog_util::bridges::slog_2::SlogBridge` and
-`polog_util::bridges::tracing_0_1::TracingBridge`.
+[`SlogBridge`] and [`TracingBridge`] are structured the same way.
 
 ### Delegating to `log`
 
@@ -395,9 +349,7 @@ use polog_util::delegators::log_0_4::{ViaLog, ViaLogFlags};
 let handler = ViaLog::new(handler, ViaLogFlags::empty());
 ```
 
-`ViaSlog` and `ViaTracing` are structured the same way under
-`polog_util::delegators::slog_2::ViaSlog` and
-`polog_util::delegators::tracing_0_1::ViaTracing`.
+[`ViaLog`], [`ViaSlog`] and [`ViaTracing`] are structured the same way.
 
 ### Type-erased arguments
 
@@ -441,7 +393,7 @@ allocating.
 
 | Feature | Default | Description | Enables deps and features |
 |:--:|:--:|:--:|:--:|
-| `alloc` | yes | Enables `alloc`‑based items such as `TypeErasedArcLogArgs`, `TypeErasedArcContextArgs`, and `FilterRules` | `polog/alloc` |
+| `alloc` | yes | Enables `alloc`‑based items such as [`TypeErasedArcLogArgs`], [`TypeErasedArcContextArgs`], and [`FilterRules`] | `polog/alloc` |
 | `std` | yes | Enables `std`‑based middleware and utilities, including some enrichers and the offloader. | `alloc`, `polog/std` |
 | `fanout` | no | Enables the fanout middleware. | `alloc`, `dep:dashmap` (transitive `std`) |
 | `offloader` | no | Enables the offloading middleware. | `std`, `dep:crossbeam-channel`, `dep:oneshot`, `oneshot/std` |
@@ -449,12 +401,12 @@ allocating.
 | `shared` | no | Enables the sharing middleware. | `alloc`, `dep:parking_lot` (transitive `std`) |
 | `shared-filter` | no | Enables filter implementations for `Arc<RwLock<F>>`. | `alloc`, `dep:parking_lot` (transitive `std`) |
 | `either-1` | no | Enables integrations for `either = "1"` crate types, including `either::Either` implementations. | `dep:either` (version = 1) |
-| `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4`, `log_0_4::LogBridge`, and `tracing_0_1::ViaLog`. | `dep:log` (version = 0.4), `log/kv` |
-| `slog-2` | no | Enables integrations for `slog = "2"` crate types, including `slog_2::SlogBridge` and `slog_2::ViaSlog`. | `dep:slog` (version = 2), `slog-2/dynamic-keys` |
+| `log-0-4` | no | Enables integrations for `log = "0.4"` crate types, including `conv::log_0_4`, [`LogBridge`], and [`ViaLog`]. | `dep:log` (version = 0.4), `log/kv` |
+| `slog-2` | no | Enables integrations for `slog = "2"` crate types, including [`SlogBridge`] and [`ViaSlog`]. | `dep:slog` (version = 2), `slog-2/dynamic-keys` |
 | `slog-2-semver-unstable` | no | Enables `slog = "2"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions. | `slog-2` |
 | `tracing-core-0-1` | no | Enables integrations for `tracing_core = "0.1"` crate types, including `conv::tracing_core_0_1`. | `dep:tracing-core` (version = 0.1) |
-| `tracing-0-1` | no | Enables integrations for `tracing = "0.1"` crate types, including `tracing_0_1::TracingBridge`. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
-| `tracing-0-1-semver-unstable` | no | Enables `tracing = "0.1"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions, including `tracing_0_1::ViaTracing`. | `tracing-0-1`, `dep:smallvec` |
+| `tracing-0-1` | no | Enables integrations for `tracing = "0.1"` crate types, including [`TracingBridge`]. | `std`, `tracing-core-0-1`, `dep:tracing` (version = 0.1), `tracing/std`, `dep:dashmap` |
+| `tracing-0-1-semver-unstable` | no | Enables `tracing = "0.1"` integrations that depend on `#[doc(hidden)]` items of dependency crates, items that those crates only intend for their own macro expansions, including [`ViaTracing`]. | `tracing-0-1`, `dep:smallvec` |
 
 ### `*-semver-unstable` feature flags
 
@@ -465,8 +417,8 @@ This is because the gated integrations rely on `#[doc(hidden)]` items of
 their dependency, which are not covered by that dependency's semver
 guarantees and may be renamed, changed, or removed at any time.
 
-If this happens, pin the affected dependency, currently `tracing` and
-`tracing-core`, to an exact version known to work with your `polog` version.
+If this happens, pin the affected dependency, to an exact version known to
+work with your `polog` version.
 
 `tracing-0-1-semver-unstable` feature gates the key-values construction in
 `polog-util::tracing_0_1::ViaTracing`.
@@ -492,25 +444,27 @@ The implementations provided are best-effort by design.
 
 ### How do `log` / `slog` / `tracing` events reach a `polog` backend?
 
-Forward direction — `polog` events to a foreign facade — is handled by
-the delegators in this crate (`ViaLog`, `ViaSlog`, `ViaTracing`).
+Forward direction — [`polog`] events to a foreign facade — is handled by
+the delegators in this crate ([`ViaLog`], [`ViaSlog`], [`ViaTracing`]).
 
-Reverse direction — foreign events to a `polog` backend — is handled by
-the bridges in this crate (`LogBridge`, `SlogBridge`, `TracingBridge`).
+Reverse direction — foreign events to a [`polog`] backend — is handled by
+the bridges in this crate ([`LogBridge`], [`SlogBridge`],
+[`TracingBridge`]).
 
-Filters implement both `FilterFn` and `ExternalFilterFn`, so a single parsed
-rule set can filter both paths.
+Filters implement both [`FilterFn`] and [`ExternalFilterFn`], so a single
+parsed rule set can filter both paths.
 
-### Why are there separate `ExternalDescriptor` and `ExternalArgs` types?
+### Why are there separate [`ExternalDescriptor`] and [`ExternalArgs`] types?
 
-Foreign facades do not carry `'static` `polog::Descriptor` values, and they
-differ in which metadata they provide.
-`ExternalDescriptor` is a borrowed, optional-field view over that metadata,
-and `ExternalArgs` walks the foreign argument list once through a visitor.
+Foreign facades do not carry `'static` [`polog::Descriptor`] values, and
+they differ in which metadata they provide.
+[`ExternalDescriptor`] is a borrowed, optional-field view over that
+metadata, and [`ExternalArgs`] walks the foreign argument list once through
+a visitor.
 This avoids leaking foreign metadata to obtain `'static` values and avoids
 building a parallel native `Descriptor` layer.
-`TypeErasedExternalDescriptor` and `TypeErasedExternalArgs` provide owned
-forms for storage and off-thread handling.
+[`TypeErasedExternalDescriptor`] and [`TypeErasedExternalArgs`] provide
+owned forms for storage and off-thread handling.
 
 
 ## Documentation
@@ -535,6 +489,7 @@ submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any
 additional terms or conditions.
 
+
 [API Documentation]: https://docs.rs/polog-util/latest/polog_util/
 [`polog`]: https://docs.rs/polog/latest/polog/
 [`pologger`]: https://docs.rs/pologger/latest/pologger/
@@ -542,6 +497,8 @@ additional terms or conditions.
 [`slog`]: https://docs.rs/slog/latest/slog/
 [`tracing`]: https://docs.rs/tracing/latest/tracing/
 [`Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
+[`SharedHandler`]: https://docs.rs/polog/latest/polog/trait.SharedHandler.html
+[`polog::Descriptor`]: https://docs.rs/polog/latest/polog/struct.Descriptor.html
 [`polog::Handler`]: https://docs.rs/polog/latest/polog/trait.Handler.html
 [`polog::SharedHandler`]: https://docs.rs/polog/latest/polog/trait.SharedHandler.html
 [`BorrowingHandler`]: https://docs.rs/polog/latest/polog/trait.BorrowingHandler.html
@@ -574,4 +531,52 @@ additional terms or conditions.
 [`TypeErasedExternalDescriptor`]: https://docs.rs/polog-util/latest/polog_util/struct.TypeErasedExternalDescriptor.html
 [`TypeErasedExternalArgs`]: https://docs.rs/polog-util/latest/polog_util/struct.TypeErasedExternalArgs.html
 [`MixedArgsExt`]: https://docs.rs/polog-util/latest/polog_util/trait.MixedArgsExt.html
+[`FilterRules`]: https://docs.rs/polog-util/latest/polog_util/struct.FilterRules.html
+[`FilterRules::parse`]: https://docs.rs/polog-util/latest/polog_util/struct.FilterRules.html#method.parse
+[`MaxLevel`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.MaxLevel.html
+[`ConstMaxLevel<M>`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.ConstMaxLevel.html
+[`Target`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Target.html
+[`TargetPrefix`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.TargetPrefix.html
+[`All`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.All.html
+[`Any`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Any.html
+[`Always`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Always.html
+[`Never`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Never.html
+[`Not`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Not.html
+[`Not<F>`]: https://docs.rs/polog-util/latest/polog_util/filters/struct.Not.html
+[`Fanout1`]: https://docs.rs/polog-util/latest/polog_util/type.Fanout1.html
+[`Fanout4`]: https://docs.rs/polog-util/latest/polog_util/type.Fanout4.html
+[`BorrowingFanout1`]: https://docs.rs/polog-util/latest/polog_util/type.BorrowingFanout1.html
+[`BorrowingFanout4`]: https://docs.rs/polog-util/latest/polog_util/type.BorrowingFanout4.html
+[`EnricherFn`]: https://docs.rs/polog-util/latest/polog_util/trait.EnricherFn.html
+[`SystemTimeEnricher<H>`]: https://docs.rs/polog-util/latest/polog_util/type.SystemTimeEnricher.html
+[`MonotonicEnricher<H>`]: https://docs.rs/polog-util/latest/polog_util/type.MonotonicEnricher.html
+[`SystemTimeEnricherFn`]: https://docs.rs/polog-util/latest/polog_util/struct.SystemTimeEnricherFn.html
+[`OffloaderHandle<Context, CustomEvent>`]: https://docs.rs/polog-util/latest/polog_util/struct.OffloaderHandle.html
+[`OffloaderService<H, Context, CustomEvent, CustomHandler>`]: https://docs.rs/polog-util/latest/polog_util/struct.OffloaderService.html
+[`new_offloader(...)`]: https://docs.rs/polog-util/latest/polog_util/fn.new_offloader.html
+[`OffloaderCapacity`]: https://docs.rs/polog-util/latest/polog_util/enum.OffloaderCapacity.html
+[`OffloaderBackpressurePolicy`]: https://docs.rs/polog-util/latest/polog_util/enum.OffloaderBackpressurePolicy.html
+[`OffloaderBackpressurePolicy::Block`]: https://docs.rs/polog-util/latest/polog_util/enum.OffloaderBackpressurePolicy.html#variant.Block
+[`DropNewest`]: https://docs.rs/polog-util/latest/polog_util/enum.OffloaderBackpressurePolicy.html#variant.DropNewest
+[`DropOldest`]: https://docs.rs/polog-util/latest/polog_util/enum.OffloaderBackpressurePolicy.html#variant.DropOldest
+[`OffloaderService::spawn`]: https://docs.rs/polog-util/latest/polog_util/struct.OffloaderService.html#method.spawn
+[`OffloaderService::run_blocking`]: https://docs.rs/polog-util/latest/polog_util/struct.OffloaderService.html#method.run_blocking
+[`ExternalDescriptor<'_>`]: https://docs.rs/polog-util/latest/polog_util/trait.ExternalDescriptor.html
+[`ExternalDescriptor`]: https://docs.rs/polog-util/latest/polog_util/trait.ExternalDescriptor.html
+[`ExternalHandler<Context>`]: https://docs.rs/polog-util/latest/polog_util/trait.ExternalHandler.html
+[`ExternalArgs`]: https://docs.rs/polog-util/latest/polog_util/trait.ExternalArgs.html
+[`ExternalArgsVisitor`]: https://docs.rs/polog-util/latest/polog_util/trait.ExternalArgsVisitor.html
+[`ExternalArgValue<'_>`]: https://docs.rs/polog-util/latest/polog_util/enum.ExternalArgValue.html
+[`ViaLog<L>`]: https://docs.rs/polog-util/latest/polog_util/delegators/log_0_4/struct.ViaLog.html
+[`ViaSlog<D>`]: https://docs.rs/polog-util/latest/polog_util/delegators/slog_2/struct.ViaSlog.html
+[`TypeErasedArgs<T>`]: https://docs.rs/polog-util/latest/polog_util/struct.TypeErasedArgs.html
+[`AnyDynMixedArgs`]: https://docs.rs/polog-util/latest/polog_util/trait.AnyDynMixedArgs.html
+[`AnyDisplayableMixedArgs`]: https://docs.rs/polog-util/latest/polog_util/trait.AnyDisplayableMixedArgs.html
+[`AnyDebuggableMixedArgs`]: https://docs.rs/polog-util/latest/polog_util/trait.AnyDebuggableMixedArgs.html
+[`Pologger`]: https://docs.rs/pologger/latest/pologger/struct.Pologger.html
+[`log::Log`]: https://docs.rs/log/latest/log/trait.Log.html
+[`slog::Drain`]: https://docs.rs/slog/latest/slog/trait.Drain.html
+[`slog::Logger`]: https://docs.rs/slog/latest/slog/struct.Logger.html
+[`tracing::Dispatch`]: https://docs.rs/tracing/latest/tracing/struct.Dispatch.html
+[`tracing::Subscriber`]: https://docs.rs/tracing/latest/tracing/trait.Subscriber.html
 [`Either<H1, H2>`]: https://docs.rs/either/latest/either/enum.Either.html
