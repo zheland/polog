@@ -81,8 +81,8 @@ Depend on the backend and enable only the facade bridges you use:
 
 ```toml
 [dependencies]
-polog = "0.1.0-alpha.1"
-pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
+polog = "0.1.0"
+pologger = { version = "0.1.0", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
 ```
 
 The builder consumes that filter string and returns the live logger plus a
@@ -127,7 +127,7 @@ They never construct one and never depend on a backend.
 
 ```toml
 [dependencies]
-polog = "0.1.0-alpha.1"
+polog = "0.1.0"
 ```
 
 Functions stay generic over [`polog::Logger`]:

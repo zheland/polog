@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-19
+
 Initial public release. The workspace is published as three crates:
 - `polog` — the logging and span facade.
 - `polog-util` — optional middleware, delegators, and utilities.
@@ -46,4 +48,5 @@ Initial public release. The workspace is published as three crates:
 - `pologger`: `LoggerConfig` bitflags covering event kinds, descriptor, site,
   context, and derived fields, plus behavior switches.
 
-[Unreleased]: https://github.com/zheland/pologger/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/zheland/pologger/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/zheland/unwind-context/compare/v0.0.0...v0.1.0

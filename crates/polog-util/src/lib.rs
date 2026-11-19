@@ -45,24 +45,24 @@
 //!
 //! ```toml
 //! [dependencies]
-//! polog = "0.1.0-alpha.1"
-//! polog-util = "0.1.0-alpha.1"
+//! polog = "0.1.0"
+//! polog-util = "0.1.0"
 //! ```
 //!
 //! In executables you also need a backend:
 //!
 //! ```toml
 //! [dependencies]
-//! polog = "0.1.0-alpha.1"
-//! polog-util = "0.1.0-alpha.1"
-//! pologger = "0.1.0-alpha.1"
+//! polog = "0.1.0"
+//! polog-util = "0.1.0"
+//! pologger = "0.1.0"
 //! ```
 //!
 //! Enable features for external integrations:
 //!
 //! ```toml
 //! [dependencies]
-//! polog-util = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
+//! polog-util = { version = "0.1.0", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
 //! ```
 //!
 //!
