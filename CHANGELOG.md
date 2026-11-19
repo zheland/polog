@@ -48,5 +48,5 @@ Initial public release. The workspace is published as three crates:
 - `pologger`: `LoggerConfig` bitflags covering event kinds, descriptor, site,
   context, and derived fields, plus behavior switches.
 
-[Unreleased]: https://github.com/zheland/pologger/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/zheland/unwind-context/compare/v0.0.0...v0.1.0
+[Unreleased]: https://github.com/zheland/polog/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/zheland/polog/compare/v0.0.0...v0.1.0
