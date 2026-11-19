@@ -118,8 +118,8 @@
 /// All send modifier are no-op if the synchronous same-thread logger is used.
 /// Valid send modifiers are:
 /// - ` ` (absent): The value will be passed to the logger in a zero‑cost way
-///   where possible using the **optimistic* trait bounds assumptions. The value
-///   requires to implement [`IntoSendable`] trait.
+///   where possible using the **optimistic** trait bounds assumptions. The
+///   value requires to implement [`IntoSendable`] trait.
 /// - `:a`: The value is declared as already sendable. Wraps the value into
 ///   [`AlreadySendable`] and requires the value to implement `'static + Send`.
 ///   Use this if the value is `'static + Send` but the log facade failed to
