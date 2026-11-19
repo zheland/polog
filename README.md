@@ -30,9 +30,9 @@ event and defers formatting until they are consumed.
 
 | Crate | API Docs | README | Role |
 |:--:|:--:|:--:|:--|
-| [`polog`] | [API Docs][`polog`] | [README][polog-readme] | Facade traits and macros. |
-| [`polog-util`] | [API Docs][`polog-util`] | [README][polog-util-readme] | Optional utilities, middleware and foreign-facade adapters. |
-| [`pologger`] | [API Docs][`pologger`] | [README][pologger-readme] | Reference logger backend implementation. |
+| [`polog`][polog-crate] | [API Docs][`polog`] | [README][polog-readme] | Facade traits and macros. |
+| [`polog-util`][polog-util-crate] | [API Docs][`polog-util`] | [README][polog-util-readme] | Optional utilities, middleware and foreign-facade adapters. |
+| [`pologger`][pologger-crate] | [API Docs][`pologger`] | [README][pologger-readme] | Reference logger backend implementation. |
 
 
 ## When to use `polog` and when not to
@@ -73,22 +73,24 @@ Avoid `polog` if:
 
 ## Executable usage
 
-In an executable, [`pologger::OffThreadLoggerBuilder`] builds a complete
-off-thread logging chain from a single filter string: a `RUST_LOG`-style
+In an executable, [pologger::OffThreadLoggerBuilder] builds a complete
+off-thread logging chain from a single filter string: a RUST_LOG-style
 filter, an offloader worker, a system-time enricher, and a text or NDJSON
 formatter.
+Depend on the backend and enable only the facade bridges you use:
 
 ```toml
 [dependencies]
 polog = "0.1.0-alpha.1"
-pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "tracing-0-1" ] }
+pologger = { version = "0.1.0-alpha.1", features = [ "log-0-4", "slog-2", "tracing-0-1" ] }
 ```
+
+The builder consumes that filter string and returns the live logger plus a
+config handle:
 
 ```rust
 let (mut logger, config) =
     pologger::OffThreadLoggerBuilder::stderr_text("debug,foo=info,bar=trace")
-        .register_as_global_log_logger(true)
-        .register_as_global_tracing_subscriber(true)
         .build()
         .unwrap();
 
@@ -96,6 +98,19 @@ polog::info!(&mut logger, "Message 1"); // Printed
 polog::trace!(&mut logger, "Message 2"); // Filtered out
 polog::trace!(&mut logger, target: "foo", "Message 3"); // Filtered out
 polog::trace!(&mut logger, target: "bar", "Message 4"); // Printed
+```
+
+The same logger can also be registered as a global logger for `log`, `slog`,
+or `tracing`:
+
+```rust
+logger.register_as_global_log_logger().unwrap();
+logger.register_as_global_tracing_subscriber().unwrap();
+let slog_logger = logger.to_slog_logger();
+
+log::info!("Hello from log");
+tracing::event!(tracing::Level::INFO, "Hello from tracing");
+slog::info!(slog_logger, "Hello from slog"; "key" => "value");
 ```
 
 The builder returns a logger that implements [`polog::Logger`]. Every `polog`
@@ -114,6 +129,8 @@ They never construct one and never depend on a backend.
 [dependencies]
 polog = "0.1.0-alpha.1"
 ```
+
+Functions stay generic over [`polog::Logger`]:
 
 ```rust
 fn do_smth<L>(logger: &mut L)
@@ -180,7 +197,7 @@ four facades in no-logging, format-to-buffer, and send-only modes.
   when you compose the middleware chain by hand.
 - **An application that already uses `log` / `slog` / `tracing`.**
   `pologger` plus `polog-util` for the bridge adapters. You do not need
-  `polog` in every file; the bridges translate at the boundary.
+  `polog` in every file, the bridges translate at the boundary.
 
 See the FAQ in each crate README for the questions that apply to that
 crate specifically:
@@ -235,6 +252,9 @@ additional terms or conditions.
 [`log`]: https://docs.rs/log/latest/log/
 [`tracing`]: https://docs.rs/tracing/latest/tracing/
 [`slog`]: https://docs.rs/slog/latest/slog/
+[polog-crate]: https://crates.io/crates/polog
+[polog-util-crate]: https://crates.io/crates/polog-util
+[pologger-crate]: https://crates.io/crates/pologger
 [polog-readme]: crates/polog/README.md
 [polog-util-readme]: crates/polog-util/README.md
 [pologger-readme]: crates/pologger/README.md
